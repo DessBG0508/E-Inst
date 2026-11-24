@@ -1,9 +1,96 @@
 import { psychoResources } from "@/lib/resources-data";
-import type { PsychoResource, VideoOrientation } from "@/lib/types";
+import type {
+  CanonicalResourceCategory,
+  PsychoResource,
+  ResourceCategory,
+  VideoOrientation,
+} from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEY = "equilibra_recursos_catalogo_v1";
 const DELETED_SEEDS_KEY = "equilibra_recursos_deleted_seeds_v1";
+
+export const CANONICAL_RESOURCE_CATEGORIES: CanonicalResourceCategory[] = [
+  "Ansiedad",
+  "Depresión",
+  "Sueño",
+  "Relaciones",
+  "Estrés académico",
+];
+
+export function normalizeResourceCategory(category?: string): CanonicalResourceCategory {
+  switch (category) {
+    case "Ansiedad":
+    case "Respiración":
+      return "Ansiedad";
+    case "Depresión":
+    case "Ánimo":
+      return "Depresión";
+    case "Sueño":
+      return "Sueño";
+    case "Relaciones":
+      return "Relaciones";
+    case "Estrés académico":
+    case "Estrés":
+      return "Estrés académico";
+    default:
+      return "Ansiedad";
+  }
+}
+
+export interface CategoryVisualStyle {
+  label: CanonicalResourceCategory;
+  hex: string;
+  pillClass: string;
+  softBgClass: string;
+  accentTextClass: string;
+}
+
+export function getCategoryVisuals(category: ResourceCategory): CategoryVisualStyle {
+  const normalized = normalizeResourceCategory(category);
+  switch (normalized) {
+    case "Ansiedad":
+      return {
+        label: "Ansiedad",
+        hex: "#7B6FD8",
+        pillClass: "bg-[#7B6FD8] text-white border-[#7B6FD8]",
+        softBgClass: "bg-[#ECE8FA] text-[#5346B8] border-[#7B6FD8]/30",
+        accentTextClass: "text-[#7B6FD8]",
+      };
+    case "Depresión":
+      return {
+        label: "Depresión",
+        hex: "#8FC9B5",
+        pillClass: "bg-[#8FC9B5] text-[#1A1A1A] border-[#8FC9B5]",
+        softBgClass: "bg-[#E0F0E8] text-[#1F4D2C] border-[#8FC9B5]/60",
+        accentTextClass: "text-[#2E7D60]",
+      };
+    case "Sueño":
+      return {
+        label: "Sueño",
+        hex: "#F5C7A8",
+        pillClass: "bg-[#F5C7A8] text-[#1A1A1A] border-[#F5C7A8]",
+        softBgClass: "bg-[#FBE6D5] text-[#7A4419] border-[#F5C7A8]",
+        accentTextClass: "text-[#9A5826]",
+      };
+    case "Relaciones":
+      return {
+        label: "Relaciones",
+        hex: "#B8860B",
+        pillClass: "bg-[#B8860B] text-white border-[#B8860B]",
+        softBgClass: "bg-[#FDF6E2] text-[#8C6505] border-[#B8860B]/35",
+        accentTextClass: "text-[#B8860B]",
+      };
+    case "Estrés académico":
+      return {
+        label: "Estrés académico",
+        hex: "#1F4D2C",
+        pillClass: "bg-[#1F4D2C] text-white border-[#1F4D2C]",
+        softBgClass: "bg-[#E0F0E8] text-[#1F4D2C] border-[#1F4D2C]/30",
+        accentTextClass: "text-[#1F4D2C]",
+      };
+  }
+}
 
 /**
  * Determina si la URL corresponde a un video externo que debe reproducirse en iframe (YouTube o Vimeo)
@@ -153,7 +240,7 @@ const SEEDED_RESOURCES: PsychoResource[] = [
     title: "Guía de Respiración 4-7-8 para Bajar Pulsaciones",
     shortDescription:
       "Método paso a paso de lectura rápida para calmar el sistema nervioso antes de dormir o presentar un examen.",
-    category: "Respiración",
+    category: "Ansiedad",
     readTime: "3 min de lectura",
     iconName: "wind",
     tone: "mint",
@@ -184,7 +271,7 @@ const SEEDED_RESOURCES: PsychoResource[] = [
     title: "Relajación Muscular Progresiva de Jacobson",
     shortDescription:
       "Aprende a liberar la tensión física acumulada en hombros, cuello y mandíbula tras jornadas largas de estudio.",
-    category: "Estrés",
+    category: "Estrés académico",
     readTime: "6 min de práctica",
     iconName: "feather",
     tone: "teal",
@@ -254,7 +341,7 @@ const SEEDED_RESOURCES: PsychoResource[] = [
     title: "Activación Conductual: Pequeños Pasos en Días Difíciles",
     shortDescription:
       "Lectura práctica sobre cómo retomar actividades significativas poco a poco cuando falta energía o motivación.",
-    category: "Ánimo",
+    category: "Depresión",
     readTime: "5 min de lectura",
     iconName: "sun",
     tone: "rose",
@@ -270,6 +357,30 @@ const SEEDED_RESOURCES: PsychoResource[] = [
     keyTakeaway:
       "No esperes a tener toda la energía: elige una acción de 5 minutos que te cuide hoy y reconócete el esfuerzo.",
   },
+  {
+    id: "rec-comunicacion-asertiva-video",
+    title: "Comunicación Asertiva y Límites en el Campus",
+    shortDescription:
+      "Guía audiovisual para expresar desacuerdos con respeto en equipos académicos, amistades y relaciones cercanas.",
+    category: "Relaciones",
+    readTime: "4 min de práctica",
+    iconName: "heart",
+    tone: "teal",
+    format: "video",
+    videoUrl: "https://www.youtube.com/watch?v=0n2P5l5L0pM",
+    videoTitle: "Asertividad y Escucha Activa para Estudiantes",
+    videoOrientation: "horizontal",
+    author: "Área de Psicología TESH",
+    updatedAt: "Nov 2026",
+    active: true,
+    content: [
+      "Construir relaciones universitarias saludables requiere comunicar expectativas a tiempo, especialmente cuando trabajamos bajo presión en proyectos de equipo.",
+      "Hablar en primera persona describiendo hechos concretos y emociones propias reduce la defensividad y favorece acuerdos justos para todas las partes.",
+      "Practicar escuchar sin interrumpir y validar la perspectiva del otro fortalece redes de apoyo sólidas durante toda tu carrera.",
+    ],
+    keyTakeaway:
+      "Expresa lo que necesitas con claridad y respeto: cuidar tus límites también cuida tus vínculos.",
+  },
   ...[
     psychoResources[3],
     psychoResources[4],
@@ -278,6 +389,7 @@ const SEEDED_RESOURCES: PsychoResource[] = [
     psychoResources[9],
     psychoResources[10],
     psychoResources[11],
+    psychoResources[12],
   ].map((rec) => ({
     ...rec,
     format: "lectura" as const,
@@ -332,18 +444,25 @@ function normalizeAndMergeWithSeeds(items: PsychoResource[]): {
   const deletedSeeds = getDeletedSeedIds();
 
   const normalized = items.map((item) => {
-    // Reparar automáticamente URL rota de YouTube (404) de la semilla inicial si sigue en caché o BD
-    if (item.videoUrl && item.videoUrl.includes("1Dv-LDOGvuc")) {
+    let nextItem = item;
+    const canonicalCategory = normalizeResourceCategory(nextItem.category);
+    if (canonicalCategory !== nextItem.category) {
       changed = true;
-      return { ...item, videoUrl: "https://www.youtube.com/watch?v=T38xzsKv3GQ" };
+      nextItem = { ...nextItem, category: canonicalCategory };
+    }
+
+    // Reparar automáticamente URL rota de YouTube (404) de la semilla inicial si sigue en caché o BD
+    if (nextItem.videoUrl && nextItem.videoUrl.includes("1Dv-LDOGvuc")) {
+      changed = true;
+      nextItem = { ...nextItem, videoUrl: "https://www.youtube.com/watch?v=T38xzsKv3GQ" };
     }
     // Enriquecer recursos semilla que antes eran solo lectura si aún no tienen un video asignado
-    if (ENRICHED_VIDEO_SEED_IDS.has(item.id) && !item.videoUrl) {
-      const seedMatch = seedById.get(item.id);
+    if (ENRICHED_VIDEO_SEED_IDS.has(nextItem.id) && !nextItem.videoUrl) {
+      const seedMatch = seedById.get(nextItem.id);
       if (seedMatch?.videoUrl) {
         changed = true;
-        return {
-          ...item,
+        nextItem = {
+          ...nextItem,
           format: "video" as const,
           videoUrl: seedMatch.videoUrl,
           videoTitle: seedMatch.videoTitle,
@@ -353,7 +472,7 @@ function normalizeAndMergeWithSeeds(items: PsychoResource[]): {
         };
       }
     }
-    return item;
+    return nextItem;
   });
 
   // Incorporar nuevos recursos de ejemplo que no existan aún (ni hayan sido eliminados)

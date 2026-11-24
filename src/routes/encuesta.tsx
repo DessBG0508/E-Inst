@@ -25,11 +25,7 @@ function EncuestaRouteComponent() {
     if (urlTipo === "abandono") tipo = "abandono";
   }
 
-  return (
-    <main className="min-h-screen bg-background py-8">
-      <EncuestaSatisfaccion folio={folio} triggerTipo={tipo} user={user} userId={user?.id} />
-    </main>
-  );
+  return <EncuestaSatisfaccion folio={folio} triggerTipo={tipo} user={user} userId={user?.id} />;
 }
 
 export const Route = createFileRoute("/encuesta")({

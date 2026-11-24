@@ -5,17 +5,17 @@ import { BRAND } from "@/lib/branding";
 export const Route = createFileRoute("/recursos")({
   head: () => ({
     meta: [
-      { title: `Recursos de Autocuidado — ${BRAND.fullName}` },
+      { title: `Recursos de bienestar — ${BRAND.fullName}` },
       {
         name: "description",
         content:
-          "Biblioteca de recursos de autocuidado, técnicas de respiración, grounding y psicoeducación del TESH.",
+          "Biblioteca de recursos de bienestar, ejercicios interactivos y psicoeducación del TESH.",
       },
-      { property: "og:title", content: `Recursos de Autocuidado — ${BRAND.fullName}` },
+      { property: "og:title", content: `Recursos de bienestar — ${BRAND.fullName}` },
       {
         property: "og:description",
         content:
-          "Biblioteca de recursos de autocuidado, técnicas de respiración, grounding y psicoeducación del TESH.",
+          "Biblioteca de recursos de bienestar, ejercicios interactivos y psicoeducación del TESH.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

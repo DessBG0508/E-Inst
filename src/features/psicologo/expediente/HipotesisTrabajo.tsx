@@ -1,4 +1,5 @@
 import React from "react";
+import { BadgeOrigen } from "./BadgeOrigen";
 
 interface HipotesisTrabajoProps {
   hipotesis: string;
@@ -8,36 +9,38 @@ interface HipotesisTrabajoProps {
 export const HipotesisTrabajo: React.FC<HipotesisTrabajoProps> = ({ hipotesis, onChange }) => {
   return (
     <div className="space-y-4">
-      {/* Encabezado de Sección Canva Style */}
-      <div className="flex flex-col gap-1 rounded-2xl bg-[#1c2474] px-4 py-3 text-white shadow-md sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-[#1F4D2C] px-4 py-3 text-white sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#3942a0] text-sm font-black text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-bold text-white">
             08
           </span>
-          <h3 className="font-display text-lg font-bold tracking-tight text-white">
-            Hipótesis de trabajo.
+          <h3 className="text-base font-semibold tracking-tight text-white">
+            Hipótesis de trabajo
           </h3>
         </div>
-        <span className="text-xs font-normal text-indigo-200 sm:ml-2">
-          Provisional y por escrito: es lo que te permitirá corregirla más adelante
+        <span className="text-xs font-normal text-white/80 sm:ml-2">
+          Formulación provisional sujeta a revisión longitudinal
         </span>
       </div>
 
-      <div className="rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
+      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
         <div className="space-y-2">
-          <label
-            htmlFor="hipotesis-trabajo-input"
-            className="block text-xs font-bold text-foreground"
-          >
-            Formulación diagnóstica y conceptualización clínica inicial:
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label
+              htmlFor="hipotesis-trabajo-input"
+              className="block text-sm font-semibold text-[#1F4D2C]"
+            >
+              Conceptualización clínica inicial
+            </label>
+            <BadgeOrigen tipo="PSICÓLOGO" />
+          </div>
           <textarea
             id="hipotesis-trabajo-input"
-            rows={5}
+            rows={4}
             value={hipotesis}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Escribe aquí tu hipótesis clínica provisional (ej: cuadro depresivo reactivo a situación académica con componente ansioso)..."
-            className="w-full resize-y rounded-2xl border border-border bg-card p-4 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
+            placeholder="Formula la hipótesis clínica provisional (factores predisponentes, precipitantes y de mantenimiento)..."
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
           />
         </div>
       </div>

@@ -1,125 +1,153 @@
-import React, { useState } from "react";
-import { AgendaBadge } from "./AgendaBadge";
-import { Calendar, Clock, MapPin, User, ArrowLeft, Send } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Calendar, Clock, Info, Loader2, MapPin, UserCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { MOTIVO_MAX_LENGTH, formatFechaLegible, type PsicologoDisponible } from "./types";
 
 interface FormularioSolicitudProps {
   fechaCita: string;
   horaCita: string;
-  nombrePsicologo?: string;
-  onSubmit: (motivo: string) => void;
+  psicologoAsignado: PsicologoDisponible;
+  onSubmit: (motivo: string) => Promise<void> | void;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
 
-export const FormularioSolicitud: React.FC<FormularioSolicitudProps> = ({
+export function FormularioSolicitud({
   fechaCita,
   horaCita,
-  nombrePsicologo = "Dra. Marta Gómez",
+  psicologoAsignado,
   onSubmit,
   onCancel,
   isSubmitting = false,
-}) => {
+}: FormularioSolicitudProps) {
   const [motivo, setMotivo] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    onSubmit(motivo);
+    await onSubmit(motivo.slice(0, MOTIVO_MAX_LENGTH));
   };
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
-          {/* Resumen de cita seleccionada */}
-          <div className="mb-6 rounded-2xl bg-indigo-50/70 p-4 dark:bg-indigo-950/30">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Resumen de horario seleccionado:
+    <form onSubmit={handleSubmit} className="mx-auto max-w-2xl">
+      <section
+        aria-labelledby="solicitud-heading"
+        className="space-y-6 rounded-lg border border-[#E5DFD3] bg-white p-6 sm:p-8 dark:border-[#2D3F2A] dark:bg-[#1A2618]"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]">
+          <div>
+            <h2
+              id="solicitud-heading"
+              className="text-xl font-bold tracking-tight text-[#1A1A1A] dark:text-[#F5F1E8]"
+            >
+              Confirmar solicitud de cita
+            </h2>
+            <p className="mt-1 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+              Revisa los datos asignados antes de registrar tu espacio presencial.
             </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                <Calendar className="size-4 text-[#6857E4]" />
-                <span>Fecha: {fechaCita}</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                <Clock className="size-4 text-[#6857E4]" />
-                <span>Hora: {horaCita} hrs</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                <User className="size-4 text-[#6857E4]" />
-                <span>{nombrePsicologo}</span>
-              </div>
-            </div>
           </div>
 
-          <div className="space-y-5">
-            {/* Modalidad: Presencial (AUTO) */}
-            <div className="flex flex-col gap-1 rounded-2xl border border-border/80 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <MapPin className="size-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-xs font-bold text-foreground">
-                    Modalidad: Presencial única
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Consultorio de Bienestar Integral TESH (decisión clínica confirmada 09-oct-2026).
-                  No videollamada.
-                </p>
-              </div>
-              <AgendaBadge tipo="AUTO" />
-            </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1F4D2C]/25 bg-[#E0F0E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
+            <MapPin className="size-3.5" aria-hidden="true" />
+            Solo presencial
+          </span>
+        </div>
 
-            {/* Motivo (opcional) (ESTUDIANTE) */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="motivo-solicitud-input"
-                  className="text-xs font-bold text-foreground"
-                >
-                  Motivo (opcional):
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">
-                    {motivo.length}/200 caracteres
-                  </span>
-                  <AgendaBadge tipo="ESTUDIANTE" />
-                </div>
-              </div>
-              <textarea
-                id="motivo-solicitud-input"
-                rows={4}
-                maxLength={200}
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Escribe brevemente si hay algún tema o inquietud en particular que quieras abordar..."
-                className="w-full resize-none rounded-2xl border border-border bg-card p-4 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
-              />
-            </div>
+        {/* Resumen: Fecha + Hora + Psicólogo asignado automáticamente */}
+        <div className="grid grid-cols-1 gap-4 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 sm:grid-cols-3 dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
+          <div className="space-y-1">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+              <Calendar className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
+              Fecha
+            </span>
+            <p className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
+              {formatFechaLegible(fechaCita)}
+            </p>
           </div>
 
-          {/* Botones de acción */}
-          <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={isSubmitting}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-card px-5 py-3 text-xs font-semibold text-foreground shadow-xs hover:bg-muted"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span>Cancelar (volver al calendario)</span>
-            </button>
+          <div className="space-y-1">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+              <Clock className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
+              Hora
+            </span>
+            <p className="text-sm font-semibold text-[#1A1A1A] tabular-nums dark:text-[#F5F1E8]">
+              {horaCita} hrs
+            </p>
+          </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1c2474] px-6 py-3 text-xs font-bold text-white shadow-float transition-all hover:bg-[#28328c] disabled:opacity-50"
-            >
-              <Send className="size-3.5" />
-              <span>{isSubmitting ? "Enviando solicitud..." : "Solicitar cita"}</span>
-            </button>
+          <div className="space-y-1">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+              <UserCheck className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
+              Psicólogo asignado
+            </span>
+            <p className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
+              {psicologoAsignado.nombre}
+            </p>
+            <p className="text-[11px] text-[#6B6B6B] dark:text-[#A6B5A3]">
+              {psicologoAsignado.consultorio}
+            </p>
           </div>
         </div>
-      </form>
-    </div>
+
+        {/* Motivo opcional (máx. 280 caracteres) */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Label
+              htmlFor="motivo-cita-textarea"
+              className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]"
+            >
+              Motivo de consulta (opcional)
+            </Label>
+            <span className="text-xs font-medium text-[#6B6B6B] tabular-nums dark:text-[#A6B5A3]">
+              {motivo.length}/{MOTIVO_MAX_LENGTH}
+            </span>
+          </div>
+          <Textarea
+            id="motivo-cita-textarea"
+            rows={4}
+            maxLength={MOTIVO_MAX_LENGTH}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value.slice(0, MOTIVO_MAX_LENGTH))}
+            placeholder="Describe brevemente el motivo o tema que deseas tratar en tu sesión presencial..."
+            className="resize-none rounded-lg border-[#E5DFD3] bg-white text-sm text-[#1A1A1A] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
+          />
+        </div>
+
+        {/* Aviso institucional */}
+        <div className="flex items-start gap-2.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/70 p-3.5 text-xs font-medium text-[#1A1A1A] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
+          <Info className="mt-0.5 size-4 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]" />
+          <p>Recibirás confirmación por correo. Puedes cancelar hasta 2 horas antes.</p>
+        </div>
+
+        {/* Botones de acción */}
+        <div className="flex flex-col-reverse gap-3 border-t border-[#E5DFD3] pt-4 sm:flex-row sm:justify-end dark:border-[#2D3F2A]">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSubmitting}
+            onClick={onCancel}
+            className="h-11 rounded-lg px-5 text-sm font-semibold text-[#6B6B6B] hover:bg-[#F5F1E8] hover:text-[#1A1A1A] dark:text-[#A6B5A3] dark:hover:bg-[#0F1A12]"
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="h-11 rounded-lg bg-[#1F4D2C] px-6 text-sm font-semibold text-white hover:bg-[#4A7C59]"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Confirmando...
+              </>
+            ) : (
+              "Confirmar cita"
+            )}
+          </Button>
+        </div>
+      </section>
+    </form>
   );
-};
+}

@@ -36,7 +36,8 @@ export interface RespuestaEncuesta {
 
   // Reactivos sobre la Asistente Virtual de Tamizaje (Eli)
   q10a_facilidad_eli: number; // Experiencia y comodidad respondiendo el tamizaje
-  q10b_util_eli: number; // Utilidad de la orientación previa de Eli
+  q10b_util_eli: number; // Utilidad / recomendación (5 = Sí, 3 = Tal vez, 1 = No)
+  q10b_recomendacion?: "si" | "tal_vez" | "no";
 
   // Integridad y trazabilidad blockchain
   hash_auditoria: string;
@@ -93,6 +94,7 @@ export interface ItemPreguntaConfig {
     | "hash_auditoria"
     | "created_at"
     | "q9_comentarios"
+    | "q10b_recomendacion"
   >;
   numero: string;
   titulo: string;

@@ -263,9 +263,9 @@ export function CaseDetailSheet({
           <Button
             type="button"
             onClick={() => setOpenExpedienteOficial(true)}
-            className="w-full rounded-2xl bg-[#1c2474] text-white hover:bg-[#28328c] font-bold text-xs h-11 gap-2 shadow-xs transition-all"
+            className="w-full rounded-lg bg-[#1F4D2C] text-white hover:bg-[#4A7C59] font-semibold text-xs h-10 gap-2 transition-colors"
           >
-            <FileText className="size-4 text-indigo-200" />
+            <FileText className="size-4 text-white" />
             <span>Abrir Expediente Clínico Oficial (5 Páginas)</span>
           </Button>
         </div>
@@ -414,7 +414,7 @@ export function CaseDetailSheet({
 
       {/* Modal del Expediente Clínico Oficial de 5 Páginas */}
       <Dialog open={openExpedienteOficial} onOpenChange={setOpenExpedienteOficial}>
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto p-2 sm:p-4 sm:rounded-3xl border-[#d8d2ff] bg-card">
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-4 sm:p-6 rounded-lg border-[#E5DFD3] bg-[#F5F1E8]">
           <DialogHeader className="px-4 pt-2">
             <DialogTitle className="sr-only">
               Expediente Clínico Oficial de {item?.studentName || item?.initials}

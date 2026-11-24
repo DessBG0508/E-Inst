@@ -1,5 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 interface ThemeToggleProps {
   className?: string;
@@ -14,13 +15,12 @@ export function ThemeToggle({ className = "" }: ThemeToggleProps) {
       onClick={toggleTheme}
       aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      className={`relative inline-flex size-11 items-center justify-center rounded-full border border-border/60 bg-card/80 text-foreground shadow-soft backdrop-blur-sm transition-all hover:scale-105 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${className}`}
-    >
-      {isDark ? (
-        <Sun className="size-5 text-amber-300 transition-transform duration-300 rotate-0 scale-100" />
-      ) : (
-        <Moon className="size-5 text-primary transition-transform duration-300 -rotate-12 scale-100" />
+      className={cn(
+        "relative inline-flex size-10 cursor-pointer items-center justify-center rounded-lg border border-[#E5DFD3] bg-white text-[#1F4D2C] transition-colors hover:bg-[#F5F1E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] focus-visible:ring-offset-2 dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8] dark:hover:bg-[#223120]",
+        className,
       )}
+    >
+      {isDark ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}
     </button>
   );
 }

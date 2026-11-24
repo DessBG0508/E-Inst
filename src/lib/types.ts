@@ -101,7 +101,10 @@ export interface Appointment {
   serviceType?: "TERAPIA PSICOLÓGICA" | "ORIENTACIÓN" | "CONSEJERÍA" | string;
 }
 
-export type ResourceCategory = "Ansiedad" | "Estrés" | "Sueño" | "Ánimo" | "Respiración";
+export type CanonicalResourceCategory =
+  "Ansiedad" | "Depresión" | "Sueño" | "Relaciones" | "Estrés académico";
+
+export type ResourceCategory = CanonicalResourceCategory | "Estrés" | "Ánimo" | "Respiración";
 
 export type ResourceFormat = "video" | "lectura" | "ejercicio" | "audio" | "infografia";
 
@@ -121,6 +124,7 @@ export interface PsychoResource {
   videoUrl?: string;
   videoTitle?: string;
   videoOrientation?: VideoOrientation;
+  thumbnailUrl?: string;
   format?: ResourceFormat;
   author?: string;
   updatedAt?: string;

@@ -19,5 +19,5 @@ export const Route = createFileRoute("/psicologo")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: PsychologistDashboard,
+  component: () => <PsychologistDashboard initialSection="resumen" />,
 });

@@ -1,4 +1,5 @@
 import React from "react";
+import { BadgeOrigen } from "./BadgeOrigen";
 import type { AntecedentesData } from "./types";
 
 interface AntecedentesProps {
@@ -19,56 +20,56 @@ export const Antecedentes: React.FC<AntecedentesProps> = ({ antecedentes, onChan
 
   return (
     <div className="space-y-4">
-      {/* Encabezado de Sección Canva Style */}
-      <div className="flex flex-col gap-1 rounded-2xl bg-[#1c2474] px-4 py-3 text-white shadow-md sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-[#1F4D2C] px-4 py-3 text-white sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#3942a0] text-sm font-black text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-bold text-white">
             04
           </span>
-          <h3 className="font-display text-lg font-bold tracking-tight text-white">Antecedentes</h3>
+          <h3 className="text-base font-semibold tracking-tight text-white">Antecedentes</h3>
         </div>
-        <span className="text-xs font-normal text-indigo-200 sm:ml-2">
-          Marca lo que aplique y detalla lo relevante
+        <span className="text-xs font-normal text-white/80 sm:ml-2">
+          Marca lo que aplique y detalla lo clínicamente relevante
         </span>
       </div>
 
-      <div className="space-y-6 rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
-        {/* Grid de 6 checkboxes como en Canva */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {items.map(({ key, label }) => {
             const isChecked = Boolean(antecedentes[key]);
             return (
               <label
                 key={key}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-border/70 bg-card/60 p-3.5 transition-colors hover:border-[#6857E4]/50 hover:bg-card"
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#E5DFD3] bg-white p-3.5 transition-colors hover:border-[#1F4D2C]/50"
               >
                 <input
                   type="checkbox"
                   checked={isChecked}
                   onChange={(e) => onChange({ [key]: e.target.checked })}
-                  className="size-4.5 rounded-md border-border text-[#6857E4] focus:ring-[#6857E4]"
+                  className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
                 />
-                <span className="text-xs font-medium text-foreground select-none">{label}</span>
+                <span className="text-sm font-medium text-[#1A1A1A] select-none">{label}</span>
               </label>
             );
           })}
         </div>
 
-        {/* Textarea para Detalle de antecedentes */}
         <div className="space-y-2">
-          <label
-            htmlFor="detalle-antecedentes-input"
-            className="block text-xs font-bold text-foreground"
-          >
-            Detalle de antecedentes:
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label
+              htmlFor="detalle-antecedentes-input"
+              className="block text-sm font-semibold text-[#1F4D2C]"
+            >
+              Detalle de antecedentes
+            </label>
+            <BadgeOrigen tipo="PSICÓLOGO" />
+          </div>
           <textarea
             id="detalle-antecedentes-input"
             rows={4}
             value={antecedentes.detalle_antecedentes}
             onChange={(e) => onChange({ detalle_antecedentes: e.target.value })}
-            placeholder="Especifica medicamentos, fechas de tratamientos previos o detalles de relevancia clínica..."
-            className="w-full resize-y rounded-2xl border border-border bg-card p-4 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
+            placeholder="Especifica medicamentos, dosis, fechas de tratamientos previos o antecedentes médicos relevantes..."
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
           />
         </div>
       </div>

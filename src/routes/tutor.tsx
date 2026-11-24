@@ -14,7 +14,7 @@ export const Route = createFileRoute("/tutor")({
       {
         property: "og:description",
         content:
-          "Gestión tutorial de grupo, semáforo simplificado y canalizaciones al área de psicología.",
+          "Seguimiento académico por grupo, alertas de inasistencia y canalización psicológica sin exposición clínica (LFPDPPP).",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

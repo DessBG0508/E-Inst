@@ -10,25 +10,38 @@ const corsHeaders = {
 };
 
 export interface EnviarEncuestaPayload {
+  action?: "enviar" | "validar_folio";
   folio: string;
   user_id?: string;
-  trigger_tipo: "alta" | "abandono";
+  trigger_tipo?: "alta" | "abandono";
   destinatarioEmail?: string;
   destinatarioNombre?: string;
   enlaceEncuesta?: string;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /**
  * Plantilla HTML institucional para la Encuesta de Satisfacción PB-021
- * Colores oficiales: Índigo (#1C2474), Morado (#6857E4), Menta (#0BB5B5)
+ * Paleta institucional TESH: Verde Bosque (#1F4D2C), Crema (#F5F1E8), Dorado (#B8860B)
  */
 function generarEmailEncuestaHtml(params: EnviarEncuestaPayload): string {
-  const esAlta = params.trigger_tipo === "alta";
-  const nombre = params.destinatarioNombre || `Estudiante (${params.folio})`;
+  const triggerTipo = params.trigger_tipo || "alta";
+  const esAlta = triggerTipo === "alta";
+  const safeFolio = escapeHtml(params.folio);
+  const nombre = escapeHtml(params.destinatarioNombre || `Estudiante (${params.folio})`);
   const urlBase = "https://equilibra-tesh.edu.mx";
-  const enlace =
+  const rawEnlace =
     params.enlaceEncuesta ||
-    `${urlBase}/encuesta?folio=${encodeURIComponent(params.folio)}&tipo=${params.trigger_tipo}`;
+    `${urlBase}/encuesta?folio=${encodeURIComponent(params.folio)}&tipo=${triggerTipo}`;
+  const enlace = escapeHtml(rawEnlace);
 
   const tituloBanner = esAlta
     ? "Felicidades por concluir tu proceso de atención"
@@ -51,17 +64,17 @@ function generarEmailEncuestaHtml(params: EnviarEncuestaPayload): string {
   <meta charset="UTF-8">
   <title>Equilibra TESH - Encuesta de Satisfacción PB-021</title>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f6fd; margin: 0; padding: 24px; color: #1c2474;">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px rgba(104, 87, 228, 0.08); border: 1px solid #e5e1fc;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f1e8; margin: 0; padding: 24px; color: #1a1a1a;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5dfd3;">
     <tr>
-      <td style="background: linear-gradient(135deg, #1c2474 0%, #6857e4 100%); padding: 32px 28px; text-align: center;">
-        <span style="display: inline-block; background: rgba(255,255,255,0.2); color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 12px; border-radius: 9999px; margin-bottom: 12px;">
+      <td style="background: #1f4d2c; padding: 32px 28px; text-align: center;">
+        <span style="display: inline-block; background: rgba(255,255,255,0.16); color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 12px; border-radius: 6px; margin-bottom: 12px;">
           PB-021 · Calidad y Satisfacción
         </span>
-        <h1 style="color: #ffffff; font-size: 22px; margin: 0; font-weight: 800; line-height: 1.3;">
+        <h1 style="color: #ffffff; font-size: 22px; margin: 0; font-weight: 700; line-height: 1.3;">
           ${tituloBanner}
         </h1>
-        <p style="color: #d8d2ff; font-size: 13px; margin: 8px 0 0 0;">
+        <p style="color: #f5f1e8; font-size: 13px; margin: 8px 0 0 0;">
           Tecnológico de Estudios Superiores de Huixquilucan (TESH)
         </p>
       </td>
@@ -75,29 +88,29 @@ function generarEmailEncuestaHtml(params: EnviarEncuestaPayload): string {
           ${mensajePrincipal}
         </p>
         
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #fdfcff; border: 1px solid #d8d2ff; border-radius: 14px; padding: 14px; margin-bottom: 24px;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f5f1e8; border: 1px solid #e5dfd3; border-radius: 8px; padding: 14px; margin-bottom: 24px;">
           <tr>
-            <td style="font-size: 12px; color: #64748b; line-height: 1.5;">
-              <strong style="color: #1c2474;">Folio del caso:</strong> ${params.folio}<br/>
-              <strong style="color: #1c2474;">Motivo de envío:</strong> ${badgeTrigger}<br/>
-              <strong style="color: #6857e4;">Plazo de respuesta:</strong> ${plazoTexto}
+            <td style="font-size: 12px; color: #6b6b6b; line-height: 1.5;">
+              <strong style="color: #1f4d2c;">Folio del caso:</strong> ${safeFolio}<br/>
+              <strong style="color: #1f4d2c;">Motivo de envío:</strong> ${badgeTrigger}<br/>
+              <strong style="color: #1f4d2c;">Plazo de respuesta:</strong> ${plazoTexto}
             </td>
           </tr>
         </table>
 
         <div style="text-align: center; margin: 28px 0;">
-          <a href="${enlace}" style="display: inline-block; background: #6857e4; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 14px 28px; border-radius: 14px; box-shadow: 0 4px 14px rgba(104, 87, 228, 0.35);">
-            Completar Encuesta PB-021 (2 minutos) &rarr;
+          <a href="${enlace}" style="display: inline-block; background: #1f4d2c; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 14px 28px; border-radius: 8px;">
+            Completar Encuesta PB-021 &rarr;
           </a>
         </div>
 
-        <p style="font-size: 12px; line-height: 1.5; color: #64748b; margin: 24px 0 0 0; border-top: 1px solid #f1f0fb; padding-top: 16px;">
+        <p style="font-size: 12px; line-height: 1.5; color: #6b6b6b; margin: 24px 0 0 0; border-top: 1px solid #e5dfd3; padding-top: 16px;">
           <strong>Nota institucional (MIN-008):</strong> Esta encuesta está identificada con tu folio de tamizaje para permitir mejoras en el servicio del departamento de psicología. No se emitirán diagnósticos a partir de este formulario.
         </p>
       </td>
     </tr>
     <tr>
-      <td style="background: #faf9ff; padding: 20px; text-align: center; border-top: 1px solid #e5e1fc; font-size: 11px; color: #94a3b8;">
+      <td style="background: #f5f1e8; padding: 20px; text-align: center; border-top: 1px solid #e5dfd3; font-size: 11px; color: #6b6b6b;">
         Equilibra TESH · Área de Orientación y Apoyo Psicológico<br/>
         Enviado a través de Resend SMTP (PB-021)
       </td>
@@ -163,7 +176,110 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // 2. OBTENCIÓN DE RESEND_API_KEY (exclusiva de Supabase Secrets)
+  // 2. PARSEO Y VALIDACIÓN DEL BODY
+  let payload: EnviarEncuestaPayload;
+  try {
+    payload = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Cuerpo de solicitud JSON inválido." }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const cleanFolio = typeof payload.folio === "string" ? payload.folio.trim().toUpperCase() : "";
+  if (!cleanFolio || cleanFolio.length > 64 || !/^[A-Z0-9_-]+$/.test(cleanFolio)) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        valido: false,
+        error: "El formato del folio institucional es inválido (ejemplo: EQ-9374).",
+      }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  // 2B. ACCIÓN: VALIDAR PERTENENCIA DE FOLIO AL USER_ID ACTUAL (P0 #9)
+  if (payload.action === "validar_folio") {
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const staffRoles = new Set(["psicologo", "jefatura", "coordinador", "directivo"]);
+      if (profile?.role && staffRoles.has(String(profile.role))) {
+        return new Response(
+          JSON.stringify({ ok: true, checked: true, valido: true, folio: cleanFolio }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const { data: tamiz } = await supabase
+        .from("tamizajes")
+        .select("id")
+        .eq("folio", cleanFolio)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (tamiz) {
+        return new Response(
+          JSON.stringify({ ok: true, checked: true, valido: true, folio: cleanFolio }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const [{ data: citasByFolio }, { data: citasByTamiz }] = await Promise.all([
+        supabase
+          .from("solicitudes_cita")
+          .select("id, user_id, email")
+          .eq("folio", cleanFolio)
+          .limit(10),
+        supabase
+          .from("solicitudes_cita")
+          .select("id, user_id, email")
+          .eq("folio_tamizaje", cleanFolio)
+          .limit(10),
+      ]);
+
+      const citas = [...(citasByFolio || []), ...(citasByTamiz || [])];
+      const userEmail = user.email?.toLowerCase();
+      const ownsCita = citas.some(
+        (c) => c.user_id === user.id || (userEmail && c.email?.toLowerCase() === userEmail),
+      );
+
+      if (ownsCita) {
+        return new Response(
+          JSON.stringify({ ok: true, checked: true, valido: true, folio: cleanFolio }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          checked: true,
+          valido: false,
+          folio: cleanFolio,
+          motivo:
+            "El folio proporcionado no pertenece a tu cuenta institucional actual (acuerdo MIN-008 / P0 #9).",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    } catch (valErr) {
+      const msg = valErr instanceof Error ? valErr.message : "Error validando folio";
+      return new Response(JSON.stringify({ ok: false, checked: false, error: msg }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  // 3. OBTENCIÓN DE RESEND_API_KEY (exclusiva de Supabase Secrets)
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
   if (!resendApiKey || !resendApiKey.startsWith("re_")) {
@@ -178,24 +294,6 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  }
-
-  // 3. PARSEO Y VALIDACIÓN DEL BODY
-  let payload: EnviarEncuestaPayload;
-  try {
-    payload = await req.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "Cuerpo de solicitud JSON inválido." }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  if (!payload.folio) {
-    return new Response(JSON.stringify({ error: "El campo 'folio' es obligatorio." }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   }
 
   // 4. DETERMINAR DESTINATARIO
@@ -217,7 +315,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!destinoEmail) {
-    destinoEmail = `${payload.folio.toLowerCase().replace(/[^a-z0-9_-]/g, "")}@comunidad.tesh.edu.mx`;
+    destinoEmail = `${cleanFolio.toLowerCase().replace(/[^a-z0-9_-]/g, "")}@comunidad.tesh.edu.mx`;
   }
 
   // 5. ENVÍO DE EMAIL MEDIANTE RESEND API

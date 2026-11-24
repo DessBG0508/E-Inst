@@ -1,9 +1,9 @@
 import React from "react";
+import { Link } from "@tanstack/react-router";
+import { Calendar, Lock, Unlock } from "lucide-react";
 import { BadgeOrigen } from "./BadgeOrigen";
 import type { ObjetivosSesionData } from "./types";
 import type { PacienteParaPsicologo } from "../semaforo-pacientes";
-import { Link } from "@tanstack/react-router";
-import { Calendar, Unlock, Lock } from "lucide-react";
 
 interface ObjetivosSesionProps {
   paciente: PacienteParaPsicologo | null;
@@ -22,33 +22,31 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Encabezado de Sección Canva Style */}
-      <div className="flex items-center gap-3 rounded-2xl bg-[#1c2474] px-4 py-3 text-white shadow-md">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#3942a0] text-sm font-black text-white">
+      <div className="flex items-center gap-3 rounded-lg bg-[#1F4D2C] px-4 py-3 text-white">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-bold text-white">
           09
         </span>
-        <h3 className="font-display text-lg font-bold tracking-tight text-white">
+        <h3 className="text-base font-semibold tracking-tight text-white">
           Objetivos iniciales y próxima sesión
         </h3>
       </div>
 
-      <div className="space-y-6 rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
-        <div className="divide-y divide-border/60">
-          {/* Consentimiento informado */}
-          <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">
-              Consentimiento informado:
+      <div className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
+        <div className="divide-y divide-[#E5DFD3]">
+          <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm font-semibold text-[#1F4D2C] sm:w-1/3">
+              Consentimiento informado
             </span>
-            <div className="flex items-center gap-3 sm:w-1/2">
-              <label className="flex cursor-pointer items-center gap-2.5">
+            <div className="sm:w-1/2">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/60 px-3 py-2">
                 <input
                   type="checkbox"
                   checked={objetivos.consentimiento_firmado}
                   onChange={(e) => onChange({ consentimiento_firmado: e.target.checked })}
-                  className="size-4.5 rounded-md border-border text-[#6857E4] focus:ring-[#6857E4]"
+                  className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
                 />
-                <span className="text-xs font-medium text-foreground">
-                  Paciente firmó (psicólogo marca)
+                <span className="text-sm font-medium text-[#1A1A1A]">
+                  He obtenido consentimiento informado del paciente
                 </span>
               </label>
             </div>
@@ -57,16 +55,19 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
             </div>
           </div>
 
-          {/* Frecuencia acordada */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">
-              Frecuencia acordada:
-            </span>
+          <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <label
+              htmlFor="obj-frecuencia"
+              className="text-sm font-semibold text-[#1F4D2C] sm:w-1/3"
+            >
+              Frecuencia acordada
+            </label>
             <div className="sm:w-1/2">
               <select
+                id="obj-frecuencia"
                 value={objetivos.frecuencia_acordada || "Semanal"}
                 onChange={(e) => onChange({ frecuencia_acordada: e.target.value })}
-                className="w-full max-w-xs rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
+                className="w-full max-w-xs rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm font-medium text-[#1A1A1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
               >
                 <option value="Semanal">Semanal</option>
                 <option value="Quincenal">Quincenal</option>
@@ -79,23 +80,28 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
             </div>
           </div>
 
-          {/* Próxima cita con enlace a Agenda */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">Próxima cita:</span>
+          <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <label
+              htmlFor="obj-proxima-cita"
+              className="text-sm font-semibold text-[#1F4D2C] sm:w-1/3"
+            >
+              Próxima cita
+            </label>
             <div className="flex flex-wrap items-center gap-2 sm:w-1/2">
               <input
+                id="obj-proxima-cita"
                 type="text"
                 value={objetivos.proxima_cita}
                 onChange={(e) => onChange({ proxima_cita: e.target.value })}
                 placeholder="Ej. 10-nov-2026 10:00 AM"
-                className="w-full max-w-xs rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
+                className="w-full max-w-xs rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
               />
               <Link
                 to="/psicologo"
-                className="inline-flex items-center gap-1 rounded-xl border border-border/80 bg-card px-2.5 py-1.5 text-[11px] font-semibold text-[#6857E4] hover:bg-muted"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-xs font-semibold text-[#1F4D2C] hover:bg-[#E5DFD3]/60 print:hidden"
               >
                 <Calendar className="size-3.5" />
-                <span>PB-009 Agenda</span>
+                <span>Agenda</span>
               </Link>
             </div>
             <div className="sm:w-1/6 sm:text-right">
@@ -103,26 +109,21 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
             </div>
           </div>
 
-          {/* Estado de bloqueo */}
-          <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">
-              Estado de bloqueo:
-            </span>
-            <div className="flex items-center gap-3 sm:w-1/2">
+          <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm font-semibold text-[#1F4D2C] sm:w-1/3">Estado de bloqueo</span>
+            <div className="flex flex-wrap items-center gap-3 sm:w-1/2">
               <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
-                  isBloqueado
-                    ? "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
-                    : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold ${
+                  isBloqueado ? "bg-[#FEE2E2] text-[#C8102E]" : "bg-[#E0F0E8] text-[#1F4D2C]"
                 }`}
               >
                 {isBloqueado ? (
                   <>
-                    <Lock className="size-3" /> Bloqueado (auto por tamizaje rojo)
+                    <Lock className="size-3.5" /> Bloqueado por tamizaje rojo
                   </>
                 ) : (
                   <>
-                    <Unlock className="size-3" /> Liberado para nuevo tamizaje
+                    <Unlock className="size-3.5" /> Liberado para nuevo tamizaje
                   </>
                 )}
               </span>
@@ -131,9 +132,9 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
                 <button
                   type="button"
                   onClick={onLiberarPaciente}
-                  className="rounded-xl bg-[#0bb5b5] px-2.5 py-1 text-xs font-bold text-white shadow-xs hover:bg-[#0aa3a3] focus:outline-none focus:ring-2 focus:ring-[#0bb5b5]"
+                  className="h-9 rounded-lg bg-[#1F4D2C] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#4A7C59] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] print:hidden"
                 >
-                  Liberar paciente
+                  Atendido — Liberar
                 </button>
               )}
             </div>
@@ -143,21 +144,20 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
           </div>
         </div>
 
-        {/* Notas libres con badge PSICÓLOGO */}
-        <div className="space-y-2 pt-2">
-          <div className="flex items-center gap-2">
-            <BadgeOrigen tipo="PSICÓLOGO" />
-            <label htmlFor="notas-libres-input" className="text-xs font-bold text-foreground">
-              Notas libres:
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="notas-libres-input" className="text-sm font-semibold text-[#1F4D2C]">
+              Notas libres y plan terapéutico
             </label>
+            <BadgeOrigen tipo="PSICÓLOGO" />
           </div>
           <textarea
             id="notas-libres-input"
-            rows={5}
+            rows={4}
             value={objetivos.notas_libres}
             onChange={(e) => onChange({ notas_libres: e.target.value })}
-            placeholder="Notas adicionales, observaciones, plan de acción..."
-            className="w-full resize-y rounded-2xl border border-border bg-card p-4 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
+            placeholder="Objetivos iniciales, acuerdos terapéuticos, indicaciones entre sesiones..."
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
           />
         </div>
       </div>

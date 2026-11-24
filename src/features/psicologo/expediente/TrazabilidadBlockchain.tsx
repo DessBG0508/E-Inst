@@ -1,7 +1,7 @@
 import React from "react";
+import { ShieldCheck, ExternalLink } from "lucide-react";
 import { BadgeOrigen } from "./BadgeOrigen";
 import type { TrazabilidadData } from "./types";
-import { ShieldCheck, ExternalLink } from "lucide-react";
 
 interface TrazabilidadBlockchainProps {
   trazabilidad: TrazabilidadData;
@@ -22,82 +22,90 @@ export const TrazabilidadBlockchain: React.FC<TrazabilidadBlockchainProps> = ({
   const ancladoEn = trazabilidad.anclado_en || "0x7f3b...e8a4 (tx hash) — 30-oct-2026 14:23 UTC";
   const liberadoPor =
     trazabilidad.liberado_por ||
-    (nombrePsicologo
-      ? `Dr(a). ${nombrePsicologo}`
-      : "Dr. Psicología TESH (auto desde liberar_paciente RPC)");
+    (nombrePsicologo ? `Dr(a). ${nombrePsicologo}` : "Psicología Clínica TESH");
 
   return (
     <div className="space-y-4">
-      {/* Encabezado de Sección Canva Style */}
-      <div className="flex flex-col gap-1 rounded-2xl bg-[#1c2474] px-4 py-3 text-white shadow-md sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-[#1F4D2C] px-4 py-3 text-white sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#3942a0] text-sm font-black text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-bold text-white">
             10
           </span>
-          <h3 className="font-display text-lg font-bold tracking-tight text-white">
-            Trazabilidad blockchain
+          <h3 className="text-base font-semibold tracking-tight text-white">
+            Trazabilidad y auditoría
           </h3>
         </div>
-        <span className="text-xs font-normal text-indigo-200 sm:ml-2">
-          Auto-filled · hash de auditoría del expediente
+        <span className="text-xs font-normal text-white/80 sm:ml-2">
+          Registro automático de integridad del expediente (solo lectura)
         </span>
       </div>
 
-      <div className="rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
-        <div className="divide-y divide-border/60">
-          {/* Hash del expediente */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">
-              Hash del expediente:
-            </span>
-            <div className="break-all font-mono text-[11px] font-semibold text-[#1c2474] dark:text-indigo-300 sm:w-1/2">
-              {hashExpediente}
-            </div>
-            <div className="sm:w-1/6 sm:text-right">
-              <BadgeOrigen tipo="AUTOMÁTICO" />
-            </div>
+      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
+        <div className="mb-4 flex items-center justify-between border-b border-[#E5DFD3] pb-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B6B]">
+            Bitácora criptográfica institucional
+          </span>
+          <BadgeOrigen tipo="AUTOMÁTICO" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          <div className="space-y-1.5">
+            <label htmlFor="traz-hash" className="text-sm font-semibold text-[#1F4D2C]">
+              Hash del expediente
+            </label>
+            <input
+              id="traz-hash"
+              type="text"
+              readOnly
+              value={hashExpediente}
+              className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 font-mono text-xs text-[#6B6B6B] cursor-default focus:outline-none"
+            />
           </div>
 
-          {/* Hash previo */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">Hash previo:</span>
-            <div className="break-all font-mono text-[11px] font-medium text-muted-foreground sm:w-1/2">
-              {hashPrevio}
-            </div>
-            <div className="sm:w-1/6 sm:text-right">
-              <BadgeOrigen tipo="AUTOMÁTICO" />
-            </div>
+          <div className="space-y-1.5">
+            <label htmlFor="traz-hash-previo" className="text-sm font-semibold text-[#1F4D2C]">
+              Hash previo en cadena
+            </label>
+            <input
+              id="traz-hash-previo"
+              type="text"
+              readOnly
+              value={hashPrevio}
+              className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 font-mono text-xs text-[#6B6B6B] cursor-default focus:outline-none"
+            />
           </div>
 
-          {/* Anclado en Polygon Amoy */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">
-              Anclado en Polygon Amoy:
-            </span>
-            <div className="flex items-center gap-2 text-xs font-medium text-foreground sm:w-1/2">
-              <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>{ancladoEn}</span>
-              <a
-                href={txHashUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex text-[#6857E4] hover:underline"
-                aria-label="Ver transacción en explorador Polygon"
-              >
-                <ExternalLink className="size-3" />
-              </a>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="traz-anclado" className="text-sm font-semibold text-[#1F4D2C]">
+                Anclado en Polygon Amoy
+              </label>
+              <div className="flex items-center gap-2 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-xs font-medium text-[#6B6B6B]">
+                <ShieldCheck className="size-4 shrink-0 text-[#1F4D2C]" />
+                <span className="truncate">{ancladoEn}</span>
+                <a
+                  href={txHashUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-auto inline-flex text-[#1F4D2C] hover:underline print:hidden"
+                  aria-label="Ver transacción en explorador Polygon"
+                >
+                  <ExternalLink className="size-3.5" />
+                </a>
+              </div>
             </div>
-            <div className="sm:w-1/6 sm:text-right">
-              <BadgeOrigen tipo="AUTOMÁTICO" />
-            </div>
-          </div>
 
-          {/* Liberado por */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">Liberado por:</span>
-            <span className="text-xs font-semibold text-foreground sm:w-1/2">{liberadoPor}</span>
-            <div className="sm:w-1/6 sm:text-right">
-              <BadgeOrigen tipo="AUTOMÁTICO" />
+            <div className="space-y-1.5">
+              <label htmlFor="traz-liberado-por" className="text-sm font-semibold text-[#1F4D2C]">
+                Responsable clínico
+              </label>
+              <input
+                id="traz-liberado-por"
+                type="text"
+                readOnly
+                value={liberadoPor}
+                className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-sm font-medium text-[#6B6B6B] cursor-default focus:outline-none"
+              />
             </div>
           </div>
         </div>

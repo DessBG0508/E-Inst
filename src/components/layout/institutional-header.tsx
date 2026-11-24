@@ -142,6 +142,7 @@ export function InstitutionalBreadcrumbs({
 
 export interface InstitutionalHeaderProps {
   moduleTitle: string;
+  titleBadge?: ReactNode;
   breadcrumbs: InstitutionalBreadcrumbItem[];
   onHomeClick?: () => void;
   showCrisisButton?: boolean;
@@ -165,6 +166,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function InstitutionalHeader({
   moduleTitle,
+  titleBadge,
   breadcrumbs,
   onHomeClick,
   showCrisisButton = false,
@@ -234,6 +236,8 @@ export function InstitutionalHeader({
             <h1 className="truncate text-base font-semibold tracking-tight text-white">
               {moduleTitle}
             </h1>
+
+            {titleBadge && <div className="hidden shrink-0 sm:flex">{titleBadge}</div>}
           </div>
 
           {/* Derecha: Utilidades del módulo + Botón Crisis (solo módulos con paciente) + Avatar Dropdown */}

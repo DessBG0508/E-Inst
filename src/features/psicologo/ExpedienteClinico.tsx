@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { getPsychologistCases } from "@/lib/psychologist-store";
 import { toast } from "sonner";
 import {
   Printer,
   Save,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   FileText,
   RotateCcw,
-  Sparkles,
   Layers,
+  UserCheck,
+  MessageSquareText,
+  ClipboardList,
+  Brain,
+  ShieldAlert,
+  Lock,
 } from "lucide-react";
 
 import type { PacienteParaPsicologo } from "./semaforo-pacientes";
@@ -33,6 +38,59 @@ export interface ExpedienteClinicoProps {
   onClose?: () => void;
   onPacienteLiberado?: () => void;
   className?: string;
+}
+
+interface ExpedientePageMeta {
+  page: number;
+  title: string;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const EXPEDIENTE_PAGES: ExpedientePageMeta[] = [
+  {
+    page: 1,
+    title: "Identificación",
+    subtitle: "Datos desde Supabase (solo lectura)",
+    icon: UserCheck,
+  },
+  {
+    page: 2,
+    title: "Motivo de consulta",
+    subtitle: "Relato y tamizaje de ingreso",
+    icon: MessageSquareText,
+  },
+  {
+    page: 3,
+    title: "Historia + Antecedentes",
+    subtitle: "Evolución clínica y previos",
+    icon: ClipboardList,
+  },
+  {
+    page: 4,
+    title: "Contexto + Estado Mental",
+    subtitle: "Entorno y semiología",
+    icon: Brain,
+  },
+  {
+    page: 5,
+    title: "Valoración, Hipótesis y Cierre",
+    subtitle: "Riesgo, objetivos y trazabilidad",
+    icon: ShieldAlert,
+  },
+];
+
+function buildExpedienteFolio(screeningFolio: string): string {
+  const digits = screeningFolio.replace(/[^0-9]/g, "");
+  if (digits.length >= 4) {
+    return `EXP-2026-${digits.slice(-4)}`;
+  }
+  let hash = 0;
+  for (let i = 0; i < screeningFolio.length; i++) {
+    hash = (hash * 31 + screeningFolio.charCodeAt(i)) % 9000;
+  }
+  const suffix = String(1000 + Math.abs(hash)).slice(0, 4);
+  return `EXP-2026-${suffix}`;
 }
 
 const DEFAULT_CAMPOS: CamposClinicos = {
@@ -124,14 +182,27 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
 }) => {
   const { user } = useAuth();
 
-  // Estados de datos
+  const autoNumeroExpediente = useMemo(() => buildExpedienteFolio(folio), [folio]);
+  const fechaHoyTexto = useMemo(
+    () =>
+      new Date().toLocaleDateString("es-MX", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+    [],
+  );
+
   const [paciente, setPaciente] = useState<PacienteParaPsicologo | null>(null);
-  const [campos, setCampos] = useState<CamposClinicos>(DEFAULT_CAMPOS);
+  const [campos, setCampos] = useState<CamposClinicos>(() => ({
+    ...DEFAULT_CAMPOS,
+    numero_expediente: autoNumeroExpediente,
+    fecha_apertura: fechaHoyTexto,
+  }));
   const [transcriptVoz, setTranscriptVoz] = useState<string | null>(null);
   const [historialTamizajesTexto, setHistorialTamizajesTexto] = useState<string>("");
 
-  // Control de interfaz
-  const [paginaActiva, setPaginaActiva] = useState<number>(1); // 1 a 5
+  const [paginaActiva, setPaginaActiva] = useState<number>(1);
   const [vistaContinua, setVistaContinua] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -139,7 +210,6 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
 
   const storageKey = useMemo(() => `equilibra_expediente_${folio}`, [folio]);
 
-  // Patch genérico de campos
   const updateCampos = useCallback((patch: Partial<CamposClinicos>) => {
     setCampos((prev) => ({
       ...prev,
@@ -147,55 +217,91 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
     }));
   }, []);
 
-  // 1. Cargar datos automáticos desde:
-  // - para_psicologo (vista)
-  // - respuestas_tamizaje (tabla)
-  // - notas_voz (tabla)
-  // - bloques_auditoria (tabla)
-  // - expedientes_clinicos (guardado previo)
   const cargarDatos = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      // A. Cargar datos de la vista para_psicologo
-      const { data: pacienteData, error: pacError } = await supabase
-        .from("para_psicologo")
-        .select("*")
-        .eq("folio", folio)
-        .maybeSingle();
+      // A. Datos de la vista para_psicologo con fallback a mock local
+      let pacienteResuelto: PacienteParaPsicologo | null = null;
+      try {
+        const { data: pacienteData, error: pacError } = await supabase
+          .from("para_psicologo")
+          .select("*")
+          .eq("folio", folio)
+          .maybeSingle();
 
-      if (!pacError && pacienteData) {
-        const p = pacienteData as PacienteParaPsicologo;
-        setPaciente(p);
+        if (!pacError && pacienteData) {
+          pacienteResuelto = pacienteData as PacienteParaPsicologo;
+        }
+      } catch {
+        // Fallback a mock local
+      }
 
-        // Prellenar campos derivados
+      if (!pacienteResuelto) {
+        const localCase = getPsychologistCases().find((c) => {
+          const derivedEq = `EQ-${(c.matricula?.slice(-4) || c.id.slice(-4)).toUpperCase()}`;
+          return c.matricula === folio || c.id === folio || derivedEq === folio.toUpperCase();
+        });
+
+        if (localCase) {
+          pacienteResuelto = {
+            folio,
+            iniciales: localCase.initials,
+            nombre: localCase.studentName,
+            matricula: localCase.matricula,
+            edad: 21,
+            sexo: "Estudiante",
+            semestre: localCase.semester,
+            carrera: localCase.career,
+            grupo: "501",
+            ultimo_nivel: localCase.riskLevel,
+            gad7_total: localCase.gad7,
+            phq9_total: localCase.phq9,
+            item9: localCase.riskLevel === "rojo" ? 1 : 0,
+            bloqueado: localCase.bloqueado ?? localCase.riskLevel === "rojo",
+            tiene_alerta_activa: localCase.riskLevel === "rojo",
+            ultimo_tamizaje: localCase.lastCheckIn,
+            alertas_pendientes: localCase.riskLevel === "rojo" ? 1 : 0,
+            modo_acompanamiento: localCase.modo_acompanamiento,
+          };
+        }
+      }
+
+      if (pacienteResuelto) {
+        setPaciente(pacienteResuelto);
+        const semestreClean = pacienteResuelto.semestre
+          ? String(pacienteResuelto.semestre).includes("Semestre")
+            ? String(pacienteResuelto.semestre)
+            : `${pacienteResuelto.semestre}º Semestre`
+          : "6º Semestre";
+
         setCampos((prev) => ({
           ...prev,
-          iniciales: prev.iniciales || p.iniciales || "",
-          edad: prev.edad || p.edad || 21,
-          sexo: prev.sexo || p.sexo || "Mujer",
-          semestre: prev.semestre || (p.semestre ? `${p.semestre}º Semestre` : "6º Semestre"),
-          carrera: prev.carrera || p.carrera || "Ing. en Sistemas Computacionales",
-          grupo: prev.grupo || p.grupo || "501",
+          numero_expediente: prev.numero_expediente || autoNumeroExpediente,
+          fecha_apertura: prev.fecha_apertura || fechaHoyTexto,
+          iniciales: pacienteResuelto?.iniciales || prev.iniciales || "",
+          edad: pacienteResuelto?.edad ?? prev.edad ?? 21,
+          sexo: pacienteResuelto?.sexo || prev.sexo || "Estudiante",
+          semestre: semestreClean,
+          carrera: pacienteResuelto?.carrera || prev.carrera || "TESH Huixquilucan",
+          grupo: pacienteResuelto?.grupo || prev.grupo || "501",
           contexto_psicosocial: {
             ...prev.contexto_psicosocial,
-            carrera_semestre: `${p.carrera || "Ing. Sistemas"} · ${
-              p.semestre ? `${p.semestre}º Semestre` : "6º Semestre"
-            }`,
-            grupo: p.grupo || "501",
+            carrera_semestre: `${pacienteResuelto?.carrera || "TESH Huixquilucan"} · ${semestreClean}`,
+            grupo: pacienteResuelto?.grupo || "501",
           },
           valoracion_riesgo: {
             ...prev.valoracion_riesgo,
-            item9_valor: p.item9 ?? prev.valoracion_riesgo.item9_valor ?? 1,
+            item9_valor: pacienteResuelto?.item9 ?? prev.valoracion_riesgo.item9_valor ?? 0,
           },
           objetivos_sesion: {
             ...prev.objetivos_sesion,
-            estado_bloqueo: p.bloqueado ? "bloqueado" : "liberado",
+            estado_bloqueo: pacienteResuelto?.bloqueado ? "bloqueado" : "liberado",
           },
         }));
       }
 
-      // B. Cargar respuestas_tamizaje para armar historial automático
+      // B. Historial respuestas_tamizaje
       try {
         const { data: tamizajesData } = await supabase
           .from("respuestas_tamizaje")
@@ -212,11 +318,11 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                   month: "short",
                 })
               : "reciente";
-            const gadVal = t.gad7_total ?? t.gad_total ?? 14;
-            const phqVal = t.phq9_total ?? t.phq_total ?? 9;
-            const item9Val = t.item9 ?? 1;
-            const niv = String(t.nivel || t.ultimo_nivel || "rojo");
-            return `${fechaStr} (GAD-7: ${gadVal}, PHQ-9: ${phqVal}, item9=${item9Val}, ${niv})`;
+            const gadVal = t.gad7_total ?? t.gad_total ?? 0;
+            const phqVal = t.phq9_total ?? t.phq_total ?? 0;
+            const item9Val = t.item9 ?? 0;
+            const niv = String(t.nivel || t.ultimo_nivel || "amarillo");
+            return `${fechaStr} (GAD-7: ${gadVal}, PHQ-9: ${phqVal}, ítem 9=${item9Val}, ${niv})`;
           });
 
           setHistorialTamizajesTexto(
@@ -226,10 +332,10 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
           );
         }
       } catch {
-        // Fallback al resumen predeterminado
+        // Fallback automático en HistoriaProblema
       }
 
-      // C. Cargar notas_voz para referencia de transcripciones
+      // C. Transcripciones de notas_voz
       try {
         const { data: notasData } = await supabase
           .from("notas_voz")
@@ -242,10 +348,10 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
           setTranscriptVoz(notasData[0].transcripcion);
         }
       } catch {
-        // Ignore si la tabla aún no tiene audios
+        // Sin audios disponibles
       }
 
-      // D. Cargar bloques_auditoria para trazabilidad blockchain
+      // D. Trazabilidad desde bloques_auditoria
       try {
         const { data: bloquesData } = await supabase
           .from("bloques_auditoria")
@@ -273,10 +379,10 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
           }));
         }
       } catch {
-        // Mantiene valores mock de alta fidelidad
+        // Mantiene valores por defecto
       }
 
-      // E. Cargar registro previo de expedientes_clinicos
+      // E. Expediente guardado previamente en Supabase o localStorage
       let recordLoaded = false;
       try {
         const { data: expData, error: expError } = await supabase
@@ -290,6 +396,9 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
           setCampos((prev) => ({
             ...prev,
             ...loaded,
+            numero_expediente:
+              loaded.numero_expediente || prev.numero_expediente || autoNumeroExpediente,
+            fecha_apertura: loaded.fecha_apertura || prev.fecha_apertura || fechaHoyTexto,
           }));
           if (expData.updated_at) {
             setUltimaGuardado(new Date(expData.updated_at));
@@ -300,37 +409,40 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
         // Fallback a localStorage
       }
 
-      // Si no se cargó de Supabase, intentar de localStorage
       if (!recordLoaded) {
         try {
           const cached = localStorage.getItem(storageKey);
           if (cached) {
-            const parsed = JSON.parse(cached);
+            const parsed = JSON.parse(cached) as Partial<CamposClinicos>;
             setCampos((prev) => ({
               ...prev,
               ...parsed,
+              numero_expediente:
+                parsed.numero_expediente || prev.numero_expediente || autoNumeroExpediente,
+              fecha_apertura: parsed.fecha_apertura || prev.fecha_apertura || fechaHoyTexto,
             }));
             setUltimaGuardado(new Date());
           }
         } catch {
-          // Ignore
+          // Ignorar error de lectura local
         }
       }
     } finally {
       setIsLoading(false);
     }
-  }, [folio, storageKey]);
+  }, [folio, storageKey, autoNumeroExpediente, fechaHoyTexto]);
 
   useEffect(() => {
     cargarDatos();
   }, [cargarDatos]);
 
-  // Guardar en Supabase y localStorage
+  const numeroExpedienteHeader = campos.numero_expediente || autoNumeroExpediente;
+  const consentimientoFirmado = Boolean(campos.objetivos_sesion.consentimiento_firmado);
+
   const handleGuardar = async () => {
-    // 1. VALIDACIÓN DE CONSENTIMIENTO (CRÍTICO)
-    if (!campos.objetivos_sesion.consentimiento_firmado) {
+    if (!consentimientoFirmado) {
       toast.error(
-        "Para guardar el expediente se requiere confirmar el Consentimiento Informado (Página 5).",
+        'Para guardar el expediente debes marcar "He obtenido consentimiento informado del paciente".',
       );
       return;
     }
@@ -338,34 +450,19 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
     try {
       setIsSaving(true);
 
-      // 2. GENERACIÓN DE FOLIO DE EXPEDIENTE (EXP-2026-XXXX) si se guarda por primera vez
-      const camposParaGuardar = { ...campos };
-      if (!camposParaGuardar.numero_expediente) {
-        const cleanFolio = folio.replace(/[^0-9]/g, "");
-        const numPart =
-          cleanFolio.length >= 4
-            ? cleanFolio.slice(-4)
-            : Math.floor(1000 + Math.random() * 9000).toString();
-        const nuevoIdExpediente = `EXP-2026-${numPart}`;
-        camposParaGuardar.numero_expediente = nuevoIdExpediente;
-        if (!camposParaGuardar.fecha_apertura) {
-          camposParaGuardar.fecha_apertura = new Date().toLocaleDateString("es-MX", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          });
-        }
-        setCampos(camposParaGuardar);
-      }
+      const camposParaGuardar: CamposClinicos = {
+        ...campos,
+        numero_expediente: campos.numero_expediente || autoNumeroExpediente,
+        fecha_apertura: campos.fecha_apertura || fechaHoyTexto,
+      };
+      setCampos(camposParaGuardar);
 
-      // Guardado local inmediato de seguridad
       try {
         localStorage.setItem(storageKey, JSON.stringify(camposParaGuardar));
       } catch {
-        // Ignore
+        // Ignorar error de almacenamiento local
       }
 
-      // Upsert en Supabase
       const recordPayload: Partial<ExpedienteDbRecord> = {
         folio,
         psicologo_id: user?.id,
@@ -378,9 +475,8 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
         .upsert(recordPayload, { onConflict: "folio,psicologo_id" });
 
       if (error) {
-        console.warn("Aviso al guardar en expedientes_clinicos de Supabase:", error);
         toast.success(
-          `Expediente ${camposParaGuardar.numero_expediente} guardado localmente (copia segura protegida).`,
+          `Expediente ${camposParaGuardar.numero_expediente} guardado en respaldo local seguro.`,
         );
       } else {
         toast.success(
@@ -398,7 +494,6 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
   };
 
   const handlePrint = () => {
-    // Si no está en vista continua, activamos para que las 5 páginas se monten en el DOM al imprimir
     if (!vistaContinua) {
       setVistaContinua(true);
       setTimeout(() => {
@@ -409,98 +504,84 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
     }
   };
 
-  // Sub-títulos de páginas según Canva
-  const paginaSubtitulos: Record<number, string> = {
-    1: "Equilibra · Historia clínica inicial",
-    2: "Equilibra · Historia clínica inicial",
-    3: "Equilibra · Historia clínica inicial",
-    4: "Equilibra · Valoración clínica",
-    5: "Equilibra · Seguimiento y trazabilidad",
-  };
+  const activePageMeta =
+    EXPEDIENTE_PAGES.find((p) => p.page === paginaActiva) || EXPEDIENTE_PAGES[0];
 
   return (
     <div
-      className={`mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8 print:m-0 print:w-full print:max-w-none print:space-y-6 print:p-0 ${className}`}
+      className={`mx-auto w-full max-w-6xl space-y-5 font-sans print:m-0 print:max-w-none print:space-y-6 print:p-0 print:font-serif ${className}`}
       id="expediente-clinico-container"
     >
-      {/* Barra de Acciones y Herramientas del Profesional */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-xs print:hidden">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1c2474] text-white">
+      {/* Header Clínico Superior */}
+      <div className="flex flex-col gap-4 rounded-lg border border-[#E5DFD3] bg-white p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#1F4D2C] text-white">
             <FileText className="size-5" />
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-foreground">
-              Expediente Clínico · Folio <span className="font-mono text-[#6857E4]">{folio}</span>
-            </h2>
-            <p className="text-[11px] text-muted-foreground">
-              {ultimaGuardado
-                ? `Último guardado: ${ultimaGuardado.toLocaleTimeString("es-MX", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`
-                : "Cambios pendientes de guardar"}
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-bold text-[#1A1A1A]">Expediente Clínico</h2>
+              <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-2.5 py-0.5 font-mono text-xs font-bold text-[#1F4D2C]">
+                {numeroExpedienteHeader}
+              </span>
+              <span className="font-mono text-xs text-[#6B6B6B]">Tamizaje: {folio}</span>
+            </div>
+            <p className="text-xs text-[#6B6B6B]">
+              {isLoading
+                ? "Cargando información clínica desde Supabase..."
+                : ultimaGuardado
+                  ? `Último guardado: ${ultimaGuardado.toLocaleTimeString("es-MX", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`
+                  : "Cambios pendientes de guardar"}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Toggle Vista por Páginas vs Continuo */}
           <button
             type="button"
             onClick={() => setVistaContinua((prev) => !prev)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/60 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-white px-3 text-xs font-semibold text-[#1A1A1A] transition-colors hover:bg-[#F5F1E8]"
           >
-            <Layers className="size-3.5 text-[#6857E4]" />
-            <span>{vistaContinua ? "Vista por Páginas" : "Ver 5 Páginas Continuas"}</span>
+            <Layers className="size-3.5 text-[#1F4D2C]" />
+            <span>{vistaContinua ? "Vista por secciones" : "Vista continua (5 págs.)"}</span>
           </button>
 
-          {/* Botón Imprimir / PDF */}
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs hover:bg-muted"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#1F4D2C] bg-white px-3 text-xs font-semibold text-[#1F4D2C] transition-colors hover:bg-[#1F4D2C]/10"
           >
-            <Printer className="size-3.5 text-muted-foreground" />
-            <span>Imprimir / PDF</span>
+            <Printer className="size-3.5" />
+            <span>Imprimir PDF</span>
           </button>
 
-          {/* Indicador de Consentimiento si no está firmado */}
-          {!campos.objetivos_sesion.consentimiento_firmado && (
-            <span
-              className="hidden text-[11px] font-semibold text-amber-700 dark:text-amber-400 sm:inline"
-              title="Marca el consentimiento informado en la Página 5 para habilitar el guardado"
-            >
-              Falta consentimiento (Pág. 5)
-            </span>
-          )}
-
-          {/* Botón Guardar */}
           <button
             type="button"
             onClick={handleGuardar}
-            disabled={isSaving || !campos.objetivos_sesion.consentimiento_firmado}
+            disabled={isSaving || !consentimientoFirmado}
             title={
-              !campos.objetivos_sesion.consentimiento_firmado
-                ? "El botón se habilitará al marcar el consentimiento informado en la Página 5"
+              !consentimientoFirmado
+                ? 'Marca "He obtenido consentimiento informado del paciente" para habilitar Guardar'
                 : "Guardar expediente clínico"
             }
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#1c2474] px-4 py-1.5 text-xs font-bold text-white shadow-float transition-all hover:bg-[#28328c] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#1F4D2C] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#4A7C59] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSaving ? (
               <RotateCcw className="size-3.5 animate-spin" />
             ) : (
               <Save className="size-3.5" />
             )}
-            <span>{isSaving ? "Guardando..." : "Guardar expediente"}</span>
+            <span>{isSaving ? "Guardando..." : "Guardar"}</span>
           </button>
 
-          {/* Botón Cerrar si fue invocado en modal */}
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="inline-flex h-9 items-center rounded-lg border border-[#E5DFD3] bg-white px-3 text-xs font-semibold text-[#6B6B6B] transition-colors hover:bg-[#F5F1E8] hover:text-[#1A1A1A]"
             >
               Cerrar
             </button>
@@ -508,238 +589,365 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
         </div>
       </div>
 
-      {/* Paginador estilo Canva (Página 1 a 5) */}
-      {!vistaContinua && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-indigo-50/70 p-2.5 dark:bg-indigo-950/20 print:hidden">
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((pag) => (
-              <button
-                key={pag}
-                type="button"
-                onClick={() => setPaginaActiva(pag)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  paginaActiva === pag
-                    ? "bg-[#1c2474] text-white shadow-sm"
-                    : "text-muted-foreground hover:bg-indigo-100 hover:text-foreground dark:hover:bg-indigo-900/40"
-                }`}
-              >
-                Página {pag}
-              </button>
-            ))}
+      {/* Cuerpo principal: Sidebar Vertical (5 páginas) + Contenido del Expediente */}
+      <div className="flex flex-col gap-5 lg:flex-row print:block">
+        {/* Sidebar / Tabs Verticales Internos */}
+        {!vistaContinua && (
+          <nav
+            aria-label="Secciones del expediente clínico"
+            className="w-full shrink-0 lg:w-64 print:hidden"
+          >
+            <div className="rounded-lg border border-[#E5DFD3] bg-white p-2.5 space-y-1">
+              <p className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                Estructura (5 páginas)
+              </p>
+              <div className="flex flex-row gap-1 overflow-x-auto lg:flex-col">
+                {EXPEDIENTE_PAGES.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = paginaActiva === item.page;
+                  return (
+                    <button
+                      key={item.page}
+                      type="button"
+                      onClick={() => setPaginaActiva(item.page)}
+                      className={`flex min-w-[200px] lg:min-w-0 items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                        isActive
+                          ? "border-l-4 border-[#1F4D2C] bg-[#F5F1E8] text-[#1F4D2C]"
+                          : "border-l-4 border-transparent text-[#1A1A1A] hover:bg-[#F5F1E8]/60"
+                      }`}
+                    >
+                      <Icon
+                        className={`mt-0.5 size-4 shrink-0 ${
+                          isActive ? "text-[#1F4D2C]" : "text-[#6B6B6B]"
+                        }`}
+                      />
+                      <div className="min-w-0">
+                        <p className={`text-xs ${isActive ? "font-bold" : "font-semibold"}`}>
+                          {item.page}. {item.title}
+                        </p>
+                        <p className="truncate text-[11px] text-[#6B6B6B]">{item.subtitle}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 border-t border-[#E5DFD3] pt-3 px-2.5">
+                <div className="flex items-center justify-between text-[11px] text-[#6B6B6B]">
+                  <span>Consentimiento:</span>
+                  <span
+                    className={`font-semibold ${
+                      consentimientoFirmado ? "text-[#1F4D2C]" : "text-[#B8860B]"
+                    }`}
+                  >
+                    {consentimientoFirmado ? "Verificado" : "Pendiente"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </nav>
+        )}
+
+        {/* Área del Documento Clínico (5 páginas) */}
+        <div className="min-w-0 flex-1 space-y-5">
+          <div className="space-y-8 print:space-y-6">
+            {/* PÁGINA 1: Identificación (auto-poblado desde Supabase — readonly) */}
+            {(vistaContinua || paginaActiva === 1) && (
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0 print:break-after-page">
+                <div
+                  role="banner"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                >
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                      Tecnológico de Estudios Superiores de Huixquilucan · Equilibra TESH
+                    </p>
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                      EXPEDIENTE CLÍNICO · {numeroExpedienteHeader}
+                    </h1>
+                    <p className="text-xs text-[#6B6B6B]">
+                      Página 1 — Identificación institucional del estudiante
+                    </p>
+                  </div>
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                    Página 1 de 5
+                  </span>
+                </div>
+
+                <Identificacion
+                  paciente={paciente}
+                  campos={campos}
+                  onChange={updateCampos}
+                  fechaApertura={fechaHoyTexto}
+                  numeroExpediente={numeroExpedienteHeader}
+                />
+
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                  Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
+                </footer>
+              </article>
+            )}
+
+            {/* PÁGINA 2: Motivo de consulta */}
+            {(vistaContinua || paginaActiva === 2) && (
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0 print:break-after-page">
+                <div
+                  role="banner"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                >
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                      Equilibra TESH · Expediente {numeroExpedienteHeader}
+                    </p>
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                      MOTIVO DE CONSULTA
+                    </h1>
+                    <p className="text-xs text-[#6B6B6B]">
+                      Página 2 — Relato textual y referencia de tamizaje
+                    </p>
+                  </div>
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                    Página 2 de 5
+                  </span>
+                </div>
+
+                <MotivoConsulta
+                  paciente={paciente}
+                  motivoEnPalabras={campos.motivo_en_palabras}
+                  onChange={(motivo) => updateCampos({ motivo_en_palabras: motivo })}
+                  tamizajeFecha={
+                    paciente?.ultimo_tamizaje
+                      ? new Date(paciente.ultimo_tamizaje).toLocaleDateString("es-MX", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "Reciente"
+                  }
+                  transcriptVoz={transcriptVoz}
+                />
+
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                  Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
+                </footer>
+              </article>
+            )}
+
+            {/* PÁGINA 3: Historia + Antecedentes */}
+            {(vistaContinua || paginaActiva === 3) && (
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0 print:break-after-page">
+                <div
+                  role="banner"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                >
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                      Equilibra TESH · Expediente {numeroExpedienteHeader}
+                    </p>
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                      HISTORIA Y ANTECEDENTES CLÍNICOS
+                    </h1>
+                    <p className="text-xs text-[#6B6B6B]">
+                      Página 3 — Evolución del problema y antecedentes relevantes
+                    </p>
+                  </div>
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                    Página 3 de 5
+                  </span>
+                </div>
+
+                <HistoriaProblema
+                  paciente={paciente}
+                  historiaClinica={campos.historia_clinica}
+                  onChange={(historia) => updateCampos({ historia_clinica: historia })}
+                  historialTamizajesTexto={historialTamizajesTexto}
+                />
+
+                <Antecedentes
+                  antecedentes={campos.antecedentes}
+                  onChange={(patch) =>
+                    updateCampos({
+                      antecedentes: { ...campos.antecedentes, ...patch },
+                    })
+                  }
+                />
+
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                  Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
+                </footer>
+              </article>
+            )}
+
+            {/* PÁGINA 4: Contexto + Estado Mental */}
+            {(vistaContinua || paginaActiva === 4) && (
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0 print:break-after-page">
+                <div
+                  role="banner"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                >
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                      Equilibra TESH · Expediente {numeroExpedienteHeader}
+                    </p>
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                      CONTEXTO PSICOSOCIAL Y ESTADO MENTAL
+                    </h1>
+                    <p className="text-xs text-[#6B6B6B]">
+                      Página 4 — Entorno académico/familiar y exploración semiológica
+                    </p>
+                  </div>
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                    Página 4 de 5
+                  </span>
+                </div>
+
+                <ContextoPsicosocial
+                  paciente={paciente}
+                  contexto={campos.contexto_psicosocial}
+                  onChange={(patch) =>
+                    updateCampos({
+                      contexto_psicosocial: { ...campos.contexto_psicosocial, ...patch },
+                    })
+                  }
+                />
+
+                <EstadoMental
+                  estadoMental={campos.estado_mental}
+                  onChange={(patch) =>
+                    updateCampos({
+                      estado_mental: { ...campos.estado_mental, ...patch },
+                    })
+                  }
+                />
+
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                  Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
+                </footer>
+              </article>
+            )}
+
+            {/* PÁGINA 5: Valoración de riesgo + Hipótesis + Objetivos + Trazabilidad */}
+            {(vistaContinua || paginaActiva === 5) && (
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0">
+                <div
+                  role="banner"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                >
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                      Equilibra TESH · Expediente {numeroExpedienteHeader}
+                    </p>
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                      VALORACIÓN, HIPÓTESIS, OBJETIVOS Y TRAZABILIDAD
+                    </h1>
+                    <p className="text-xs text-[#6B6B6B]">
+                      Página 5 — Seguridad clínica, plan terapéutico y auditoría
+                    </p>
+                  </div>
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                    Página 5 de 5
+                  </span>
+                </div>
+
+                <ValoracionRiesgo
+                  paciente={paciente}
+                  valoracion={campos.valoracion_riesgo}
+                  onChange={(patch) =>
+                    updateCampos({
+                      valoracion_riesgo: { ...campos.valoracion_riesgo, ...patch },
+                    })
+                  }
+                />
+
+                <HipotesisTrabajo
+                  hipotesis={campos.hipotesis_trabajo}
+                  onChange={(hipotesis) => updateCampos({ hipotesis_trabajo: hipotesis })}
+                />
+
+                <ObjetivosSesion
+                  paciente={paciente}
+                  objetivos={campos.objetivos_sesion}
+                  onChange={(patch) =>
+                    updateCampos({
+                      objetivos_sesion: { ...campos.objetivos_sesion, ...patch },
+                    })
+                  }
+                  onLiberarPaciente={onPacienteLiberado}
+                />
+
+                <TrazabilidadBlockchain
+                  trazabilidad={campos.trazabilidad}
+                  nombrePsicologo={user?.name}
+                />
+
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                  Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
+                </footer>
+              </article>
+            )}
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={paginaActiva <= 1}
-              onClick={() => setPaginaActiva((p) => Math.max(1, p - 1))}
-              className="rounded-xl p-1.5 text-muted-foreground hover:bg-card hover:text-foreground disabled:opacity-30"
-              aria-label="Página anterior"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <span className="text-xs font-semibold text-muted-foreground">{paginaActiva} / 5</span>
-            <button
-              type="button"
-              disabled={paginaActiva >= 5}
-              onClick={() => setPaginaActiva((p) => Math.min(5, p + 1))}
-              className="rounded-xl p-1.5 text-muted-foreground hover:bg-card hover:text-foreground disabled:opacity-30"
-              aria-label="Página siguiente"
-            >
-              <ChevronRight className="size-4" />
-            </button>
+          {/* Barra inferior de consentimiento informado + navegación entre páginas */}
+          <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-white p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+            <label className="flex cursor-pointer items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={consentimientoFirmado}
+                onChange={(e) =>
+                  updateCampos({
+                    objetivos_sesion: {
+                      ...campos.objetivos_sesion,
+                      consentimiento_firmado: e.target.checked,
+                    },
+                  })
+                }
+                className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+              />
+              <span className="text-sm font-medium text-[#1A1A1A]">
+                He obtenido consentimiento informado del paciente
+              </span>
+            </label>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+              {!vistaContinua && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={paginaActiva <= 1}
+                    onClick={() => setPaginaActiva((p) => Math.max(1, p - 1))}
+                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                    <span>Anterior</span>
+                  </button>
+                  <span className="px-2 text-xs font-semibold text-[#6B6B6B]">
+                    {activePageMeta.page} / 5
+                  </span>
+                  <button
+                    type="button"
+                    disabled={paginaActiva >= 5}
+                    onClick={() => setPaginaActiva((p) => Math.min(5, p + 1))}
+                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40"
+                  >
+                    <span>Siguiente</span>
+                    <ChevronRight className="size-3.5" />
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleGuardar}
+                disabled={isSaving || !consentimientoFirmado}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#1F4D2C] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#4A7C59] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {!consentimientoFirmado && <Lock className="size-3.5" />}
+                {consentimientoFirmado && <Save className="size-3.5" />}
+                <span>{isSaving ? "Guardando..." : "Guardar"}</span>
+              </button>
+            </div>
           </div>
         </div>
-      )}
-
-      {/* DOCUMENTO CLINICO: Se renderiza como las 5 páginas del diseño Canva */}
-      <div className="space-y-12">
-        {/* PÁGINA 1: 01 Identificación + 02 Motivo de consulta */}
-        {(vistaContinua || paginaActiva === 1) && (
-          <article className="space-y-6 rounded-3xl border border-[#d8d2ff]/80 bg-[#fbfbff] p-6 shadow-sm dark:border-indigo-950/60 dark:bg-[#131427] sm:p-8 print:border-none print:bg-white print:p-0 print:shadow-none print:break-after-page print:space-y-4">
-            {/* Header de Página Canva Style */}
-            <header className="flex items-start justify-between border-b border-border/60 pb-5">
-              <div>
-                <h1 className="font-display text-2xl font-black uppercase tracking-tight text-[#1c2474] dark:text-indigo-200 sm:text-3xl">
-                  EXPEDIENTE CLÍNICO
-                </h1>
-                <p className="text-xs font-medium text-muted-foreground">{paginaSubtitulos[1]}</p>
-              </div>
-              <span className="rounded-full bg-[#1c2474] px-4 py-1.5 text-xs font-bold text-white shadow-xs">
-                Página 1 de 5
-              </span>
-            </header>
-
-            <Identificacion
-              paciente={paciente}
-              campos={campos}
-              onChange={updateCampos}
-              fechaApertura="30-oct-2026"
-            />
-
-            <MotivoConsulta
-              paciente={paciente}
-              motivoEnPalabras={campos.motivo_en_palabras}
-              onChange={(motivo) => updateCampos({ motivo_en_palabras: motivo })}
-              tamizajeFecha="18-oct-2026"
-              transcriptVoz={transcriptVoz}
-            />
-
-            <footer className="border-t border-border/60 pt-4 text-center text-[11px] text-muted-foreground print:text-black print:pt-2">
-              Equilibra TESH · Plantilla Expediente Clínico · 30 de octubre de 2026
-            </footer>
-          </article>
-        )}
-
-        {/* PÁGINA 2: 03 Historia del problema + 04 Antecedentes */}
-        {(vistaContinua || paginaActiva === 2) && (
-          <article className="space-y-6 rounded-3xl border border-[#d8d2ff]/80 bg-[#fbfbff] p-6 shadow-sm dark:border-indigo-950/60 dark:bg-[#131427] sm:p-8 print:border-none print:bg-white print:p-0 print:shadow-none print:break-after-page print:space-y-4">
-            <header className="flex items-start justify-between border-b border-border/60 pb-5">
-              <div>
-                <h1 className="font-display text-2xl font-black uppercase tracking-tight text-[#1c2474] dark:text-indigo-200 sm:text-3xl">
-                  EXPEDIENTE CLÍNICO
-                </h1>
-                <p className="text-xs font-medium text-muted-foreground">{paginaSubtitulos[2]}</p>
-              </div>
-              <span className="rounded-full bg-[#1c2474] px-4 py-1.5 text-xs font-bold text-white shadow-xs">
-                Página 2 de 5
-              </span>
-            </header>
-
-            <HistoriaProblema
-              paciente={paciente}
-              historiaClinica={campos.historia_clinica}
-              onChange={(historia) => updateCampos({ historia_clinica: historia })}
-              historialTamizajesTexto={historialTamizajesTexto}
-            />
-
-            <Antecedentes
-              antecedentes={campos.antecedentes}
-              onChange={(patch) =>
-                updateCampos({
-                  antecedentes: { ...campos.antecedentes, ...patch },
-                })
-              }
-            />
-
-            <footer className="border-t border-border/60 pt-4 text-center text-[11px] text-muted-foreground">
-              Equilibra TESH · Plantilla Expediente Clínico · 30 de octubre de 2026
-            </footer>
-          </article>
-        )}
-
-        {/* PÁGINA 3: 05 Contexto psicosocial + 06 Exploración del estado mental */}
-        {(vistaContinua || paginaActiva === 3) && (
-          <article className="space-y-6 rounded-3xl border border-[#d8d2ff]/80 bg-[#fbfbff] p-6 shadow-sm dark:border-indigo-950/60 dark:bg-[#131427] sm:p-8 print:border-none print:bg-white print:p-0 print:shadow-none print:break-after-page print:space-y-4">
-            <header className="flex items-start justify-between border-b border-border/60 pb-5">
-              <div>
-                <h1 className="font-display text-2xl font-black uppercase tracking-tight text-[#1c2474] dark:text-indigo-200 sm:text-3xl">
-                  EXPEDIENTE CLÍNICO
-                </h1>
-                <p className="text-xs font-medium text-muted-foreground">{paginaSubtitulos[3]}</p>
-              </div>
-              <span className="rounded-full bg-[#1c2474] px-4 py-1.5 text-xs font-bold text-white shadow-xs">
-                Página 3 de 5
-              </span>
-            </header>
-
-            <ContextoPsicosocial
-              paciente={paciente}
-              contexto={campos.contexto_psicosocial}
-              onChange={(patch) =>
-                updateCampos({
-                  contexto_psicosocial: { ...campos.contexto_psicosocial, ...patch },
-                })
-              }
-            />
-
-            <EstadoMental
-              estadoMental={campos.estado_mental}
-              onChange={(patch) =>
-                updateCampos({
-                  estado_mental: { ...campos.estado_mental, ...patch },
-                })
-              }
-            />
-
-            <footer className="border-t border-border/60 pt-4 text-center text-[11px] text-muted-foreground print:text-black print:pt-2">
-              Equilibra TESH · Plantilla Expediente Clínico · 30 de octubre de 2026
-            </footer>
-          </article>
-        )}
-
-        {/* PÁGINA 4: 07 Valoración de riesgo + 08 Hipótesis de trabajo */}
-        {(vistaContinua || paginaActiva === 4) && (
-          <article className="space-y-6 rounded-3xl border border-[#d8d2ff]/80 bg-[#fbfbff] p-6 shadow-sm dark:border-indigo-950/60 dark:bg-[#131427] sm:p-8 print:border-none print:bg-white print:p-0 print:shadow-none print:break-after-page print:space-y-4">
-            <header className="flex items-start justify-between border-b border-border/60 pb-5">
-              <div>
-                <h1 className="font-display text-2xl font-black uppercase tracking-tight text-[#1c2474] dark:text-indigo-200 sm:text-3xl">
-                  EXPEDIENTE CLÍNICO
-                </h1>
-                <p className="text-xs font-medium text-muted-foreground">{paginaSubtitulos[4]}</p>
-              </div>
-              <span className="rounded-full bg-[#1c2474] px-4 py-1.5 text-xs font-bold text-white shadow-xs">
-                Página 4 de 5
-              </span>
-            </header>
-
-            <ValoracionRiesgo
-              paciente={paciente}
-              valoracion={campos.valoracion_riesgo}
-              onChange={(patch) =>
-                updateCampos({
-                  valoracion_riesgo: { ...campos.valoracion_riesgo, ...patch },
-                })
-              }
-            />
-
-            <HipotesisTrabajo
-              hipotesis={campos.hipotesis_trabajo}
-              onChange={(hipotesis) => updateCampos({ hipotesis_trabajo: hipotesis })}
-            />
-
-            <footer className="border-t border-border/60 pt-4 text-center text-[11px] text-muted-foreground print:text-black print:pt-2">
-              Equilibra TESH · Plantilla Expediente Clínico · 30 de octubre de 2026
-            </footer>
-          </article>
-        )}
-
-        {/* PÁGINA 5: 09 Objetivos iniciales y próxima sesión + 10 Trazabilidad blockchain */}
-        {(vistaContinua || paginaActiva === 5) && (
-          <article className="space-y-6 rounded-3xl border border-[#d8d2ff]/80 bg-[#fbfbff] p-6 shadow-sm dark:border-indigo-950/60 dark:bg-[#131427] sm:p-8 print:border-none print:bg-white print:p-0 print:shadow-none print:space-y-4">
-            <header className="flex items-start justify-between border-b border-border/60 pb-5">
-              <div>
-                <h1 className="font-display text-2xl font-black uppercase tracking-tight text-[#1c2474] dark:text-indigo-200 sm:text-3xl">
-                  EXPEDIENTE CLÍNICO
-                </h1>
-                <p className="text-xs font-medium text-muted-foreground">{paginaSubtitulos[5]}</p>
-              </div>
-              <span className="rounded-full bg-[#1c2474] px-4 py-1.5 text-xs font-bold text-white shadow-xs">
-                Página 5 de 5
-              </span>
-            </header>
-
-            <ObjetivosSesion
-              paciente={paciente}
-              objetivos={campos.objetivos_sesion}
-              onChange={(patch) =>
-                updateCampos({
-                  objetivos_sesion: { ...campos.objetivos_sesion, ...patch },
-                })
-              }
-              onLiberarPaciente={onPacienteLiberado}
-            />
-
-            <TrazabilidadBlockchain
-              trazabilidad={campos.trazabilidad}
-              nombrePsicologo={user?.name}
-            />
-
-            <footer className="border-t border-border/60 pt-4 text-center text-[11px] text-muted-foreground print:text-black print:pt-2">
-              Equilibra TESH · Plantilla Expediente Clínico · 30 de octubre de 2026
-            </footer>
-          </article>
-        )}
       </div>
     </div>
   );

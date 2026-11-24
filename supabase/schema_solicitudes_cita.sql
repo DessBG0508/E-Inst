@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.solicitudes_cita (
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (
     estado IN ('pendiente', 'confirmada', 'cancelada', 'completada', 'no_asistio')
   ),
-  motivo TEXT CHECK (motivo IS NULL OR char_length(motivo) <= 200),
+  motivo TEXT CHECK (motivo IS NULL OR char_length(motivo) <= 280),
   cancelado_por TEXT CHECK (
     cancelado_por IS NULL OR cancelado_por IN ('estudiante', 'psicologo', 'sistema')
   ),
@@ -31,12 +31,16 @@ CREATE TABLE IF NOT EXISTS public.solicitudes_cita (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 2. Índices de optimización para agenda y control de cupos
+-- 2. Índices de optimización y constraint UNIQUE para prevenir doble reserva
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_user_id ON public.solicitudes_cita(user_id);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_psicologo ON public.solicitudes_cita(psicologo_id);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_folio ON public.solicitudes_cita(folio);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_fecha_hora ON public.solicitudes_cita(fecha_cita, hora_cita);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_estado ON public.solicitudes_cita(estado);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_solicitudes_cita_slot_activo
+  ON public.solicitudes_cita(psicologo_id, fecha_cita, hora_cita)
+  WHERE estado IN ('pendiente', 'confirmada');
 
 -- 3. Habilitar Row Level Security (RLS)
 ALTER TABLE public.solicitudes_cita ENABLE ROW LEVEL SECURITY;
@@ -61,9 +65,10 @@ CREATE POLICY "Estudiante puede registrar solicitud"
     user_id = auth.uid()
     AND modalidad = 'presencial'
     AND estado = 'pendiente'
+    AND (motivo IS NULL OR char_length(motivo) <= 280)
   );
 
--- C. ESTUDIANTE: Puede cancelar su cita si está pendiente o confirmada y faltan más de 2 horas
+-- C. ESTUDIANTE: Puede cancelar su cita si está pendiente o confirmada y faltan más de 2 horas (fail-closed)
 DROP POLICY IF EXISTS "Estudiante puede cancelar con +2h de anticipacion" ON public.solicitudes_cita;
 CREATE POLICY "Estudiante puede cancelar con +2h de anticipacion"
   ON public.solicitudes_cita
@@ -72,7 +77,7 @@ CREATE POLICY "Estudiante puede cancelar con +2h de anticipacion"
   USING (
     user_id = auth.uid()
     AND estado IN ('pendiente', 'confirmada')
-    AND ((fecha_cita + hora_cita) >= (timezone('utc'::text, now()) + interval '2 hours'))
+    AND ((fecha_cita + hora_cita) > (timezone('utc'::text, now()) + interval '2 hours'))
   )
   WITH CHECK (
     user_id = auth.uid()
@@ -128,3 +133,38 @@ CREATE TRIGGER trigger_solicitudes_updated_at
   BEFORE UPDATE ON public.solicitudes_cita
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_updated_at_solicitudes();
+
+-- 6. Trigger backend: cita completada -> encuesta de satisfacción a las 24h
+CREATE OR REPLACE FUNCTION public.handle_cita_completada_encuesta_24h()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.estado = 'completada' AND (OLD.estado IS DISTINCT FROM 'completada') THEN
+    BEGIN
+      INSERT INTO public.encuestas_satisfaccion (
+        folio,
+        user_id,
+        trigger_tipo,
+        enviado_at,
+        expira_at
+      )
+      VALUES (
+        NEW.folio,
+        NEW.user_id,
+        'alta',
+        timezone('utc'::text, now()) + interval '24 hours',
+        timezone('utc'::text, now()) + interval '48 hours'
+      );
+    EXCEPTION
+      WHEN undefined_table OR undefined_column THEN
+        NULL;
+    END;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trigger_cita_completada_encuesta_24h ON public.solicitudes_cita;
+CREATE TRIGGER trigger_cita_completada_encuesta_24h
+  AFTER UPDATE OF estado ON public.solicitudes_cita
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_cita_completada_encuesta_24h();

@@ -1,4 +1,5 @@
 import React from "react";
+import { BadgeOrigen } from "./BadgeOrigen";
 import type { EstadoMentalData } from "./types";
 
 interface EstadoMentalProps {
@@ -7,7 +8,6 @@ interface EstadoMentalProps {
 }
 
 export const EstadoMental: React.FC<EstadoMentalProps> = ({ estadoMental, onChange }) => {
-  // Exactamente 12 checkboxes como solicita la especificación del requerimiento
   const items: Array<{ key: keyof Omit<EstadoMentalData, "observaciones">; label: string }> = [
     { key: "aspecto_cuidado", label: "Aspecto cuidado" },
     { key: "orientado", label: "Orientado" },
@@ -25,58 +25,58 @@ export const EstadoMental: React.FC<EstadoMentalProps> = ({ estadoMental, onChan
 
   return (
     <div className="space-y-4">
-      {/* Encabezado de Sección Canva Style */}
-      <div className="flex flex-col gap-1 rounded-2xl bg-[#1c2474] px-4 py-3 text-white shadow-md sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-[#1F4D2C] px-4 py-3 text-white sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#3942a0] text-sm font-black text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-bold text-white">
             06
           </span>
-          <h3 className="font-display text-lg font-bold tracking-tight text-white">
+          <h3 className="text-base font-semibold tracking-tight text-white">
             Exploración del estado mental
           </h3>
         </div>
-        <span className="text-xs font-normal text-indigo-200 sm:ml-2">
-          Lo que observas tú, no lo que te cuenta el estudiante
+        <span className="text-xs font-normal text-white/80 sm:ml-2">
+          Observación clínica directa del profesional
         </span>
       </div>
 
-      <div className="space-y-6 rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
-        {/* 12 Checkboxes organizados en grid de 3 columnas responsivo */}
+      <div className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {items.map(({ key, label }) => {
             const isChecked = Boolean(estadoMental[key]);
             return (
               <label
                 key={key}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-border/70 bg-card/60 p-3 transition-colors hover:border-[#6857E4]/50 hover:bg-card"
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#E5DFD3] bg-white p-3 transition-colors hover:border-[#1F4D2C]/50"
               >
                 <input
                   type="checkbox"
                   checked={isChecked}
                   onChange={(e) => onChange({ [key]: e.target.checked })}
-                  className="size-4.5 rounded-md border-border text-[#6857E4] focus:ring-[#6857E4]"
+                  className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
                 />
-                <span className="text-xs font-medium text-foreground select-none">{label}</span>
+                <span className="text-sm font-medium text-[#1A1A1A] select-none">{label}</span>
               </label>
             );
           })}
         </div>
 
-        {/* Observaciones complementarias */}
         <div className="space-y-2">
-          <label
-            htmlFor="observaciones-mental-input"
-            className="block text-xs font-bold text-foreground"
-          >
-            Observaciones semiológicas complementarias:
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label
+              htmlFor="observaciones-mental-input"
+              className="block text-sm font-semibold text-[#1F4D2C]"
+            >
+              Observaciones semiológicas complementarias
+            </label>
+            <BadgeOrigen tipo="PSICÓLOGO" />
+          </div>
           <textarea
             id="observaciones-mental-input"
-            rows={3}
+            rows={4}
             value={estadoMental.observaciones}
             onChange={(e) => onChange({ observaciones: e.target.value })}
-            placeholder="Alineación afectiva, modulación de voz, contacto ocular, etc."
-            className="w-full resize-y rounded-2xl border border-border bg-card p-3.5 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
+            placeholder="Alineación afectiva, modulación de voz, contacto ocular, psicomotricidad..."
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
           />
         </div>
       </div>

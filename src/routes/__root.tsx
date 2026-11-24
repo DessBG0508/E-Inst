@@ -169,7 +169,7 @@ function RootComponent() {
           <AnimatedRouteOutlet />
           <PersistentSosButton />
         </RouteGuard>
-        <Toaster position="bottom-center" />
+        <Toaster position="bottom-right" />
       </AuthProvider>
     </QueryClientProvider>
   );

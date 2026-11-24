@@ -91,6 +91,19 @@ export interface AlertaInasistencia {
   created_at: string;
 }
 
+export interface TutorInasistenciaConsecutiva {
+  id: string;
+  estudiante_id: string;
+  estudiante_nombre: string;
+  matricula: string;
+  carrera?: string;
+  grupo?: string;
+  fechas_faltantes: string[];
+  alert_ids: string[];
+  leida: boolean;
+  created_at: string;
+}
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const TUTORES_GRUPO_KEY = "equilibra_tutores_grupo_v1";
@@ -348,11 +361,36 @@ const SEED_ALERTAS: AlertaInasistencia[] = [
     psicologo_id: "demo-psicologa-marta",
     estudiante_id: "demo-student-dess",
     folio: null,
-    tipo_alerta: "no_asistio",
+    tipo_alerta: "inasistencia_repetida",
     prioridad: "alta",
-    mensaje: "Dess Bautista (Grupo 501) no asistió a su cita programada de seguimiento.",
+    mensaje:
+      "Dess Bautista (Matrícula 202310452) registró 2 inasistencias consecutivas (2026-11-16 y 2026-11-20).",
     leida_tutor: false,
     created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+  },
+  {
+    id: "alerta-demo-002",
+    tutor_id: "demo-tutor-carlos",
+    psicologo_id: "demo-psicologa-marta",
+    estudiante_id: "demo-student-isc-3",
+    folio: null,
+    tipo_alerta: "no_asistio",
+    prioridad: "alta",
+    mensaje: "Diego Hernández (Matrícula 202310511) registró inasistencia el 2026-11-14.",
+    leida_tutor: false,
+    created_at: new Date(Date.now() - 86400000 * 4).toISOString(),
+  },
+  {
+    id: "alerta-demo-003",
+    tutor_id: "demo-tutor-carlos",
+    psicologo_id: "demo-psicologa-marta",
+    estudiante_id: "demo-student-isc-3",
+    folio: null,
+    tipo_alerta: "no_asistio",
+    prioridad: "alta",
+    mensaje: "Diego Hernández (Matrícula 202310511) registró inasistencia el 2026-11-19.",
+    leida_tutor: false,
+    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
   },
 ];
 
@@ -1826,6 +1864,164 @@ export async function markAlertaAsRead(alertaId: string): Promise<boolean> {
   const updated = local.map((a) => (a.id === alertaId ? { ...a, leida_tutor: true } : a));
   writeLocal(ALERTAS_TUTOR_KEY, updated);
   return true;
+}
+
+/**
+ * Obtiene alertas consolidadas de estudiantes con 2 inasistencias consecutivas ('no_asistio').
+ * LFPDPPP: Nunca expone folios EQ-XXXX/EXP-XXXX, puntajes clínicos ni notas del psicólogo.
+ */
+export async function getTutorConsecutiveAbsenceAlerts(
+  tutorId: string,
+  knownStudents: TutorStudentItem[] = [],
+): Promise<TutorInasistenciaConsecutiva[]> {
+  const unreadAlerts = await getUnreadTutorAlerts(tutorId);
+  const studentLookup = new Map<string, TutorStudentItem>();
+  for (const st of knownStudents) {
+    studentLookup.set(st.id, st);
+  }
+  for (const seedSt of SEED_STUDENTS_DEMO) {
+    if (!studentLookup.has(seedSt.id)) {
+      studentLookup.set(seedSt.id, seedSt);
+    }
+  }
+
+  // Enriquecer nombres/matrículas de Supabase para estudiantes no encontrados localmente
+  const missingUuids = Array.from(
+    new Set(
+      unreadAlerts
+        .map((a) => a.estudiante_id || "")
+        .filter((id) => UUID_REGEX.test(id) && !studentLookup.has(id)),
+    ),
+  );
+
+  if (missingUuids.length > 0) {
+    try {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, nombre, matricula, carrera, grupo, semestre")
+        .in("id", missingUuids);
+
+      if (Array.isArray(profs)) {
+        for (const p of profs as Array<Record<string, unknown>>) {
+          studentLookup.set(String(p.id), {
+            id: String(p.id),
+            nombre: String(p.nombre || "Estudiante TESH"),
+            matricula: String(p.matricula || "Sin matrícula"),
+            carrera: p.carrera ? String(p.carrera) : "",
+            grupo: p.grupo ? String(p.grupo) : "",
+            semestre: p.semestre ? String(p.semestre) : "",
+          });
+        }
+      }
+    } catch {
+      // Continuar con catálogo conocido
+    }
+  }
+
+  const extractDatesFromAlert = (alerta: AlertaInasistencia): string[] => {
+    const matches = alerta.mensaje.match(/\d{4}-\d{2}-\d{2}/g);
+    if (matches && matches.length > 0) {
+      return matches;
+    }
+    return [alerta.created_at.slice(0, 10)];
+  };
+
+  const formatIsoDateShort = (iso: string): string => {
+    const parsed = new Date(`${iso.slice(0, 10)}T12:00:00`);
+    if (isNaN(parsed.getTime())) return iso;
+    return parsed.toLocaleDateString("es-MX", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const grouped = new Map<
+    string,
+    {
+      estudiante_id: string;
+      nombre: string;
+      matricula: string;
+      carrera?: string;
+      grupo?: string;
+      rawDates: string[];
+      alertIds: string[];
+      hasRepeatedFlag: boolean;
+      latestCreatedAt: string;
+    }
+  >();
+
+  for (const alerta of unreadAlerts) {
+    if (alerta.tipo_alerta !== "no_asistio" && alerta.tipo_alerta !== "inasistencia_repetida") {
+      continue;
+    }
+
+    const stuId = alerta.estudiante_id || alerta.id;
+    const matchedStudent = alerta.estudiante_id
+      ? studentLookup.get(alerta.estudiante_id)
+      : undefined;
+    const nombreFallback = alerta.mensaje
+      .replace(/\b(EQ|EXP)-\d+\b/gi, "")
+      .split("(")[0]
+      .replace(/Estudiante\s*/i, "")
+      .trim();
+
+    const current = grouped.get(stuId) || {
+      estudiante_id: stuId,
+      nombre: matchedStudent?.nombre || nombreFallback || "Estudiante asignado",
+      matricula: matchedStudent?.matricula || "Matrícula registrada",
+      carrera: matchedStudent?.carrera,
+      grupo: matchedStudent?.grupo,
+      rawDates: [],
+      alertIds: [],
+      hasRepeatedFlag: false,
+      latestCreatedAt: alerta.created_at,
+    };
+
+    current.alertIds.push(alerta.id);
+    if (alerta.tipo_alerta === "inasistencia_repetida") {
+      current.hasRepeatedFlag = true;
+    }
+    for (const d of extractDatesFromAlert(alerta)) {
+      if (!current.rawDates.includes(d)) {
+        current.rawDates.push(d);
+      }
+    }
+    if (new Date(alerta.created_at).getTime() > new Date(current.latestCreatedAt).getTime()) {
+      current.latestCreatedAt = alerta.created_at;
+    }
+
+    grouped.set(stuId, current);
+  }
+
+  const results: TutorInasistenciaConsecutiva[] = [];
+  for (const item of grouped.values()) {
+    // Solo incluir casos con 2 no_asistio consecutivos o bandera inasistencia_repetida
+    if (!item.hasRepeatedFlag && item.alertIds.length < 2 && item.rawDates.length < 2) {
+      continue;
+    }
+    const sortedDates = [...item.rawDates]
+      .sort((a, b) => a.localeCompare(b))
+      .slice(-2)
+      .map(formatIsoDateShort);
+
+    results.push({
+      id: `cons-${item.estudiante_id}`,
+      estudiante_id: item.estudiante_id,
+      estudiante_nombre: item.nombre,
+      matricula: item.matricula,
+      carrera: item.carrera,
+      grupo: item.grupo,
+      fechas_faltantes: sortedDates,
+      alert_ids: item.alertIds,
+      leida: false,
+      created_at: item.latestCreatedAt,
+    });
+  }
+
+  return results.sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
 }
 
 /**

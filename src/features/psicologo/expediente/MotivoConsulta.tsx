@@ -14,66 +14,60 @@ export const MotivoConsulta: React.FC<MotivoConsultaProps> = ({
   paciente,
   motivoEnPalabras,
   onChange,
-  tamizajeFecha = "18-oct-2026",
+  tamizajeFecha = "Reciente",
   transcriptVoz,
 }) => {
-  const phq9Total = paciente?.phq9_total ?? 9;
-  const item9 = paciente?.item9 ?? 1;
+  const phq9Total = paciente?.phq9_total ?? 0;
+  const gad7Total = paciente?.gad7_total ?? 0;
+  const item9 = paciente?.item9 ?? 0;
   const nivel = (paciente?.ultimo_nivel || "ROJO").toUpperCase();
 
-  const textoSugeridoDefault = `Estudiante canalizado desde tamizaje con nivel ${nivel} (PHQ-9: ${phq9Total}/27, ítem 9=${item9}) en fecha ${tamizajeFecha}. El sistema sugiere este texto basado en el último tamizaje; el psicólogo puede editar.`;
+  const textoSugeridoDefault = `Estudiante canalizado desde tamizaje con nivel ${nivel} (PHQ-9: ${phq9Total}/27, GAD-7: ${gad7Total}/21, ítem 9=${item9}) en fecha ${tamizajeFecha}. Registro automático de referencia para entrevista clínica.`;
 
   return (
     <div className="space-y-4">
-      {/* Encabezado de Sección Canva Style */}
-      <div className="flex flex-col gap-1 rounded-2xl bg-[#1c2474] px-4 py-3 text-white shadow-md sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-[#1F4D2C] px-4 py-3 text-white sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#3942a0] text-sm font-black text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-bold text-white">
             02
           </span>
-          <h3 className="font-display text-lg font-bold tracking-tight text-white">
-            Motivo de consulta
-          </h3>
+          <h3 className="text-base font-semibold tracking-tight text-white">Motivo de consulta</h3>
         </div>
-        <span className="text-xs font-normal text-indigo-200 sm:ml-2">
+        <span className="text-xs font-normal text-white/80 sm:ml-2">
           Con las palabras del estudiante, antes de traducirlo a lenguaje clínico
         </span>
       </div>
 
-      <div className="space-y-4 rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
-        {/* Banner Mixto con sugerencia basada en tamizaje */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-[#a2e8e6] bg-[#e3f7f6] p-4 dark:border-teal-800/40 dark:bg-teal-950/30 sm:flex-row sm:items-start sm:gap-4">
-          <BadgeOrigen tipo="MIXTO" className="shrink-0 self-start" />
-          <p className="text-xs leading-relaxed text-[#0d5956] dark:text-teal-200">
-            {textoSugeridoDefault}
-          </p>
+      <div className="space-y-4 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
+        <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 sm:flex-row sm:items-start sm:gap-4">
+          <BadgeOrigen tipo="AUTOMÁTICO" className="shrink-0 self-start" />
+          <p className="text-sm leading-relaxed text-[#6B6B6B]">{textoSugeridoDefault}</p>
         </div>
 
-        {/* Si existen notas de voz recientes transcritas, mostrar sugerencia rápida */}
         {transcriptVoz && (
-          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-3 text-xs text-indigo-950 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:text-indigo-200">
-            <span className="font-bold text-[#1c2474] dark:text-indigo-300">
-              Transcripción de voz detectada:
-            </span>{" "}
+          <div className="rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 text-sm text-[#6B6B6B]">
+            <span className="font-semibold text-[#1F4D2C]">Transcripción de voz registrada:</span>{" "}
             &ldquo;{transcriptVoz}&rdquo;
           </div>
         )}
 
-        {/* Textarea para el motivo */}
         <div className="space-y-2">
-          <label
-            htmlFor="motivo-estudiante-input"
-            className="block text-xs font-bold text-foreground"
-          >
-            Motivo en palabras del estudiante:
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label
+              htmlFor="motivo-estudiante-input"
+              className="block text-sm font-semibold text-[#1F4D2C]"
+            >
+              Motivo en palabras del estudiante
+            </label>
+            <BadgeOrigen tipo="PSICÓLOGO" />
+          </div>
           <textarea
             id="motivo-estudiante-input"
-            rows={5}
+            rows={6}
             value={motivoEnPalabras}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Escribe aquí el motivo en palabras del estudiante..."
-            className="w-full resize-y rounded-2xl border border-border bg-card p-4 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
+            placeholder="Describe el motivo de consulta textual referido por el estudiante durante la entrevista..."
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
           />
         </div>
       </div>

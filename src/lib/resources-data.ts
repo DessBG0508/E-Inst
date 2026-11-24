@@ -6,7 +6,7 @@ export const psychoResources: PsychoResource[] = [
     title: "Respiración diafragmática consciente",
     shortDescription:
       "Vuelve al cuerpo y disminuye la activación física mediante respiraciones lentas y profundas.",
-    category: "Respiración",
+    category: "Ansiedad",
     readTime: "3 min de lectura",
     iconName: "wind",
     tone: "mint",
@@ -57,7 +57,7 @@ export const psychoResources: PsychoResource[] = [
     title: "Mirar los pensamientos con curiosidad",
     shortDescription:
       "Aprende a notar pensamientos automáticos exigentes sin asumirlos como verdades absolutas.",
-    category: "Estrés",
+    category: "Estrés académico",
     readTime: "5 min de lectura",
     iconName: "brain",
     tone: "teal",
@@ -90,8 +90,8 @@ export const psychoResources: PsychoResource[] = [
     id: "rec-pausa-compasiva",
     title: "Pausa compasiva en momentos difíciles",
     shortDescription:
-      "Un gesto de calidez y autovalidación cuando la presión académica se siente pesada.",
-    category: "Ánimo",
+      "Un gesto de calidez y autovalidación cuando la presión académica o el desánimo se sienten pesados.",
+    category: "Depresión",
     readTime: "3 min de lectura",
     iconName: "heart",
     tone: "rose",
@@ -108,7 +108,7 @@ export const psychoResources: PsychoResource[] = [
     title: "Soltar la tensión acumulada en el cuerpo",
     shortDescription:
       "Identifica dónde guardas el estrés físico y aprende a liberar los grupos musculares.",
-    category: "Estrés",
+    category: "Estrés académico",
     readTime: "5 min de lectura",
     iconName: "smile",
     tone: "mint",
@@ -125,7 +125,7 @@ export const psychoResources: PsychoResource[] = [
     title: "Escribir para vaciar la mente",
     shortDescription:
       "Vierte en papel tus emociones sin censura, sin buscar redacción perfecta ni juicio.",
-    category: "Ánimo",
+    category: "Depresión",
     readTime: "4 min de lectura",
     iconName: "bookOpen",
     tone: "lavender",
@@ -142,7 +142,7 @@ export const psychoResources: PsychoResource[] = [
     title: "Respiración cuadrada (Box Breathing)",
     shortDescription:
       "Estabiliza el ritmo cardíaco y focaliza la atención con cuatro tiempos equilibrados.",
-    category: "Respiración",
+    category: "Ansiedad",
     readTime: "3 min de lectura",
     iconName: "wind",
     tone: "teal",
@@ -176,7 +176,7 @@ export const psychoResources: PsychoResource[] = [
     title: "Kit de emergencia: De la parálisis a la acción compasiva",
     shortDescription:
       "Estrategias paso a paso para destrabar el bloqueo mental frente a proyectos y entregas difíciles.",
-    category: "Estrés",
+    category: "Estrés académico",
     readTime: "6 min de lectura",
     iconName: "compass",
     tone: "teal",
@@ -194,7 +194,7 @@ export const psychoResources: PsychoResource[] = [
     title: "Guía integral para afrontar finales sin colapso emocional",
     shortDescription:
       "Plan de autocuidado estructurado para organizar estudio, descansos y alimentación en semanas críticas.",
-    category: "Ansiedad",
+    category: "Estrés académico",
     readTime: "7 min de lectura",
     iconName: "brain",
     tone: "lavender",
@@ -206,5 +206,22 @@ export const psychoResources: PsychoResource[] = [
     ],
     keyTakeaway:
       "Protege tu descanso: estudiar sin dormir disminuye la retención en un 40%. Tu cerebro necesita pausas activas para consolidar la información.",
+  },
+  {
+    id: "rec-limites-asertivos-relaciones",
+    title: "Límites saludables y comunicación asertiva",
+    shortDescription:
+      "Herramientas prácticas para expresar necesidades en trabajos en equipo, amistades y familia sin culpa.",
+    category: "Relaciones",
+    readTime: "5 min de lectura",
+    iconName: "heart",
+    tone: "teal",
+    content: [
+      "En la etapa universitaria convivimos diariamente con equipos de proyecto, amistades, pareja y familia. Poner un límite sano no significa rechazar a los demás, sino cuidar tu energía y claridad.",
+      "La fórmula de comunicación asertiva en tres pasos ('Yo observo..., yo siento..., necesito...') permite plantear desacuerdos sin atacar ni quedarte callado por miedo al conflicto.",
+      "Practicar decir 'en este momento no puedo asumir esa parte extra, pero puedo entregar esto a tiempo' fortalece vínculos basados en respeto mutuo y acuerdos claros.",
+    ],
+    keyTakeaway:
+      "Un límite claro y respetuoso cuida la relación tanto como tu propio bienestar emocional.",
   },
 ];

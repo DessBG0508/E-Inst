@@ -15,55 +15,53 @@ export const HistoriaProblema: React.FC<HistoriaProblemaProps> = ({
   onChange,
   historialTamizajesTexto,
 }) => {
-  const gad7 = paciente?.gad7_total ?? 14;
-  const phq9 = paciente?.phq9_total ?? 9;
-  const item9 = paciente?.item9 ?? 1;
+  const gad7 = paciente?.gad7_total ?? 0;
+  const phq9 = paciente?.phq9_total ?? 0;
+  const item9 = paciente?.item9 ?? 0;
 
   const defaultHistorialAuto =
     historialTamizajesTexto ||
-    `El paciente tiene 3 tamizajes registrados: 02-oct (GAD-7: ${gad7}, amarillo), 17-oct (PHQ-9: ${phq9}, item9=${item9}, rojo), 18-oct (PHQ-9: ${phq9}, item9=${item9}, rojo). Tendencia: empeoramiento sostenido en último mes.`;
+    `Último tamizaje registrado: GAD-7 = ${gad7}/21, PHQ-9 = ${phq9}/27, ítem 9 = ${item9} (Nivel ${String(paciente?.ultimo_nivel || "sin definir").toUpperCase()}). Historial sincronizado automáticamente para evaluación longitudinal.`;
 
   return (
     <div className="space-y-4">
-      {/* Encabezado de Sección Canva Style */}
-      <div className="flex flex-col gap-1 rounded-2xl bg-[#1c2474] px-4 py-3 text-white shadow-md sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-[#1F4D2C] px-4 py-3 text-white sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#3942a0] text-sm font-black text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-bold text-white">
             03
           </span>
-          <h3 className="font-display text-lg font-bold tracking-tight text-white">
+          <h3 className="text-base font-semibold tracking-tight text-white">
             Historia del problema
           </h3>
         </div>
-        <span className="text-xs font-normal text-indigo-200 sm:ml-2">
-          Cuándo empezó, cómo ha evolucionado y qué ha intentado hasta ahora
+        <span className="text-xs font-normal text-white/80 sm:ml-2">
+          Inicio, evolución sintomática y estrategias previas
         </span>
       </div>
 
-      <div className="space-y-4 rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
-        {/* Banner Automático con historial de tamizajes */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-[#cbcafe] bg-[#ebeafc] p-4 dark:border-indigo-800/40 dark:bg-indigo-950/30 sm:flex-row sm:items-start sm:gap-4">
+      <div className="space-y-4 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
+        <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 sm:flex-row sm:items-start sm:gap-4">
           <BadgeOrigen tipo="AUTOMÁTICO" className="shrink-0 self-start" />
-          <p className="text-xs leading-relaxed text-[#232573] dark:text-indigo-200">
-            {defaultHistorialAuto}
-          </p>
+          <p className="text-sm leading-relaxed text-[#6B6B6B]">{defaultHistorialAuto}</p>
         </div>
 
-        {/* Textarea para la historia clínica */}
         <div className="space-y-2">
-          <label
-            htmlFor="historia-clinica-input"
-            className="block text-xs font-bold text-foreground"
-          >
-            Historia clínica del problema:
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label
+              htmlFor="historia-clinica-input"
+              className="block text-sm font-semibold text-[#1F4D2C]"
+            >
+              Historia clínica del problema
+            </label>
+            <BadgeOrigen tipo="PSICÓLOGO" />
+          </div>
           <textarea
             id="historia-clinica-input"
             rows={5}
             value={historiaClinica}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Escribe aquí la evolución del problema, qué ha intentado, etc."
-            className="w-full resize-y rounded-2xl border border-border bg-card p-4 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
+            placeholder="Registra la cronología del malestar, desencadenantes académicos o personales e intentos previos de afrontamiento..."
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
           />
         </div>
       </div>

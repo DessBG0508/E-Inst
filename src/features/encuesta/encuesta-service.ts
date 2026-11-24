@@ -345,8 +345,22 @@ export function calcularMetricasEncuesta(respuestas: RespuestaEncuesta[]): Metri
     if (r.q8_recomendar >= 4) promotores++;
     else if (r.q8_recomendar <= 2) detractores++;
 
-    // Distribución Q1
-    distribucionSatMap[r.q1_satisfaccion] = (distribucionSatMap[r.q1_satisfaccion] || 0) + 1;
+    // Distribución agregada Q1-Q8 (escala 1 a 5)
+    const puntajesQ1aQ8 = [
+      r.q1_satisfaccion,
+      r.q2_escuchado,
+      r.q3_claridad,
+      r.q4_respeto,
+      r.q5_tiempo_espera,
+      r.q6_utilidad,
+      r.q7_mejoria,
+      r.q8_recomendar,
+    ];
+    for (const puntaje of puntajesQ1aQ8) {
+      if (puntaje >= 1 && puntaje <= 5) {
+        distribucionSatMap[puntaje] = (distribucionSatMap[puntaje] || 0) + 1;
+      }
+    }
   }
 
   const promQ1 = Number((sumaQ1 / total).toFixed(2));
@@ -387,19 +401,19 @@ export function calcularMetricasEncuesta(respuestas: RespuestaEncuesta[]): Metri
       { clave: "Q6", label: "Herramientas", promedio: promQ6, categoria: "servicio" },
       { clave: "Q7", label: "Mejoría Emocional", promedio: promQ7, categoria: "general" },
       { clave: "Q8", label: "Recomendación", promedio: promQ8, categoria: "general" },
-      { clave: "Q10.A", label: "Eli: Tamizaje", promedio: promQ10a, categoria: "eli" },
-      { clave: "Q10.B", label: "Eli: Orientación", promedio: promQ10b, categoria: "eli" },
+      { clave: "Q10.A", label: "Eli: Valoración", promedio: promQ10a, categoria: "eli" },
+      { clave: "Q10.B", label: "Eli: Recomendación", promedio: promQ10b, categoria: "eli" },
     ],
     distribucionSatisfaccion: [
-      { nombre: "5 - Excelente", cantidad: distribucionSatMap[5] || 0, color: "#10B981" },
-      { nombre: "4 - Bueno", cantidad: distribucionSatMap[4] || 0, color: "#6857E4" },
-      { nombre: "3 - Aceptable", cantidad: distribucionSatMap[3] || 0, color: "#F59E0B" },
-      { nombre: "2 - Regular", cantidad: distribucionSatMap[2] || 0, color: "#FB923C" },
-      { nombre: "1 - Muy deficiente", cantidad: distribucionSatMap[1] || 0, color: "#EF4444" },
+      { nombre: "5 - Muy satisfecho", cantidad: distribucionSatMap[5] || 0, color: "#1F4D2C" },
+      { nombre: "4 - Satisfecho", cantidad: distribucionSatMap[4] || 0, color: "#4A7C59" },
+      { nombre: "3 - Neutral", cantidad: distribucionSatMap[3] || 0, color: "#B8860B" },
+      { nombre: "2 - Insatisfecho", cantidad: distribucionSatMap[2] || 0, color: "#6B6B6B" },
+      { nombre: "1 - Muy insatisfecho", cantidad: distribucionSatMap[1] || 0, color: "#C8102E" },
     ],
     distribucionTriggers: [
-      { nombre: "Alta de Proceso", cantidad: altasCount, color: "#6857E4" },
-      { nombre: "Abandono (2 Inasistencias)", cantidad: abandonosCount, color: "#F59E0B" },
+      { nombre: "Alta de Proceso", cantidad: altasCount, color: "#1F4D2C" },
+      { nombre: "Abandono (2 Inasistencias)", cantidad: abandonosCount, color: "#B8860B" },
     ],
   };
 }
@@ -408,10 +422,10 @@ export function calcularMetricasEncuesta(respuestas: RespuestaEncuesta[]): Metri
  * Valida si el folio proporcionado pertenece al usuario actualmente autenticado (P0 #9).
  * Reglas de negocio:
  * 1. El usuario debe estar autenticado con su cuenta institucional.
- * 2. Si el rol es 'psicologo' o 'directivo', se permite revisar la encuesta con fines de calidad y auditoría.
- * 3. Se valida contra el folio de tamizaje activo en screening-storage (getStoredUserFolio).
- * 4. Se valida contra las citas del estudiante en Supabase o localStorage (solicitudes_cita).
- * 5. Se valida contra los tamizajes registrados en Supabase.
+ * 2. Si el rol es 'psicologo', 'jefatura' o 'coordinador', se permite revisar con fines de calidad y auditoría.
+ * 3. Invoca la Edge Function 'enviar-encuesta' (con JWT) en modo validación de folio.
+ * 4. Verifica contra el folio de tamizaje activo en screening-storage (getStoredUserFolio).
+ * 5. Verifica contra solicitudes_cita en localStorage (v2 y v1) y Supabase (consultas parametrizadas).
  * 6. Soporte para cuentas demo estudiantiles (Dess Bautista / demo student).
  */
 export async function validarFolioUsuario(
@@ -428,55 +442,90 @@ export async function validarFolioUsuario(
   if (!folio || !folio.trim()) {
     return {
       valido: false,
-      motivo: "No se proporcionó un folio institucional válido en el enlace.",
+      motivo: "Ingresa un folio institucional válido (por ejemplo EQ-9374 o TESH-2026-0842).",
     };
   }
 
   const cleanFolio = folio.trim().toUpperCase();
+  if (!/^[A-Z0-9_-]{3,40}$/.test(cleanFolio)) {
+    return {
+      valido: false,
+      motivo:
+        "El formato del folio ingresado no es válido. Usa letras, números y guiones (ej. EQ-9374).",
+    };
+  }
 
-  // Roles administrativos o psicólogos tienen acceso de supervisión y prueba
-  if (user.role === "psicologo" || user.role === "directivo") {
+  // Roles administrativos o psicólogos tienen acceso de supervisión y auditoría
+  if (user.role === "psicologo" || user.role === "jefatura" || user.role === "coordinador") {
     return { valido: true };
   }
 
-  // 1. Verificar contra el folio de tamizaje almacenado para el usuario en sesión
+  // 1. Validación en servidor mediante Edge Function 'enviar-encuesta' con JWT cuando hay sesión activa
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session?.access_token) {
+      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("enviar-encuesta", {
+        body: {
+          action: "validar_folio",
+          folio: cleanFolio,
+        },
+      });
+      if (!edgeErr && edgeRes?.checked && edgeRes?.valido) {
+        return { valido: true };
+      }
+    }
+  } catch {
+    // Continuar con verificaciones locales / fallback si la Edge Function no está disponible
+  }
+
+  // 2. Verificar contra el folio de tamizaje almacenado para el usuario en sesión
   const storedFolio = getStoredUserFolio(user.id, user.email);
   if (storedFolio && storedFolio.trim().toUpperCase() === cleanFolio) {
     return { valido: true };
   }
 
-  // 2. Verificar contra solicitudes de citas locales (localStorage)
-  try {
-    const rawCitas = localStorage.getItem("equilibra_solicitudes_cita_v1");
-    if (rawCitas) {
-      const citas = JSON.parse(rawCitas);
-      if (Array.isArray(citas)) {
-        const match = citas.some((c) => {
-          const isUser =
-            c.user_id === user.id ||
-            (c.email && c.email.toLowerCase() === user.email.toLowerCase()) ||
-            (c.matricula && c.matricula === user.matricula);
-          const hasFolio =
-            (c.folio && c.folio.trim().toUpperCase() === cleanFolio) ||
-            (c.folio_tamizaje && c.folio_tamizaje.trim().toUpperCase() === cleanFolio);
-          return isUser && hasFolio;
-        });
-        if (match) return { valido: true };
+  // 3. Verificar contra solicitudes de citas locales (localStorage v2 y v1)
+  for (const storageKey of ["equilibra_solicitudes_cita_v2", "equilibra_solicitudes_cita_v1"]) {
+    try {
+      const rawCitas = localStorage.getItem(storageKey);
+      if (rawCitas) {
+        const citas = JSON.parse(rawCitas);
+        if (Array.isArray(citas)) {
+          const match = citas.some((c) => {
+            const isUser =
+              c.user_id === user.id ||
+              (c.email && c.email.toLowerCase() === user.email.toLowerCase()) ||
+              (c.matricula && c.matricula === user.matricula);
+            const hasFolio =
+              (c.folio && c.folio.trim().toUpperCase() === cleanFolio) ||
+              (c.folio_tamizaje && c.folio_tamizaje.trim().toUpperCase() === cleanFolio);
+            return isUser && hasFolio;
+          });
+          if (match) return { valido: true };
+        }
       }
+    } catch {
+      // Continuar con siguiente verificación
     }
-  } catch {
-    // Continuar con verificación en Supabase
   }
 
-  // 3. Verificar en Supabase solicitudes_cita
+  // 4. Verificar en Supabase solicitudes_cita (consultas parametrizadas)
   try {
-    const { data: citasDb } = await supabase
-      .from("solicitudes_cita")
-      .select("id, folio, folio_tamizaje, user_id, email, matricula")
-      .or(`folio.eq.${cleanFolio},folio_tamizaje.eq.${cleanFolio}`)
-      .limit(10);
+    const [{ data: byFolio }, { data: byTamizaje }] = await Promise.all([
+      supabase
+        .from("solicitudes_cita")
+        .select("id, folio, folio_tamizaje, user_id, email, matricula")
+        .eq("folio", cleanFolio)
+        .limit(10),
+      supabase
+        .from("solicitudes_cita")
+        .select("id, folio, folio_tamizaje, user_id, email, matricula")
+        .eq("folio_tamizaje", cleanFolio)
+        .limit(10),
+    ]);
 
-    if (citasDb && citasDb.length > 0) {
+    const citasDb = [...(byFolio || []), ...(byTamizaje || [])];
+    if (citasDb.length > 0) {
       const isOwner = citasDb.some(
         (c) =>
           c.user_id === user.id ||
@@ -489,7 +538,7 @@ export async function validarFolioUsuario(
     // Continuar si falla la conexión
   }
 
-  // 4. Verificar en Supabase tamizajes
+  // 5. Verificar en Supabase tamizajes
   try {
     const { data: tamizDb } = await supabase
       .from("tamizajes")
@@ -503,7 +552,7 @@ export async function validarFolioUsuario(
     // Continuar si falla
   }
 
-  // 5. Cuentas de demostración estudiantil (Dess Bautista / demo-user-student)
+  // 6. Cuentas de demostración estudiantil (Dess Bautista / demo-user-student)
   // con folios institucionales de prueba (TESH-2026-0842, EQ-9374, EQ-1234, TESH-2026-0915)
   const isDemoStudent =
     user.id === "demo-student-dess" ||
@@ -519,7 +568,7 @@ export async function validarFolioUsuario(
   return {
     valido: false,
     motivo:
-      "El folio especificado en este enlace no pertenece a tu cuenta activa. Por lineamientos de confidencialidad institucional (P0 #9), las encuestas de satisfacción únicamente pueden ser contestadas por el titular asignado.",
+      "El folio especificado no pertenece a tu cuenta activa. Por lineamientos de confidencialidad institucional (P0 #9 / MIN-008), las encuestas únicamente pueden ser contestadas por el estudiante titular.",
   };
 }
 

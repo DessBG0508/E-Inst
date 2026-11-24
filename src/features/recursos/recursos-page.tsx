@@ -1,46 +1,48 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Link } from "@tanstack/react-router";
-import { motion, AnimatePresence } from "motion/react";
-import { Play } from "lucide-react";
-import { PageShell } from "@/components/layout/page-shell";
-import { resourceIcons } from "@/config/icons";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
-  getStoredResources,
-  fetchResourcesAsync,
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Clock,
+  Hand,
+  Play,
+  Search,
+  Settings,
+  Sparkles,
+  Video,
+  Wind,
+} from "lucide-react";
+import {
+  InstitutionalHeader,
+  type InstitutionalBreadcrumbItem,
+} from "@/components/layout/institutional-header";
+import { AjustesModal } from "@/components/settings/ajustes-modal";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { brandConfig } from "@/config/brand-config";
+import { resourceIcons } from "@/config/icons";
+import { useAuth } from "@/lib/auth-context";
+import { BRAND } from "@/lib/branding";
+import type { CanonicalResourceCategory, PsychoResource } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  CANONICAL_RESOURCE_CATEGORIES,
   detectVideoOrientation,
+  fetchResourcesAsync,
+  getCategoryVisuals,
+  getStoredResources,
+  normalizeResourceCategory,
 } from "./recursos-service";
 import { VideoPlayerView, type ResolvedOrientation } from "./video-player-view";
-import type { PsychoResource, ResourceCategory } from "@/lib/types";
-import { BRAND } from "@/lib/branding";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Respiracion478Modal } from "./respiracion-478-modal";
+import { Grounding54321Modal } from "./grounding-54321-modal";
 
-const CATEGORIES: Array<"Todos" | ResourceCategory> = [
+const FILTER_CATEGORIES: Array<"Todos" | CanonicalResourceCategory> = [
   "Todos",
-  "Ansiedad",
-  "Estrés",
-  "Sueño",
-  "Ánimo",
-  "Respiración",
+  ...CANONICAL_RESOURCE_CATEGORIES,
 ];
-
-function getCategoryTone(category: ResourceCategory): string {
-  switch (category) {
-    case "Respiración":
-      return "bg-mint-soft text-teal border-mint/40";
-    case "Ansiedad":
-      return "bg-cyan-soft text-cyan-700 dark:text-cyan-400 border-cyan/40";
-    case "Sueño":
-      return "bg-lavender-soft text-[#6857E4] border-lavender/40";
-    case "Estrés":
-      return "bg-teal-soft text-teal border-teal/40";
-    case "Ánimo":
-      return "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-}
 
 function getIconComponent(iconName: PsychoResource["iconName"]) {
   switch (iconName) {
@@ -61,19 +63,82 @@ function getIconComponent(iconName: PsychoResource["iconName"]) {
     case "smile":
       return resourceIcons.smile;
     case "bookOpen":
-      return resourceIcons.bookOpen;
     default:
       return resourceIcons.bookOpen;
   }
 }
 
+function ResourceThumbnail({ resource }: { resource: PsychoResource }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const visuals = getCategoryVisuals(resource.category);
+  const IconComponent = getIconComponent(resource.iconName);
+  const hasVideo = Boolean(resource.videoUrl);
+
+  return (
+    <div
+      className={`relative aspect-video w-full overflow-hidden border-b border-[#E5DFD3] dark:border-[#2D3F2A] ${visuals.softBgClass}`}
+    >
+      {resource.thumbnailUrl && !imgFailed ? (
+        <img
+          src={resource.thumbnailUrl}
+          alt={resource.title}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgFailed(true)}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+        />
+      ) : (
+        <div className="relative flex h-full w-full items-center justify-center p-4">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: `radial-gradient(${visuals.hex} 1.25px, transparent 1.25px)`,
+              backgroundSize: "14px 14px",
+            }}
+          />
+          <div className="relative z-10 flex flex-col items-center gap-2">
+            <div
+              className="grid size-13 place-items-center rounded-xl border border-white/60 bg-white/90 shadow-xs transition-transform duration-200 group-hover:scale-105 dark:bg-[#1A2618]"
+              style={{ color: visuals.hex }}
+            >
+              <IconComponent className="size-6" strokeWidth={1.75} />
+            </div>
+            <span className="rounded-md bg-white/85 px-2 py-0.5 text-[11px] font-semibold text-[#1A1A1A] dark:bg-[#0F1A12]/80 dark:text-[#F5F1E8]">
+              {hasVideo ? "Video demostrativo" : "Guía práctica"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de reproducción si tiene video */}
+      {hasVideo && (
+        <div className="absolute right-3 bottom-3 z-10 inline-flex items-center gap-1 rounded-full bg-[#0F1A12]/85 px-2.5 py-1 text-[11px] font-semibold text-white shadow-xs">
+          <Play className="size-3 fill-current" />
+          <span>Video</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RecursosPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const shouldReduceMotion = useReducedMotion();
+
   const [resources, setResources] = useState<PsychoResource[]>(() => getStoredResources());
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<"Todos" | ResourceCategory>("Todos");
-  const [selectedTimeFilter, setSelectedTimeFilter] = useState<"all" | "under5" | "over5">("all");
+  const [selectedCategory, setSelectedCategory] = useState<"Todos" | CanonicalResourceCategory>(
+    "Todos",
+  );
   const [activeResource, setActiveResource] = useState<PsychoResource | null>(null);
   const [videoOrientation, setVideoOrientation] = useState<ResolvedOrientation>("horizontal");
+  const [eliFailed, setEliFailed] = useState(false);
+
+  // Modales interactivos de ejercicios
+  const [isBreathingOpen, setIsBreathingOpen] = useState(false);
+  const [isGroundingOpen, setIsGroundingOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -97,412 +162,509 @@ export function RecursosPage() {
     setVideoOrientation(next);
   }, []);
 
+  // Solo recursos activos (visibilidad = true)
+  const activeCatalog = useMemo(() => resources.filter((rec) => rec.active !== false), [resources]);
+
   const filteredResources = useMemo(() => {
-    return resources.filter((rec) => {
-      if (rec.active === false) return false;
-      const matchesCategory = selectedCategory === "Todos" || rec.category === selectedCategory;
-      const query = searchQuery.trim().toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
+    return activeCatalog.filter((rec) => {
+      const canonical = normalizeResourceCategory(rec.category);
+      const matchesCategory = selectedCategory === "Todos" || canonical === selectedCategory;
       const matchesSearch =
         query === "" ||
         rec.title.toLowerCase().includes(query) ||
         rec.shortDescription.toLowerCase().includes(query) ||
-        rec.category.toLowerCase().includes(query) ||
+        canonical.toLowerCase().includes(query) ||
         (rec.author && rec.author.toLowerCase().includes(query));
 
-      const minutes = parseInt(rec.readTime, 10) || 3;
-      const matchesTime =
-        selectedTimeFilter === "all" ||
-        (selectedTimeFilter === "under5" && minutes < 5) ||
-        (selectedTimeFilter === "over5" && minutes >= 5);
-
-      return matchesCategory && matchesSearch && matchesTime;
+      return matchesCategory && matchesSearch;
     });
-  }, [resources, searchQuery, selectedCategory, selectedTimeFilter]);
+  }, [activeCatalog, searchQuery, selectedCategory]);
 
-  const isVerticalVideo = Boolean(activeResource?.videoUrl && videoOrientation === "vertical");
-
-  const renderVideoSection = (res: PsychoResource) => {
-    if (!res.videoUrl) return null;
-    return (
-      <div
-        className={`min-w-0 overflow-hidden space-y-2.5 rounded-2xl border border-teal-200/80 dark:border-teal-900/50 bg-teal-50/40 dark:bg-teal-950/20 p-3.5 sm:p-4 shadow-sm ${
-          isVerticalVideo ? "" : "mx-auto w-full max-w-3xl"
-        }`}
-      >
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-start gap-2 text-xs font-bold text-teal-800 dark:text-teal-300">
-            <Play className="size-3.5 fill-current shrink-0 mt-0.5" />
-            <span className="min-w-0 break-words leading-snug">
-              {res.videoTitle || "Video Demostrativo Guiado"}
-            </span>
-          </div>
-          <Badge
-            variant="outline"
-            className="text-[10px] border-lavender/50 text-[#6857E4] dark:text-indigo-300 bg-lavender-soft shrink-0"
-          >
-            {videoOrientation === "vertical"
-              ? "Video Vertical"
-              : videoOrientation === "square"
-                ? "Video Cuadrado"
-                : "Video Demostrativo"}
-          </Badge>
-        </div>
-
-        <VideoPlayerView
-          videoUrl={res.videoUrl}
-          title={res.videoTitle || res.title}
-          orientation={res.videoOrientation || "auto"}
-          onOrientationDetected={handleOrientationDetected}
-        />
-
-        <p className="text-[11px] text-slate-600 dark:text-slate-300 italic text-center pt-0.5">
-          Sigue las indicaciones del video y acompaña el ejercicio a tu propio ritmo.
-        </p>
-      </div>
+  // Recursos relacionados para la barra lateral del reproductor
+  const relatedResources = useMemo(() => {
+    if (!activeResource) return [];
+    const currentCategory = normalizeResourceCategory(activeResource.category);
+    const others = activeCatalog.filter((rec) => rec.id !== activeResource.id);
+    const sameCategory = others.filter(
+      (rec) => normalizeResourceCategory(rec.category) === currentCategory,
     );
+    const differentCategory = others.filter(
+      (rec) => normalizeResourceCategory(rec.category) !== currentCategory,
+    );
+    return [...sameCategory, ...differentCategory].slice(0, 4);
+  }, [activeCatalog, activeResource]);
+
+  const breadcrumbs: InstitutionalBreadcrumbItem[] = activeResource
+    ? [
+        { label: "Bienestar Estudiantil", href: "/" },
+        { label: "Recursos de bienestar", onClick: () => setActiveResource(null) },
+        { label: activeResource.title },
+      ]
+    : [{ label: "Bienestar Estudiantil", href: "/" }, { label: "Recursos de bienestar" }];
+
+  const handleOpenResource = (resource: PsychoResource) => {
+    setActiveResource(resource);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: shouldReduceMotion ? "auto" : "smooth" });
+    }
   };
 
-  const renderTechniqueHeader = (res: PsychoResource) => (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-300">
-        <resourceIcons.clock className="size-3.5" />
-        <span>{res.readTime}</span>
-      </div>
-      <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-        {res.title}
-      </h1>
-      <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-        {res.shortDescription}
-      </p>
-      {res.author && (
-        <p className="text-xs font-semibold text-teal-700 dark:text-teal-300">
-          Material validado por: {res.author}
-        </p>
-      )}
-    </div>
-  );
-
-  const renderTechniqueContent = (res: PsychoResource) => (
-    <div className="ethereal-card space-y-5 p-5 sm:p-8 text-slate-800 dark:text-slate-100 leading-relaxed text-sm sm:text-base">
-      {res.content.map((paragraph, index) => (
-        <p key={index} className="leading-relaxed text-slate-800 dark:text-slate-100">
-          {paragraph}
-        </p>
-      ))}
-
-      {res.keyTakeaway && (
-        <div className="mt-6 rounded-2xl bg-teal-50/90 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 p-4 sm:p-5">
-          <div className="flex items-center gap-2 font-display text-sm font-bold text-teal-800 dark:text-teal-300 mb-1.5">
-            <resourceIcons.sparkles className="size-4" />
-            <span>Idea para recordar</span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
-            {res.keyTakeaway}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-
   return (
-    <PageShell>
-      <main className="space-y-8 animate-fade-in pb-16">
+    <div className="flex min-h-screen flex-col bg-[#F5F1E8] text-[#1A1A1A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
+      <InstitutionalHeader
+        moduleTitle="Recursos de bienestar"
+        breadcrumbs={breadcrumbs}
+        onHomeClick={() => navigate({ to: "/" })}
+        showCrisisButton={true}
+        onCrisisClick={() => navigate({ to: "/alerta" })}
+        actions={
+          <>
+            <AjustesModal
+              rol={user?.role || "estudiante"}
+              trigger={
+                <button
+                  type="button"
+                  aria-label="Abrir configuración y ajustes"
+                  title="Configuración y ajustes"
+                  className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  <Settings className="size-[18px]" strokeWidth={1.75} />
+                </button>
+              }
+            />
+            <ThemeToggle className="size-9 rounded-lg border border-white/20 bg-white/10 text-white shadow-none backdrop-blur-none hover:scale-100 hover:border-white/30 hover:bg-white/15 [&_svg]:size-[18px] [&_svg]:text-white" />
+          </>
+        }
+      />
+
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-7 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
           {activeResource ? (
-            /* Vista de Lectura Completa del Recurso (Adaptativa a Video Vertical u Horizontal) */
-            <motion.article
-              key="resource-detail"
-              initial={{ opacity: 0, y: 12 }}
+            /* VISTA REPRODUCTOR + SIDEBAR RECURSOS RELACIONADOS */
+            <motion.section
+              key={`player-${activeResource.id}`}
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
+              exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="space-y-6"
+              className="space-y-6 pb-12"
             >
-              <div className="flex items-center justify-between border-b border-border/50 pb-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setActiveResource(null)}
-                  className="h-9 gap-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300"
-                >
-                  <resourceIcons.arrowLeft className="size-4" />
-                  <span>Volver a la biblioteca</span>
-                </Button>
-
-                <Badge
-                  variant="secondary"
-                  className={`rounded-xl px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${getCategoryTone(
-                    activeResource.category,
-                  )}`}
-                >
-                  {activeResource.category}
-                </Badge>
-              </div>
-
-              {/* Estructura única estable para evitar que el reproductor se reinicie al detectar orientación */}
-              <div
-                className={
-                  isVerticalVideo
-                    ? "grid gap-6 md:grid-cols-[minmax(270px,350px)_minmax(0,1fr)] md:items-start lg:gap-8"
-                    : "flex flex-col gap-6"
-                }
-              >
-                <div
-                  className={isVerticalVideo ? "min-w-0 md:col-start-2 md:row-start-1" : "min-w-0"}
-                >
-                  {renderTechniqueHeader(activeResource)}
-                </div>
-
-                {activeResource.videoUrl && (
-                  <div
-                    className={
-                      isVerticalVideo
-                        ? "min-w-0 md:col-start-1 md:row-start-1 md:row-span-2 md:sticky md:top-6"
-                        : "min-w-0"
-                    }
-                  >
-                    {renderVideoSection(activeResource)}
-                  </div>
-                )}
-
-                <div
-                  className={isVerticalVideo ? "min-w-0 md:col-start-2 md:row-start-2" : "min-w-0"}
-                >
-                  {renderTechniqueContent(activeResource)}
-                </div>
-              </div>
-
-              {/* Barra inferior de acciones */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setActiveResource(null)}
-                  className="rounded-2xl h-11 px-6 text-xs font-semibold"
+                  className="h-10 cursor-pointer gap-2 rounded-lg border-[#E5DFD3] bg-white px-4 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8]"
                 >
-                  <resourceIcons.arrowLeft className="mr-2 size-4" />
-                  <span>Regresar a recursos</span>
+                  <ArrowLeft className="size-4" />
+                  <span>Volver a recursos</span>
                 </Button>
 
-                <Button
-                  asChild
-                  className="rounded-2xl h-11 px-6 bg-[#6857E4] text-white hover:bg-[#5847d5] text-xs font-semibold shadow-soft"
-                >
-                  <Link to="/chat">
-                    <resourceIcons.sparkles className="mr-2 size-4" />
-                    <span>Conversar con {BRAND.assistant} sobre este tema</span>
-                  </Link>
-                </Button>
-              </div>
-            </motion.article>
-          ) : (
-            /* Vista Principal: Buscador, Filtros y Grid */
-            <motion.div
-              key="resource-list"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-7"
-            >
-              {/* Header de la sección */}
-              <section className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase text-accent">
-                  <resourceIcons.bookOpen className="size-3.5" />
-                  <span>Biblioteca de autocuidado</span>
-                </div>
-                <h1 className="font-display text-3xl font-bold tracking-tight text-primary sm:text-4xl">
-                  Recursos y herramientas de bienestar
-                </h1>
-                <p className="max-w-xl text-sm text-muted-foreground leading-relaxed">
-                  Lecturas breves, ejercicios prácticos y técnicas validadas para acompañarte a tu
-                  propio ritmo.
-                </p>
-              </section>
-
-              {/* Buscador interactivo */}
-              <section className="relative max-w-md">
-                <resourceIcons.search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Buscar por técnica, emoción o palabra clave..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-11 rounded-2xl pl-10 pr-4 text-sm bg-card/80 border-border/80 shadow-soft focus-visible:ring-accent"
-                />
-              </section>
-
-              {/* Filtros por Categoría en Chips */}
-              <section aria-label="Filtrar por categoría" className="flex flex-wrap gap-2">
-                {CATEGORIES.map((cat) => {
-                  const isSelected = selectedCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`rounded-2xl px-4 py-2 text-xs font-semibold transition-all ${
-                        isSelected
-                          ? "bg-[#6857E4] text-white shadow-soft font-bold scale-[1.02]"
-                          : "border border-border/70 bg-card/70 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })}
-              </section>
-
-              {/* Filtro por Tiempo de Lectura / Disponibilidad */}
-              <section
-                aria-label="Filtrar por tiempo de lectura"
-                className="flex flex-col gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-4"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-                    <resourceIcons.clock className="size-3.5 text-accent" />
-                    <span>Tiempo de lectura</span>
-                  </div>
-                  {selectedTimeFilter !== "all" && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTimeFilter("all")}
-                      className="text-[11px] font-semibold text-accent hover:underline"
-                    >
-                      Mostrar todas
-                    </button>
+                <div className="flex items-center gap-2">
+                  {activeResource.videoUrl && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#E5DFD3] bg-white px-3 py-1 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#8FC9B5]">
+                      <Video className="size-3.5" />
+                      {videoOrientation === "vertical"
+                        ? "Formato vertical"
+                        : videoOrientation === "square"
+                          ? "Formato cuadrado"
+                          : "Formato horizontal"}
+                    </span>
                   )}
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                      getCategoryVisuals(activeResource.category).pillClass
+                    }`}
+                  >
+                    {getCategoryVisuals(activeResource.category).label}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+                {/* Columna principal: Reproductor adaptativo + Contenido */}
+                <div className="min-w-0 space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        <Clock className="size-3.5" />
+                        {activeResource.readTime}
+                      </span>
+                      {activeResource.author && (
+                        <>
+                          <span>•</span>
+                          <span>{activeResource.author}</span>
+                        </>
+                      )}
+                    </div>
+                    <h1 className="text-2xl font-bold tracking-tight text-[#1F4D2C] sm:text-3xl dark:text-[#F5F1E8]">
+                      {activeResource.title}
+                    </h1>
+                    <p className="text-sm leading-relaxed text-[#6B6B6B] sm:text-base dark:text-[#A6B5A3]">
+                      {activeResource.shortDescription}
+                    </p>
+                  </div>
+
+                  {activeResource.videoUrl && (
+                    <div className="rounded-xl border border-[#E5DFD3] bg-white p-4 shadow-xs sm:p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-2 text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                          <Play className="size-3.5 fill-current" />
+                          {activeResource.videoTitle || activeResource.title}
+                        </span>
+                      </div>
+
+                      <VideoPlayerView
+                        videoUrl={activeResource.videoUrl}
+                        title={activeResource.videoTitle || activeResource.title}
+                        orientation={activeResource.videoOrientation || "auto"}
+                        onOrientationDetected={handleOrientationDetected}
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-4 rounded-xl border border-[#E5DFD3] bg-white p-6 text-sm leading-relaxed text-[#1A1A1A] shadow-xs sm:p-7 sm:text-base dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8]">
+                    {activeResource.content.map((paragraph, index) => (
+                      <p key={index} className="leading-relaxed">
+                        {paragraph}
+                      </p>
+                    ))}
+
+                    {activeResource.keyTakeaway && (
+                      <div className="mt-4 rounded-lg border border-[#8FC9B5] bg-[#E0F0E8] p-4 dark:border-[#4A7C59] dark:bg-[#0F1A12]">
+                        <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#1F4D2C] dark:text-[#8FC9B5]">
+                          <Sparkles className="size-4" />
+                          <span>Idea para recordar</span>
+                        </div>
+                        <p className="text-sm font-medium text-[#1A1A1A] dark:text-[#F5F1E8]">
+                          {activeResource.keyTakeaway}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTimeFilter("all")}
-                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                      selectedTimeFilter === "all"
-                        ? "bg-accent/15 text-accent border border-accent/40 font-bold shadow-2xs"
-                        : "border border-border/70 bg-card/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                    }`}
-                  >
-                    <span>Cualquier duración</span>
-                  </button>
+                {/* Sidebar: Recursos relacionados */}
+                <aside aria-label="Recursos relacionados" className="space-y-4 lg:sticky lg:top-28">
+                  <div className="rounded-xl border border-[#E5DFD3] bg-white p-5 shadow-xs dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+                    <h2 className="text-sm font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                      Recursos relacionados
+                    </h2>
+                    <p className="mt-0.5 text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
+                      Continúa explorando técnicas y guías complementarias.
+                    </p>
 
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTimeFilter("under5")}
-                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                      selectedTimeFilter === "under5"
-                        ? "bg-teal-soft text-teal border border-teal/40 font-bold shadow-2xs"
-                        : "border border-border/70 bg-card/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                    }`}
-                  >
-                    <span>Menos de 5 min</span>
-                    <span className="text-[10px] font-normal opacity-80">(Pausas breves)</span>
-                  </button>
+                    <div className="mt-4 space-y-3">
+                      {relatedResources.map((rel) => {
+                        const relVisuals = getCategoryVisuals(rel.category);
+                        return (
+                          <button
+                            key={rel.id}
+                            type="button"
+                            onClick={() => handleOpenResource(rel)}
+                            className="group flex w-full cursor-pointer flex-col gap-1.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/50 p-3 text-left transition-colors hover:border-[#1F4D2C]/50 hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12]/60 dark:hover:border-[#8FC9B5]/50"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${relVisuals.pillClass}`}
+                              >
+                                {relVisuals.label}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[11px] text-[#6B6B6B] dark:text-[#A6B5A3]">
+                                <Clock className="size-3" />
+                                {rel.readTime}
+                              </span>
+                            </div>
+                            <p className="line-clamp-2 text-xs font-bold text-[#1A1A1A] group-hover:text-[#1F4D2C] dark:text-[#F5F1E8] dark:group-hover:text-[#8FC9B5]">
+                              {rel.title}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTimeFilter("over5")}
-                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                      selectedTimeFilter === "over5"
-                        ? "bg-lavender-soft text-[#6857E4] border border-lavender/40 font-bold shadow-2xs"
-                        : "border border-border/70 bg-card/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                    }`}
-                  >
-                    <span>5 min o más</span>
-                    <span className="text-[10px] font-normal opacity-80">(Guías detalladas)</span>
-                  </button>
+                  <div className="rounded-xl border border-[#7B6FD8]/30 bg-[#ECE8FA] p-5 dark:bg-[#7B6FD8]/15">
+                    <p className="text-xs font-bold text-[#5346B8] dark:text-[#C8C0F8]">
+                      ¿Prefieres hablarlo con {BRAND.assistant}?
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-[#1A1A1A] dark:text-[#F5F1E8]">
+                      Nuestro espacio de tamizaje y acompañamiento está disponible cuando lo
+                      necesites.
+                    </p>
+                    <Button
+                      asChild
+                      className="mt-3 h-9 w-full rounded-lg bg-[#7B6FD8] text-xs font-semibold text-white hover:bg-[#695CC8]"
+                    >
+                      <Link to="/chat">Conversar con {BRAND.assistant}</Link>
+                    </Button>
+                  </div>
+                </aside>
+              </div>
+            </motion.section>
+          ) : (
+            /* VISTA ESTUDIANTE PRINCIPAL: HERO + EJERCICIOS INTERACTIVOS + FILTROS + GRID */
+            <motion.div
+              key="resource-catalog"
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+              className="space-y-8 pb-12"
+            >
+              {/* Hero Card bg-[#ECE8FA] con mascota Eli */}
+              <section className="rounded-xl border border-[#7B6FD8]/25 bg-[#ECE8FA] p-6 shadow-xs sm:p-8 dark:border-[#7B6FD8]/35 dark:bg-[#231F3A]">
+                <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/70 bg-white/85 p-2 shadow-xs sm:size-24 dark:border-[#7B6FD8]/40 dark:bg-[#1A2618]">
+                      {!eliFailed ? (
+                        <img
+                          src={brandConfig.eliAvatarUrl}
+                          alt="Mascota Eli de Equilibra TESH"
+                          onError={() => setEliFailed(true)}
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <Sparkles className="size-10 text-[#7B6FD8]" />
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/85 px-3 py-0.5 text-xs font-semibold text-[#7B6FD8] dark:bg-[#1A2618] dark:text-[#C8C0F8]">
+                        <BookOpen className="size-3.5" />
+                        Biblioteca de bienestar TESH
+                      </span>
+                      <h2 className="text-2xl font-bold tracking-tight text-[#1F4D2C] sm:text-3xl dark:text-[#F5F1E8]">
+                        Explora recursos para tu bienestar
+                      </h2>
+                      <p className="max-w-2xl text-sm leading-relaxed text-[#1A1A1A]/85 dark:text-[#E5DFD3]">
+                        Videos guiados, lecturas prácticas y ejercicios interactivos diseñados junto
+                        al Área de Psicología para acompañarte en tu vida universitaria.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2 rounded-lg border border-[#7B6FD8]/25 bg-white/80 px-4 py-2.5 text-xs font-semibold text-[#1F4D2C] dark:bg-[#1A2618] dark:text-[#8FC9B5]">
+                    <span>{activeCatalog.length} recursos activos</span>
+                  </div>
                 </div>
               </section>
 
-              {/* Grid de Cards (1 col móvil, 2 tablet, 3 escritorio) */}
-              <section aria-labelledby="resources-grid-title" className="space-y-4">
+              {/* Sección de 2 Ejercicios Interactivos Destacados */}
+              <section aria-labelledby="interactive-exercises-heading" className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h2
-                    id="resources-grid-title"
-                    className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                    id="interactive-exercises-heading"
+                    className="text-sm font-bold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]"
                   >
-                    {filteredResources.length} recurso
-                    {filteredResources.length === 1 ? "" : "s"} disponible
-                    {filteredResources.length === 1 ? "" : "s"}
+                    Ejercicios interactivos guiados
                   </h2>
                 </div>
 
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Card destacada 1: Respiración 4-7-8 */}
+                  <article className="flex flex-col justify-between gap-4 rounded-xl border border-[#8FC9B5] bg-[#E0F0E8] p-5 shadow-xs sm:flex-row sm:items-center dark:border-[#4A7C59] dark:bg-[#182B1E]">
+                    <div className="flex items-start gap-4">
+                      <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-white text-[#1F4D2C] shadow-2xs dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
+                        <Wind className="size-6" strokeWidth={1.75} />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="inline-flex rounded-full bg-[#8FC9B5] px-2.5 py-0.5 text-[11px] font-semibold text-[#1A1A1A]">
+                          Ejercicio guiado
+                        </span>
+                        <h3 className="text-lg font-bold text-[#1F4D2C] dark:text-[#F5F1E8]">
+                          Respiración 4-7-8
+                        </h3>
+                        <p className="text-xs leading-relaxed text-[#1A1A1A]/80 dark:text-[#E5DFD3]">
+                          Inhala 4s, retén 7s y exhala 8s en pantalla completa para calmar la
+                          activación física.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={() => setIsBreathingOpen(true)}
+                      className="h-10 shrink-0 cursor-pointer gap-1.5 rounded-lg bg-[#1F4D2C] px-4 text-xs font-semibold text-white hover:bg-[#4A7C59]"
+                    >
+                      <span>Iniciar</span>
+                      <ArrowRight className="size-3.5" />
+                    </Button>
+                  </article>
+
+                  {/* Card destacada 2: Grounding 5-4-3-2-1 */}
+                  <article className="flex flex-col justify-between gap-4 rounded-xl border border-[#7B6FD8]/40 bg-[#ECE8FA] p-5 shadow-xs sm:flex-row sm:items-center dark:border-[#7B6FD8]/50 dark:bg-[#231F3A]">
+                    <div className="flex items-start gap-4">
+                      <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-white text-[#7B6FD8] shadow-2xs dark:bg-[#0F1A12] dark:text-[#B9B0F3]">
+                        <Hand className="size-6" strokeWidth={1.75} />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="inline-flex rounded-full bg-[#7B6FD8] px-2.5 py-0.5 text-[11px] font-semibold text-white">
+                          Anclaje interactivo
+                        </span>
+                        <h3 className="text-lg font-bold text-[#1F4D2C] dark:text-[#F5F1E8]">
+                          Grounding 5-4-3-2-1
+                        </h3>
+                        <p className="text-xs leading-relaxed text-[#1A1A1A]/80 dark:text-[#E5DFD3]">
+                          Registra 5 cosas que ves, 4 que tocas, 3 que escuchas, 2 que hueles y 1
+                          que saboreas.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={() => setIsGroundingOpen(true)}
+                      className="h-10 shrink-0 cursor-pointer gap-1.5 rounded-lg bg-[#7B6FD8] px-4 text-xs font-semibold text-white hover:bg-[#695CC8]"
+                    >
+                      <span>Practicar</span>
+                      <ArrowRight className="size-3.5" />
+                    </Button>
+                  </article>
+                </div>
+              </section>
+
+              {/* Filtros arriba: Buscador + Pills por categoría */}
+              <section
+                aria-label="Filtros de recursos"
+                className="space-y-4 rounded-xl border border-[#E5DFD3] bg-white p-4 shadow-xs sm:p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618]"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="relative w-full sm:max-w-md">
+                    <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#6B6B6B]" />
+                    <Input
+                      type="search"
+                      aria-label="Buscar recursos de bienestar"
+                      placeholder="Buscar por título, tema o técnica..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-10 border-[#E5DFD3] bg-[#F5F1E8]/50 pl-10 text-sm text-[#1A1A1A] focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
+                    />
+                  </div>
+
+                  <p className="text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+                    Mostrando{" "}
+                    <span className="font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                      {filteredResources.length}
+                    </span>{" "}
+                    {filteredResources.length === 1 ? "recurso" : "recursos"}
+                  </p>
+                </div>
+
+                <div
+                  className="flex flex-wrap items-center gap-2"
+                  role="group"
+                  aria-label="Filtrar por categoría"
+                >
+                  {FILTER_CATEGORIES.map((category) => {
+                    const isSelected = selectedCategory === category;
+                    if (category === "Todos") {
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setSelectedCategory("Todos")}
+                          className={`cursor-pointer rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                            isSelected
+                              ? "border-[#1F4D2C] bg-[#1F4D2C] text-white shadow-2xs"
+                              : "border-[#E5DFD3] bg-[#F5F1E8]/60 text-[#1A1A1A] hover:border-[#1F4D2C]/50 dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
+                          }`}
+                        >
+                          Todos
+                        </button>
+                      );
+                    }
+
+                    const visuals = getCategoryVisuals(category);
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => setSelectedCategory(category)}
+                        className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                          isSelected
+                            ? `${visuals.pillClass} shadow-2xs`
+                            : "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="size-2 rounded-full"
+                          style={{ backgroundColor: isSelected ? "currentColor" : visuals.hex }}
+                        />
+                        <span>{category}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Grid de tarjetas de recursos: 3 columnas desktop, 1 móvil */}
+              <section aria-labelledby="resources-grid-title">
+                <h2 id="resources-grid-title" className="sr-only">
+                  Catálogo de recursos psicoeducativos
+                </h2>
+
                 {filteredResources.length > 0 ? (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {filteredResources.map((resource) => {
-                      const IconComponent = getIconComponent(resource.iconName);
+                      const visuals = getCategoryVisuals(resource.category);
                       return (
                         <article
                           key={resource.id}
-                          onClick={() => setActiveResource(resource)}
-                          className="ethereal-card group flex flex-col justify-between p-5 transition-all hover:-translate-y-1 hover:border-accent/40 hover:shadow-float cursor-pointer"
+                          className="group flex flex-col overflow-hidden rounded-xl border border-[#E5DFD3] bg-white shadow-xs transition-all hover:-translate-y-0.5 hover:border-[#1F4D2C]/45 hover:shadow-md dark:border-[#2D3F2A] dark:bg-[#1A2618]"
                         >
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between gap-3">
-                              {/* Círculo suave con icono Lucide */}
-                              <div
-                                className={`grid size-11 shrink-0 place-items-center rounded-2xl ${getCategoryTone(
-                                  resource.category,
-                                )} transition-transform group-hover:scale-105`}
-                              >
-                                <IconComponent className="size-5" />
-                              </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenResource(resource)}
+                            className="flex flex-1 cursor-pointer flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+                          >
+                            <ResourceThumbnail resource={resource} />
 
-                              <div className="flex flex-col items-end gap-1">
-                                <Badge
-                                  variant="secondary"
-                                  className={`rounded-xl px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getCategoryTone(
-                                    resource.category,
-                                  )}`}
-                                >
-                                  {resource.category}
-                                </Badge>
-                                {resource.videoUrl && (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] font-bold rounded-md border-lavender/50 bg-lavender-soft text-[#6857E4] dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-700/50 gap-1 px-1.5 py-0"
+                            <div className="flex flex-1 flex-col justify-between p-5">
+                              <div className="space-y-2.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span
+                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${visuals.pillClass}`}
                                   >
-                                    <Play className="size-2.5 fill-current" />
-                                    <span>Video</span>
-                                  </Badge>
-                                )}
+                                    {visuals.label}
+                                  </span>
+
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+                                    <Clock className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
+                                    {resource.readTime}
+                                  </span>
+                                </div>
+
+                                <h3 className="text-base font-bold leading-snug text-[#1A1A1A] transition-colors group-hover:text-[#1F4D2C] dark:text-[#F5F1E8] dark:group-hover:text-[#8FC9B5]">
+                                  {resource.title}
+                                </h3>
+
+                                <p className="line-clamp-2 text-xs leading-relaxed text-[#6B6B6B] dark:text-[#A6B5A3]">
+                                  {resource.shortDescription}
+                                </p>
+                              </div>
+
+                              <div className="mt-4 flex items-center justify-between border-t border-[#E5DFD3] pt-3 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:text-[#8FC9B5]">
+                                <span>
+                                  {resource.videoUrl ? "Reproducir recurso" : "Leer recurso"}
+                                </span>
+                                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                               </div>
                             </div>
-
-                            <div>
-                              <h3 className="font-display text-lg font-bold text-slate-900 dark:text-slate-50 group-hover:text-teal-700 dark:group-hover:text-teal-300 transition-colors">
-                                {resource.title}
-                              </h3>
-                              <p className="mt-1 line-clamp-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                                {resource.shortDescription}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3 text-xs text-slate-600 dark:text-slate-300">
-                            <span className="flex items-center gap-1.5 font-medium">
-                              <resourceIcons.clock className="size-3.5 text-teal-600 dark:text-teal-400" />
-                              <span>{resource.readTime}</span>
-                            </span>
-
-                            <span className="font-bold text-teal-700 dark:text-teal-300 group-hover:underline">
-                              {resource.videoUrl ? "Ver video y técnica →" : "Leer técnica →"}
-                            </span>
-                          </div>
+                          </button>
                         </article>
                       );
                     })}
                   </div>
                 ) : (
-                  /* Estado sin resultados */
-                  <div className="ethereal-card flex flex-col items-center justify-center p-8 text-center sm:p-12">
-                    <resourceIcons.bookOpen className="size-10 text-muted-foreground/60 mb-3" />
-                    <h3 className="font-display text-lg font-bold text-foreground">
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-[#E5DFD3] bg-white p-10 text-center dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+                    <BookOpen className="mb-3 size-10 text-[#6B6B6B]/60" />
+                    <h3 className="text-base font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
                       No encontramos recursos con ese criterio
                     </h3>
-                    <p className="mt-1 text-xs text-muted-foreground max-w-sm">
-                      Prueba buscando con otra palabra o selecciona "Todos" para ver todas las
-                      técnicas disponibles.
+                    <p className="mt-1 max-w-sm text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
+                      Prueba limpiando los filtros o selecciona "Todos" para ver todo el catálogo
+                      activo.
                     </p>
                     <Button
                       type="button"
@@ -511,7 +673,7 @@ export function RecursosPage() {
                         setSearchQuery("");
                         setSelectedCategory("Todos");
                       }}
-                      className="mt-4 rounded-xl text-xs font-semibold"
+                      className="mt-4 h-9 cursor-pointer rounded-lg border-[#E5DFD3] text-xs font-semibold"
                     >
                       Limpiar filtros
                     </Button>
@@ -522,6 +684,10 @@ export function RecursosPage() {
           )}
         </AnimatePresence>
       </main>
-    </PageShell>
+
+      {/* Modales interactivos de ejercicios */}
+      <Respiracion478Modal isOpen={isBreathingOpen} onClose={() => setIsBreathingOpen(false)} />
+      <Grounding54321Modal isOpen={isGroundingOpen} onClose={() => setIsGroundingOpen(false)} />
+    </div>
   );
 }

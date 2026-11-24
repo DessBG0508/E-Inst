@@ -9,6 +9,12 @@ interface ContextoPsicosocialProps {
   onChange: (patch: Partial<ContextoPsicosocialData>) => void;
 }
 
+const READONLY_CLASS =
+  "w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-sm font-medium text-[#6B6B6B] cursor-default focus:outline-none";
+
+const EDITABLE_CLASS =
+  "w-full rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]";
+
 export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
   paciente,
   contexto,
@@ -16,120 +22,129 @@ export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
 }) => {
   const carreraSemestre =
     contexto.carrera_semestre ||
-    `${paciente?.carrera || "Ing. en Sistemas Computacionales"} · ${
-      paciente?.semestre ? `${paciente.semestre}º Semestre` : "6º Semestre"
+    `${paciente?.carrera || "TESH Huixquilucan"} · ${
+      paciente?.semestre
+        ? `${String(paciente.semestre).replace(/º\s*Semestre/i, "")}º Semestre`
+        : "Sin semestre"
     }`;
-  const grupo = contexto.grupo || paciente?.grupo || "501";
+  const grupo = contexto.grupo || paciente?.grupo || "Sin grupo";
 
   return (
     <div className="space-y-4">
-      {/* Encabezado de Sección Canva Style */}
-      <div className="flex flex-col gap-1 rounded-2xl bg-[#1c2474] px-4 py-3 text-white shadow-md sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-[#1F4D2C] px-4 py-3 text-white sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#3942a0] text-sm font-black text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-bold text-white">
             05
           </span>
-          <h3 className="font-display text-lg font-bold tracking-tight text-white">
+          <h3 className="text-base font-semibold tracking-tight text-white">
             Contexto psicosocial
           </h3>
         </div>
-        <span className="text-xs font-normal text-indigo-200 sm:ml-2">
-          Con quién vive, de qué vive y con quién cuenta
+        <span className="text-xs font-normal text-white/80 sm:ml-2">
+          Con quién vive, situación laboral y redes de apoyo
         </span>
       </div>
 
-      <div className="rounded-3xl border border-[#d8d2ff] bg-white p-5 shadow-xs dark:border-indigo-950/60 dark:bg-[#1a1b35] sm:p-7">
-        <div className="divide-y divide-border/60">
-          {/* Carrera y semestre */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">
-              Carrera y semestre:
-            </span>
-            <span className="text-xs font-bold text-foreground sm:w-1/2">{carreraSemestre}</span>
-            <div className="sm:w-1/6 sm:text-right">
+      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="ctx-carrera" className="text-sm font-semibold text-[#1F4D2C]">
+                Carrera y semestre
+              </label>
               <BadgeOrigen tipo="AUTOMÁTICO" />
             </div>
+            <input
+              id="ctx-carrera"
+              type="text"
+              readOnly
+              value={carreraSemestre}
+              className={READONLY_CLASS}
+            />
           </div>
 
-          {/* Grupo */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">Grupo:</span>
-            <span className="font-mono text-xs font-bold text-foreground sm:w-1/2">{grupo}</span>
-            <div className="sm:w-1/6 sm:text-right">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="ctx-grupo" className="text-sm font-semibold text-[#1F4D2C]">
+                Grupo
+              </label>
               <BadgeOrigen tipo="AUTOMÁTICO" />
             </div>
+            <input
+              id="ctx-grupo"
+              type="text"
+              readOnly
+              value={grupo}
+              className={`${READONLY_CLASS} font-mono`}
+            />
           </div>
 
-          {/* Convivencia */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">Convivencia:</span>
-            <div className="sm:w-1/2">
-              <input
-                type="text"
-                value={contexto.convivencia}
-                onChange={(e) => onChange({ convivencia: e.target.value })}
-                placeholder="(con quién vive: padres, pareja, solo/a, roomies)"
-                className="w-full max-w-md rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
-              />
-            </div>
-            <div className="sm:w-1/6 sm:text-right">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="ctx-convivencia" className="text-sm font-semibold text-[#1F4D2C]">
+                Convivencia
+              </label>
               <BadgeOrigen tipo="PSICÓLOGO" />
             </div>
+            <input
+              id="ctx-convivencia"
+              type="text"
+              value={contexto.convivencia}
+              onChange={(e) => onChange({ convivencia: e.target.value })}
+              placeholder="Padres, pareja, solo/a, roomies..."
+              className={EDITABLE_CLASS}
+            />
           </div>
 
-          {/* Situación laboral */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">
-              Situación laboral:
-            </span>
-            <div className="sm:w-1/2">
-              <input
-                type="text"
-                value={contexto.situacion_laboral}
-                onChange={(e) => onChange({ situacion_laboral: e.target.value })}
-                placeholder="(trabaja / solo estudia / medio tiempo)"
-                className="w-full max-w-md rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
-              />
-            </div>
-            <div className="sm:w-1/6 sm:text-right">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="ctx-laboral" className="text-sm font-semibold text-[#1F4D2C]">
+                Situación laboral
+              </label>
               <BadgeOrigen tipo="PSICÓLOGO" />
             </div>
+            <input
+              id="ctx-laboral"
+              type="text"
+              value={contexto.situacion_laboral}
+              onChange={(e) => onChange({ situacion_laboral: e.target.value })}
+              placeholder="Solo estudia, medio tiempo, tiempo completo..."
+              className={EDITABLE_CLASS}
+            />
           </div>
 
-          {/* Red de apoyo */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">Red de apoyo:</span>
-            <div className="sm:w-1/2">
-              <input
-                type="text"
-                value={contexto.red_apoyo}
-                onChange={(e) => onChange({ red_apoyo: e.target.value })}
-                placeholder="(familiares / amigos / tutores docentes)"
-                className="w-full max-w-md rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
-              />
-            </div>
-            <div className="sm:w-1/6 sm:text-right">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="ctx-red" className="text-sm font-semibold text-[#1F4D2C]">
+                Red de apoyo
+              </label>
               <BadgeOrigen tipo="PSICÓLOGO" />
             </div>
+            <input
+              id="ctx-red"
+              type="text"
+              value={contexto.red_apoyo}
+              onChange={(e) => onChange({ red_apoyo: e.target.value })}
+              placeholder="Familiares, amistades, tutoría docente..."
+              className={EDITABLE_CLASS}
+            />
           </div>
 
-          {/* Factores de estrés actuales */}
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-semibold text-foreground sm:w-1/3">
-              Factores de estrés actuales:
-            </span>
-            <div className="sm:w-1/2">
-              <input
-                type="text"
-                value={contexto.factores_estres}
-                onChange={(e) => onChange({ factores_estres: e.target.value })}
-                placeholder="(académicos / económicos / personales / familiares)"
-                className="w-full max-w-md rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground focus:border-[#6857E4] focus:outline-none focus:ring-1 focus:ring-[#6857E4]"
-              />
-            </div>
-            <div className="sm:w-1/6 sm:text-right">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="ctx-estres" className="text-sm font-semibold text-[#1F4D2C]">
+                Factores de estrés actuales
+              </label>
               <BadgeOrigen tipo="PSICÓLOGO" />
             </div>
+            <input
+              id="ctx-estres"
+              type="text"
+              value={contexto.factores_estres}
+              onChange={(e) => onChange({ factores_estres: e.target.value })}
+              placeholder="Académicos, económicos, familiares, traslado..."
+              className={EDITABLE_CLASS}
+            />
           </div>
         </div>
       </div>
