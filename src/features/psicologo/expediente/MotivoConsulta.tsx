@@ -38,15 +38,19 @@ export const MotivoConsulta: React.FC<MotivoConsultaProps> = ({
         </span>
       </div>
 
-      <div className="space-y-4 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
-        <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 sm:flex-row sm:items-start sm:gap-4">
+      <div className="space-y-4 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6">
+        <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 dark:border-[#2D3F2A] dark:bg-[#0F1A12] sm:flex-row sm:items-start sm:gap-4">
           <BadgeOrigen tipo="AUTOMÁTICO" className="shrink-0 self-start" />
-          <p className="text-sm leading-relaxed text-[#6B6B6B]">{textoSugeridoDefault}</p>
+          <p className="text-sm leading-relaxed text-[#6B6B6B] dark:text-[#A6B5A3]">
+            {textoSugeridoDefault}
+          </p>
         </div>
 
         {transcriptVoz && (
-          <div className="rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 text-sm text-[#6B6B6B]">
-            <span className="font-semibold text-[#1F4D2C]">Transcripción de voz registrada:</span>{" "}
+          <div className="rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 text-sm text-[#6B6B6B] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3]">
+            <span className="font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
+              Transcripción de voz registrada:
+            </span>{" "}
             &ldquo;{transcriptVoz}&rdquo;
           </div>
         )}
@@ -55,7 +59,7 @@ export const MotivoConsulta: React.FC<MotivoConsultaProps> = ({
           <div className="flex items-center justify-between gap-2">
             <label
               htmlFor="motivo-estudiante-input"
-              className="block text-sm font-semibold text-[#1F4D2C]"
+              className="block text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
             >
               Motivo en palabras del estudiante
             </label>
@@ -67,7 +71,7 @@ export const MotivoConsulta: React.FC<MotivoConsultaProps> = ({
             value={motivoEnPalabras}
             onChange={(e) => onChange(e.target.value)}
             placeholder="Describe el motivo de consulta textual referido por el estudiante durante la entrevista..."
-            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:placeholder:text-[#A6B5A3]/60"
           />
         </div>
       </div>

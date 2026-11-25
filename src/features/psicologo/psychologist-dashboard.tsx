@@ -50,6 +50,7 @@ import { CrisisProtocolDialog } from "./crisis-protocol-dialog";
 import { PsychologistAgenda } from "./psychologist-agenda";
 import { ClinicalNotesFeed } from "./clinical-notes-feed";
 import { GestionRecursos } from "./recursos/gestion-recursos";
+import { GestionAnuncios } from "./anuncios/gestion-anuncios";
 import { SemaforoPacientes } from "./semaforo-pacientes";
 import { ExpedienteClinico } from "./ExpedienteClinico";
 import { ResultadosEncuesta } from "./ResultadosEncuesta";
@@ -72,39 +73,46 @@ const riskStyles: Record<
   rojo: {
     label: "Riesgo alto",
     dot: "bg-[#C8102E]",
-    surface: "bg-[#FEE2E2] text-[#C8102E] border-[#C8102E]/30",
-    border: "border-[#E5DFD3]",
+    surface:
+      "bg-[#FEE2E2] text-[#C8102E] border-[#C8102E]/30 dark:bg-[#3B1219] dark:text-[#FCA5A5] dark:border-[#F87171]/30",
+    border: "border-[#E5DFD3] dark:border-[#2D3F2A]",
   },
   amarillo: {
     label: "Seguimiento",
     dot: "bg-[#B8860B]",
-    surface: "bg-[#FBE6D5] text-[#B8860B] border-[#B8860B]/30",
-    border: "border-[#E5DFD3]",
+    surface:
+      "bg-[#FBE6D5] text-[#B8860B] border-[#B8860B]/30 dark:bg-[#3A280A] dark:text-[#FCD34D] dark:border-[#D4A82B]/30",
+    border: "border-[#E5DFD3] dark:border-[#2D3F2A]",
   },
   verde: {
     label: "Estable",
     dot: "bg-[#1F4D2C]",
-    surface: "bg-[#E0F0E8] text-[#1F4D2C] border-[#1F4D2C]/30",
-    border: "border-[#E5DFD3]",
+    surface:
+      "bg-[#E0F0E8] text-[#1F4D2C] border-[#1F4D2C]/30 dark:bg-[#173620] dark:text-[#8FC9B5] dark:border-[#4A7C59]/40",
+    border: "border-[#E5DFD3] dark:border-[#2D3F2A]",
   },
 };
 
 const statusLabels: Record<CaseStatus, { label: string; surface: string }> = {
   por_contactar: {
     label: "Por contactar",
-    surface: "bg-[#FBE6D5] text-[#B8860B] border-[#B8860B]/30",
+    surface:
+      "bg-[#FBE6D5] text-[#B8860B] border-[#B8860B]/30 dark:bg-[#3A280A] dark:text-[#FCD34D] dark:border-[#D4A82B]/30",
   },
   en_seguimiento: {
     label: "En seguimiento",
-    surface: "bg-[#F5F1E8] text-[#1F4D2C] border-[#E5DFD3]",
+    surface:
+      "bg-[#F5F1E8] text-[#1F4D2C] border-[#E5DFD3] dark:bg-[#0F1A12] dark:text-[#8FC9B5] dark:border-[#2D3F2A]",
   },
   cita_programada: {
     label: "Cita programada",
-    surface: "bg-[#E0F0E8] text-[#1F4D2C] border-[#1F4D2C]/30 font-semibold",
+    surface:
+      "bg-[#E0F0E8] text-[#1F4D2C] border-[#1F4D2C]/30 font-semibold dark:bg-[#173620] dark:text-[#8FC9B5] dark:border-[#4A7C59]/40",
   },
   atendido: {
     label: "Atendido / Estable",
-    surface: "bg-[#E0F0E8] text-[#1F4D2C] border-[#1F4D2C]/30",
+    surface:
+      "bg-[#E0F0E8] text-[#1F4D2C] border-[#1F4D2C]/30 dark:bg-[#173620] dark:text-[#8FC9B5] dark:border-[#4A7C59]/40",
   },
 };
 
@@ -136,7 +144,7 @@ const chipClass = (isActive: boolean) =>
   `inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border shrink-0 cursor-pointer ${
     isActive
       ? "bg-[#1F4D2C] text-white border-[#1F4D2C] hover:bg-[#4A7C59]"
-      : "bg-white text-[#1A1A1A] border-[#E5DFD3] hover:border-[#1F4D2C]/50 hover:bg-[#F5F1E8]"
+      : "bg-white text-[#1A1A1A] border-[#E5DFD3] hover:border-[#1F4D2C]/50 hover:bg-[#F5F1E8] dark:bg-[#1A2618] dark:text-[#F5F1E8] dark:border-[#2D3F2A] dark:hover:border-[#8FC9B5]/50 dark:hover:bg-[#0F1A12]"
   }`;
 
 const SECTION_META: Record<PsychologistNavSection, { title: string; breadcrumb: string }> = {
@@ -150,6 +158,10 @@ const SECTION_META: Record<PsychologistNavSection, { title: string; breadcrumb: 
   recursos: {
     title: "Recursos y Videos",
     breadcrumb: "Recursos y Videos",
+  },
+  anuncios: {
+    title: "Anuncios y Talleres",
+    breadcrumb: "Anuncios y Talleres",
   },
 };
 
@@ -510,17 +522,17 @@ export function PsychologistDashboard({
                 {/* SECCIÓN 2: ALERTAS */}
                 {activeSection === "alertas" && (
                   <div className="space-y-6">
-                    <div className="flex flex-col gap-1 border-b border-[#E5DFD3] pb-4">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1A1A1A]">
+                    <div className="flex flex-col gap-1 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]">
+                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1A1A1A] dark:text-[#F5F1E8]">
                         Casos Clínicos y Triaje de Alertas
                       </h2>
-                      <p className="text-xs sm:text-sm text-[#6B6B6B]">
+                      <p className="text-xs sm:text-sm text-[#6B6B6B] dark:text-[#A6B5A3]">
                         Priorización por nivel de riesgo, registro de acompañamiento y liberación de
                         tamizajes.
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 border-b border-[#E5DFD3] pb-3">
+                    <div className="flex items-center gap-2 border-b border-[#E5DFD3] pb-3 dark:border-[#2D3F2A]">
                       <Button
                         type="button"
                         size="sm"
@@ -529,7 +541,7 @@ export function PsychologistDashboard({
                         className={`h-9 rounded-lg text-xs font-semibold ${
                           alertasViewMode === "semaforo"
                             ? "bg-[#1F4D2C] text-white hover:bg-[#4A7C59]"
-                            : "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8]"
+                            : "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8] dark:hover:bg-[#0F1A12]"
                         }`}
                       >
                         <Users className="mr-1.5 size-3.5" />
@@ -543,7 +555,7 @@ export function PsychologistDashboard({
                         className={`h-9 rounded-lg text-xs font-semibold ${
                           alertasViewMode === "tarjetas"
                             ? "bg-[#1F4D2C] text-white hover:bg-[#4A7C59]"
-                            : "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8]"
+                            : "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8] dark:hover:bg-[#0F1A12]"
                         }`}
                       >
                         <Activity className="mr-1.5 size-3.5" />
@@ -565,19 +577,21 @@ export function PsychologistDashboard({
                             onClick={() =>
                               setActiveRiskFilter((prev) => (prev === "rojo" ? null : "rojo"))
                             }
-                            className={`rounded-lg border bg-white p-4 text-left flex items-center justify-between transition-colors ${
+                            className={`rounded-lg border bg-white p-4 text-left flex items-center justify-between transition-colors dark:bg-[#1A2618] ${
                               activeRiskFilter === "rojo"
                                 ? "border-[#C8102E] ring-2 ring-[#C8102E]/20"
-                                : "border-[#E5DFD3] hover:border-[#C8102E]/50"
+                                : "border-[#E5DFD3] hover:border-[#C8102E]/50 dark:border-[#2D3F2A]"
                             }`}
                           >
                             <div>
-                              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#C8102E]">
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#C8102E] dark:text-[#FCA5A5]">
                                 <ShieldAlert className="size-3.5" />
                                 Riesgo Alto
                               </span>
-                              <p className="text-2xl font-bold text-[#1A1A1A] mt-1">{redCount}</p>
-                              <p className="text-[11px] text-[#6B6B6B] mt-0.5">
+                              <p className="text-2xl font-bold text-[#1A1A1A] mt-1 dark:text-[#F5F1E8]">
+                                {redCount}
+                              </p>
+                              <p className="text-[11px] text-[#6B6B6B] mt-0.5 dark:text-[#A6B5A3]">
                                 Atención prioritaria
                               </p>
                             </div>
@@ -591,21 +605,23 @@ export function PsychologistDashboard({
                                 prev === "amarillo" ? null : "amarillo",
                               )
                             }
-                            className={`rounded-lg border bg-white p-4 text-left flex items-center justify-between transition-colors ${
+                            className={`rounded-lg border bg-white p-4 text-left flex items-center justify-between transition-colors dark:bg-[#1A2618] ${
                               activeRiskFilter === "amarillo"
                                 ? "border-[#B8860B] ring-2 ring-[#B8860B]/20"
-                                : "border-[#E5DFD3] hover:border-[#B8860B]/50"
+                                : "border-[#E5DFD3] hover:border-[#B8860B]/50 dark:border-[#2D3F2A]"
                             }`}
                           >
                             <div>
-                              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#B8860B]">
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#B8860B] dark:text-[#FCD34D]">
                                 <Activity className="size-3.5" />
                                 Seguimiento
                               </span>
-                              <p className="text-2xl font-bold text-[#1A1A1A] mt-1">
+                              <p className="text-2xl font-bold text-[#1A1A1A] mt-1 dark:text-[#F5F1E8]">
                                 {yellowCount}
                               </p>
-                              <p className="text-[11px] text-[#6B6B6B] mt-0.5">Monitoreo activo</p>
+                              <p className="text-[11px] text-[#6B6B6B] mt-0.5 dark:text-[#A6B5A3]">
+                                Monitoreo activo
+                              </p>
                             </div>
                             <span className="size-2.5 rounded-full bg-[#B8860B] self-start" />
                           </button>
@@ -615,19 +631,21 @@ export function PsychologistDashboard({
                             onClick={() =>
                               setActiveRiskFilter((prev) => (prev === "verde" ? null : "verde"))
                             }
-                            className={`rounded-lg border bg-white p-4 text-left flex items-center justify-between transition-colors ${
+                            className={`rounded-lg border bg-white p-4 text-left flex items-center justify-between transition-colors dark:bg-[#1A2618] ${
                               activeRiskFilter === "verde"
                                 ? "border-[#1F4D2C] ring-2 ring-[#1F4D2C]/20"
-                                : "border-[#E5DFD3] hover:border-[#1F4D2C]/50"
+                                : "border-[#E5DFD3] hover:border-[#1F4D2C]/50 dark:border-[#2D3F2A]"
                             }`}
                           >
                             <div>
-                              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#1F4D2C]">
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
                                 <UsersRound className="size-3.5" />
                                 Estables
                               </span>
-                              <p className="text-2xl font-bold text-[#1A1A1A] mt-1">{greenCount}</p>
-                              <p className="text-[11px] text-[#6B6B6B] mt-0.5">
+                              <p className="text-2xl font-bold text-[#1A1A1A] mt-1 dark:text-[#F5F1E8]">
+                                {greenCount}
+                              </p>
+                              <p className="text-[11px] text-[#6B6B6B] mt-0.5 dark:text-[#A6B5A3]">
                                 Sin alertas críticas
                               </p>
                             </div>
@@ -637,35 +655,37 @@ export function PsychologistDashboard({
                           <button
                             type="button"
                             onClick={() => setActiveSection("agenda")}
-                            className="rounded-lg border border-[#E5DFD3] bg-white p-4 text-left flex items-center justify-between transition-colors hover:border-[#1F4D2C]/50"
+                            className="rounded-lg border border-[#E5DFD3] bg-white p-4 text-left flex items-center justify-between transition-colors hover:border-[#1F4D2C]/50 dark:border-[#2D3F2A] dark:bg-[#1A2618]"
                           >
                             <div>
-                              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#1F4D2C]">
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
                                 <Calendar className="size-3.5" />
                                 Citas Activas
                               </span>
-                              <p className="text-2xl font-bold text-[#1A1A1A] mt-1">
+                              <p className="text-2xl font-bold text-[#1A1A1A] mt-1 dark:text-[#F5F1E8]">
                                 {activeAppointmentsCount}
                               </p>
-                              <p className="text-[11px] text-[#6B6B6B] mt-0.5">En agenda clínica</p>
+                              <p className="text-[11px] text-[#6B6B6B] mt-0.5 dark:text-[#A6B5A3]">
+                                En agenda clínica
+                              </p>
                             </div>
-                            <CalendarPlus className="size-4 text-[#1F4D2C] self-start" />
+                            <CalendarPlus className="size-4 text-[#1F4D2C] self-start dark:text-[#8FC9B5]" />
                           </button>
                         </section>
 
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
                           <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#6B6B6B]" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#6B6B6B] dark:text-[#A6B5A3]" />
                             <Input
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                               placeholder="Buscar por iniciales, nombre, carrera o síntoma..."
-                              className="pl-9 h-9 rounded-lg border-[#E5DFD3] bg-white text-xs focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+                              className="pl-9 h-9 rounded-lg border-[#E5DFD3] bg-white text-xs focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
                             />
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-[#6B6B6B] font-semibold">
+                            <span className="text-xs text-[#6B6B6B] font-semibold dark:text-[#A6B5A3]">
                               Mostrando {filteredCases.length} de {cases.length} casos
                             </span>
                             {hasActiveFilters && (
@@ -673,7 +693,7 @@ export function PsychologistDashboard({
                                 size="sm"
                                 variant="ghost"
                                 onClick={handleClearAllFilters}
-                                className="h-8 text-xs text-[#1F4D2C] hover:bg-[#1F4D2C]/10 px-2 font-semibold"
+                                className="h-8 text-xs text-[#1F4D2C] hover:bg-[#1F4D2C]/10 px-2 font-semibold dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10"
                               >
                                 Limpiar filtros
                               </Button>
@@ -682,7 +702,9 @@ export function PsychologistDashboard({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <span className="text-xs font-semibold text-[#6B6B6B] mr-1">Riesgo:</span>
+                          <span className="text-xs font-semibold text-[#6B6B6B] mr-1 dark:text-[#A6B5A3]">
+                            Riesgo:
+                          </span>
                           <button
                             type="button"
                             onClick={() => setActiveRiskFilter(null)}
@@ -712,7 +734,7 @@ export function PsychologistDashboard({
                             Estable
                           </button>
 
-                          <div className="h-4 w-px bg-[#E5DFD3] mx-1 hidden sm:block" />
+                          <div className="h-4 w-px bg-[#E5DFD3] mx-1 hidden sm:block dark:bg-[#2D3F2A]" />
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -800,8 +822,8 @@ export function PsychologistDashboard({
 
                         <div className="grid gap-4 md:grid-cols-2">
                           {filteredCases.length === 0 ? (
-                            <div className="col-span-2 p-12 text-center rounded-lg border border-dashed border-[#E5DFD3] bg-white flex flex-col items-center justify-center space-y-3">
-                              <p className="text-sm font-semibold text-[#1A1A1A]">
+                            <div className="col-span-2 p-12 text-center rounded-lg border border-dashed border-[#E5DFD3] bg-white flex flex-col items-center justify-center space-y-3 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+                              <p className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
                                 No hay casos con estos filtros
                               </p>
                               <Button
@@ -809,7 +831,7 @@ export function PsychologistDashboard({
                                 variant="outline"
                                 size="sm"
                                 onClick={handleClearAllFilters}
-                                className="rounded-lg border-[#1F4D2C] text-[#1F4D2C] hover:bg-[#1F4D2C]/10 font-medium text-xs"
+                                className="rounded-lg border-[#1F4D2C] text-[#1F4D2C] hover:bg-[#1F4D2C]/10 font-medium text-xs dark:border-[#8FC9B5] dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10"
                               >
                                 Limpiar filtros
                               </Button>
@@ -822,19 +844,19 @@ export function PsychologistDashboard({
                               return (
                                 <article
                                   key={item.id}
-                                  className={`rounded-lg border ${style.border} bg-white p-5 flex flex-col justify-between space-y-4`}
+                                  className={`rounded-lg border ${style.border} bg-white p-5 flex flex-col justify-between space-y-4 dark:bg-[#1A2618]`}
                                 >
                                   <div>
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="flex items-center gap-3">
-                                        <div className="grid size-10 shrink-0 place-items-center rounded-full border border-[#E5DFD3] bg-[#F5F1E8] font-bold text-[#1F4D2C] text-sm">
+                                        <div className="grid size-10 shrink-0 place-items-center rounded-full border border-[#E5DFD3] bg-[#F5F1E8] font-bold text-[#1F4D2C] text-sm dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                                           {item.initials}
                                         </div>
                                         <div>
-                                          <h3 className="text-sm font-bold text-[#1A1A1A] leading-tight">
+                                          <h3 className="text-sm font-bold text-[#1A1A1A] leading-tight dark:text-[#F5F1E8]">
                                             {item.studentName || `Estudiante ${item.initials}`}
                                           </h3>
-                                          <p className="text-xs text-[#6B6B6B] mt-0.5">
+                                          <p className="text-xs text-[#6B6B6B] mt-0.5 dark:text-[#A6B5A3]">
                                             {item.career}{" "}
                                             {item.semester ? `• ${item.semester}` : ""}
                                           </p>
@@ -860,28 +882,28 @@ export function PsychologistDashboard({
                                       </div>
                                     </div>
 
-                                    <p className="mt-3.5 text-xs text-[#1A1A1A] leading-relaxed line-clamp-2 bg-[#F5F1E8]/60 p-2.5 rounded-lg border border-[#E5DFD3]">
+                                    <p className="mt-3.5 text-xs text-[#1A1A1A] leading-relaxed line-clamp-2 bg-[#F5F1E8]/60 p-2.5 rounded-lg border border-[#E5DFD3] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
                                       {item.summary}
                                     </p>
 
-                                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#6B6B6B]">
+                                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                                       <div className="flex items-center gap-2">
-                                        <span className="px-2 py-0.5 rounded border border-[#E5DFD3] bg-white text-[11px] font-semibold text-[#1F4D2C]">
+                                        <span className="px-2 py-0.5 rounded border border-[#E5DFD3] bg-white text-[11px] font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                                           PHQ-9: {item.phq9}/27
                                         </span>
-                                        <span className="px-2 py-0.5 rounded border border-[#E5DFD3] bg-white text-[11px] font-semibold text-[#1F4D2C]">
+                                        <span className="px-2 py-0.5 rounded border border-[#E5DFD3] bg-white text-[11px] font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                                           GAD-7: {item.gad7}/21
                                         </span>
                                       </div>
 
-                                      <span className="text-[11px] flex items-center gap-1 font-medium text-[#6B6B6B]">
-                                        <Clock className="size-3 text-[#1F4D2C]" />
+                                      <span className="text-[11px] flex items-center gap-1 font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+                                        <Clock className="size-3 text-[#1F4D2C] dark:text-[#8FC9B5]" />
                                         {item.lastCheckIn}
                                       </span>
                                     </div>
                                   </div>
 
-                                  <div className="pt-3 border-t border-[#E5DFD3] flex flex-col gap-2">
+                                  <div className="pt-3 border-t border-[#E5DFD3] flex flex-col gap-2 dark:border-[#2D3F2A]">
                                     <div className="grid grid-cols-3 gap-2">
                                       <Button
                                         type="button"
@@ -898,9 +920,9 @@ export function PsychologistDashboard({
                                         size="sm"
                                         variant="outline"
                                         onClick={() => setContactDialogCase(item)}
-                                        className="rounded-lg border-[#E5DFD3] text-[#1A1A1A] hover:bg-[#F5F1E8] text-xs h-9 gap-1 font-semibold"
+                                        className="rounded-lg border-[#E5DFD3] text-[#1A1A1A] hover:bg-[#F5F1E8] text-xs h-9 gap-1 font-semibold dark:border-[#2D3F2A] dark:text-[#F5F1E8] dark:hover:bg-[#0F1A12]"
                                       >
-                                        <PhoneCall className="size-3.5 text-[#1F4D2C]" />
+                                        <PhoneCall className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
                                         <span className="truncate">Contactar</span>
                                       </Button>
 
@@ -911,7 +933,7 @@ export function PsychologistDashboard({
                                         onClick={() =>
                                           setExpedienteFolioModal(getFolioForCase(item))
                                         }
-                                        className="rounded-lg text-xs h-9 gap-1 text-[#1F4D2C] hover:bg-[#1F4D2C]/10 font-semibold"
+                                        className="rounded-lg text-xs h-9 gap-1 text-[#1F4D2C] hover:bg-[#1F4D2C]/10 font-semibold dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10"
                                       >
                                         <FolderOpen className="size-3.5" />
                                         <span className="truncate">Expediente</span>
@@ -943,11 +965,11 @@ export function PsychologistDashboard({
                               size="sm"
                               disabled={safePage <= 1}
                               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                              className="rounded-lg border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40 text-xs"
+                              className="rounded-lg border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40 text-xs dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8] dark:hover:bg-[#0F1A12]"
                             >
                               Anterior
                             </Button>
-                            <span className="text-xs text-[#6B6B6B] font-medium">
+                            <span className="text-xs text-[#6B6B6B] font-medium dark:text-[#A6B5A3]">
                               Página {safePage} de {totalPages}
                             </span>
                             <Button
@@ -956,7 +978,7 @@ export function PsychologistDashboard({
                               size="sm"
                               disabled={safePage >= totalPages}
                               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                              className="rounded-lg border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40 text-xs"
+                              className="rounded-lg border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40 text-xs dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8] dark:hover:bg-[#0F1A12]"
                             >
                               Siguiente
                             </Button>
@@ -1005,6 +1027,9 @@ export function PsychologistDashboard({
 
                 {/* SECCIÓN 7: RECURSOS */}
                 {activeSection === "recursos" && <GestionRecursos />}
+
+                {/* SECCIÓN 8: ANUNCIOS Y TALLERES */}
+                {activeSection === "anuncios" && <GestionAnuncios />}
               </motion.div>
             </AnimatePresence>
           </main>
@@ -1064,7 +1089,7 @@ export function PsychologistDashboard({
           if (!open) setExpedienteFolioModal(null);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 sm:p-6">
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 dark:border-[#2D3F2A] dark:bg-[#0F1A12] sm:p-6">
           <DialogHeader className="sr-only">
             <DialogTitle>Expediente Clínico {expedienteFolioModal}</DialogTitle>
             <DialogDescription>Expediente clínico oficial de 5 páginas</DialogDescription>

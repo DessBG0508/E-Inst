@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Calendar, CheckCircle2, ClipboardList, Settings } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, ClipboardList, Settings } from "lucide-react";
 import { toast } from "sonner";
 import {
   InstitutionalHeader,
@@ -256,16 +256,26 @@ export function CitasPage() {
         {pendingCanalizaciones.length > 0 && (
           <section
             aria-label="Canalización académica pendiente"
-            className="flex items-start gap-3 rounded-lg border border-[#B8860B]/40 bg-white p-4 dark:border-[#B8860B]/40 dark:bg-[#1A2618]"
+            className="flex items-start gap-3 rounded-lg border border-[#B8860B]/30 bg-white p-4 dark:border-[#B8860B]/40 dark:bg-[#1A2618]"
           >
-            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[#B8860B]" />
-            <div className="space-y-0.5">
-              <p className="text-xs font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
+            <AlertCircle className="mt-0.5 size-5 shrink-0 text-[#B8860B]" strokeWidth={1.75} />
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-[#B8860B]">
                 Canalización de tutoría académica activa
               </p>
+              <p className="text-xs leading-relaxed text-[#1A1A1A] dark:text-[#F5F1E8]">
+                Tu tutor te ha referido al psicólogo. Agenda tu cita seleccionando el horario
+                disponible.
+              </p>
               <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
-                Tu tutor académico te ha canalizado al área de psicología. Selecciona un día y
-                horario presencial disponible para completar tu registro.
+                Motivo:{" "}
+                <span className="font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
+                  {pendingCanalizaciones[0].motivo}
+                </span>{" "}
+                · Prioridad:{" "}
+                <span className="font-bold capitalize text-[#B8860B]">
+                  {pendingCanalizaciones[0].prioridad}
+                </span>
               </p>
             </div>
           </section>

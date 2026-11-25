@@ -8,8 +8,10 @@ interface BadgeOrigenProps {
 
 export const BadgeOrigen: React.FC<BadgeOrigenProps> = ({ tipo, className = "" }) => {
   const styles: Record<BadgeType, string> = {
-    AUTOMÁTICO: "bg-[#F5F1E8] text-[#1F4D2C] border-[#E5DFD3]",
-    MIXTO: "bg-[#B8860B]/10 text-[#B8860B] border-[#B8860B]/30",
+    AUTOMÁTICO:
+      "bg-[#F5F1E8] text-[#1F4D2C] border-[#E5DFD3] dark:bg-[#0F1A12] dark:text-[#8FC9B5] dark:border-[#2D3F2A]",
+    MIXTO:
+      "bg-[#B8860B]/10 text-[#B8860B] border-[#B8860B]/30 dark:bg-[#3A280A] dark:text-[#FCD34D] dark:border-[#D4A82B]/40",
     PSICÓLOGO: "bg-[#1F4D2C] text-white border-[#1F4D2C]",
   };
 

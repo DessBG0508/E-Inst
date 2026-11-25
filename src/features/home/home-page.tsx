@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  AlertTriangle,
+  AlertCircle,
   BatteryMedium,
   BedDouble,
   Brain,
@@ -19,11 +19,12 @@ import { MoodIllustration } from "@/components/ui/mood-illustration";
 import { LiquidButton } from "@/components/effects/liquid-button";
 import { TiltCard } from "@/components/effects/tilt-card";
 import { PageShell } from "@/components/layout/page-shell";
+import { EquilibraBrand } from "@/components/ui/equilibra-brand";
 import { WellbeingStatsGrid } from "@/features/bienestar/wellbeing-stats-grid";
+import { AnunciosHeroCarousel } from "@/features/anuncios/anuncios-hero-carousel";
 import { moods } from "@/lib/mock-data";
 import type { MoodId } from "@/lib/types";
 import { BRAND } from "@/lib/branding";
-import { brandConfig } from "@/config/brand-config";
 import { useMoodStats, getTodayMoodCheckIn } from "@/lib/mood-store";
 import { useAuth } from "@/lib/auth-context";
 import { BreathingModal } from "@/features/bienestar/breathing-modal";
@@ -121,21 +122,20 @@ export function HomePage() {
         {pendingCanalizaciones.length > 0 && (
           <section
             aria-label="Aviso de canalización pendiente"
-            className="mb-6 rounded-2xl border-2 border-[#1B198F] bg-card p-4 sm:p-5 shadow-soft"
+            className="mb-6 rounded-lg border border-[#B8860B]/30 bg-white p-4 dark:border-[#B8860B]/40 dark:bg-[#1A2618]"
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
-                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#1B198F] text-white">
-                  <AlertTriangle className="size-5" />
+                <div className="mt-0.5 shrink-0 text-[#B8860B]">
+                  <AlertCircle className="size-5" strokeWidth={1.75} />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#1B198F] dark:text-indigo-300">
-                    Aviso del Área de Tutorías
-                  </p>
-                  <p className="text-sm font-semibold text-foreground leading-relaxed">
+                  <p className="text-xs font-bold text-[#B8860B]">Aviso del Área de Tutorías</p>
+                  <p className="text-sm font-medium leading-relaxed text-[#1A1A1A] dark:text-[#F5F1E8]">
                     Tienes una canalización pendiente del área de tutorías. Motivo:{" "}
-                    {pendingCanalizaciones[0].motivo}. Prioridad:{" "}
-                    <span className="capitalize font-bold">
+                    <span className="font-semibold">{pendingCanalizaciones[0].motivo}</span>.
+                    Prioridad:{" "}
+                    <span className="font-bold capitalize text-[#B8860B]">
                       {pendingCanalizaciones[0].prioridad}
                     </span>
                     . Por favor agenda tu cita con el psicólogo lo antes posible.
@@ -146,13 +146,15 @@ export function HomePage() {
               <Button
                 type="button"
                 onClick={() => navigate({ to: "/citas" })}
-                className="shrink-0 rounded-xl bg-[#1B198F] hover:bg-[#1B198F]/90 text-white text-xs sm:text-sm font-semibold px-5 h-10"
+                className="h-10 shrink-0 rounded-lg bg-[#1F4D2C] px-5 text-xs font-semibold text-white hover:bg-[#4A7C59] sm:text-sm"
               >
                 Agendar cita
               </Button>
             </div>
           </section>
         )}
+
+        <AnunciosHeroCarousel />
 
         <section className="mb-7 max-w-2xl animate-fade-in sm:mb-9">
           <p className="mb-1 text-sm font-semibold text-accent">Sábado, 19 de septiembre</p>
@@ -179,17 +181,9 @@ export function HomePage() {
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
-                  {/* Avatar de Eli: Mascota oficial */}
-                  <div className="relative size-11 shrink-0">
-                    <img
-                      src={brandConfig.eliAvatarUrl}
-                      alt="Eli, asistente de tamizaje emocional"
-                      width={44}
-                      height={44}
-                      decoding="async"
-                      className="size-full rounded-full object-cover shadow-soft"
-                    />
-                    <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-500 ring-2 ring-card" />
+                  {/* Logotipo oficial de Equilibra TESH */}
+                  <div className="relative grid size-11 shrink-0 place-items-center rounded-xl bg-[#F5F1E8] dark:bg-[#1A2618]">
+                    <EquilibraBrand showText={false} size="sm" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">

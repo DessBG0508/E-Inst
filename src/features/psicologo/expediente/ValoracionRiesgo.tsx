@@ -36,7 +36,7 @@ export const ValoracionRiesgo: React.FC<ValoracionRiesgoProps> = ({
 
   const getScaleColor = (num: number, isSelected: boolean) => {
     if (!isSelected) {
-      return "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:border-[#1F4D2C]/50";
+      return "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:border-[#1F4D2C]/50 dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:hover:border-[#8FC9B5]/50";
     }
     if (num <= 3) {
       return "bg-[#1F4D2C] border-[#1F4D2C] text-white";
@@ -63,24 +63,32 @@ export const ValoracionRiesgo: React.FC<ValoracionRiesgoProps> = ({
         </span>
       </div>
 
-      <div className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
+      <div className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6">
         <div
           className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start sm:gap-4 ${
-            item9Valor >= 1 ? "border-[#C8102E]/40 bg-[#FEE2E2]" : "border-[#E5DFD3] bg-[#F5F1E8]"
+            item9Valor >= 1
+              ? "border-[#C8102E]/40 bg-[#FEE2E2] dark:border-[#F87171]/40 dark:bg-[#3B1219]"
+              : "border-[#E5DFD3] bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12]"
           }`}
         >
           <div className="flex items-center gap-2 shrink-0">
             <BadgeOrigen tipo="AUTOMÁTICO" />
             <span
               className={`text-sm font-semibold ${
-                item9Valor >= 1 ? "text-[#C8102E]" : "text-[#1F4D2C]"
+                item9Valor >= 1
+                  ? "text-[#C8102E] dark:text-[#FCA5A5]"
+                  : "text-[#1F4D2C] dark:text-[#8FC9B5]"
               }`}
             >
               Ítem 9 del PHQ-9
             </span>
           </div>
           <p
-            className={`text-sm leading-relaxed ${item9Valor >= 1 ? "text-[#1A1A1A]" : "text-[#6B6B6B]"}`}
+            className={`text-sm leading-relaxed ${
+              item9Valor >= 1
+                ? "text-[#1A1A1A] dark:text-[#FEE2E2]"
+                : "text-[#6B6B6B] dark:text-[#A6B5A3]"
+            }`}
           >
             Valor del último PHQ-9: <strong className="font-bold">{item9Valor}</strong> (0 = mínimo,
             3 = máximo).{" "}
@@ -92,7 +100,7 @@ export const ValoracionRiesgo: React.FC<ValoracionRiesgoProps> = ({
 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-[#1F4D2C]">
+            <span className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
               Marcadores de riesgo (preguntar explícitamente)
             </span>
             <BadgeOrigen tipo="PSICÓLOGO" />
@@ -104,15 +112,17 @@ export const ValoracionRiesgo: React.FC<ValoracionRiesgoProps> = ({
               return (
                 <label
                   key={key}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#E5DFD3] bg-white p-3 transition-colors hover:border-[#1F4D2C]/50"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#E5DFD3] bg-white p-3 transition-colors hover:border-[#1F4D2C]/50 dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:hover:border-[#8FC9B5]/50"
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={(e) => handleMarcadorChange(key, e.target.checked)}
-                    className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+                    className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A]"
                   />
-                  <span className="text-sm font-medium text-[#1A1A1A] select-none">{label}</span>
+                  <span className="text-sm font-medium text-[#1A1A1A] select-none dark:text-[#F5F1E8]">
+                    {label}
+                  </span>
                 </label>
               );
             })}
@@ -121,13 +131,13 @@ export const ValoracionRiesgo: React.FC<ValoracionRiesgoProps> = ({
 
         <div className="space-y-3 pt-1">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-[#1F4D2C]">
+            <span className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
               Riesgo clínico estimado en este momento (escala 0-10)
             </span>
             <BadgeOrigen tipo="MIXTO" />
           </div>
 
-          <div className="rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/50 p-4">
+          <div className="rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/50 p-4 dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
             <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
                 const isSelected = valoracion.riesgo_estimado === num;
@@ -148,9 +158,9 @@ export const ValoracionRiesgo: React.FC<ValoracionRiesgoProps> = ({
             </div>
 
             <div className="mt-3 flex items-center justify-between text-xs font-semibold px-1">
-              <span className="text-[#1F4D2C]">Bajo (0-3)</span>
-              <span className="text-[#B8860B]">Moderado (4-6)</span>
-              <span className="text-[#C8102E]">Alto (7-10)</span>
+              <span className="text-[#1F4D2C] dark:text-[#8FC9B5]">Bajo (0-3)</span>
+              <span className="text-[#B8860B] dark:text-[#FCD34D]">Moderado (4-6)</span>
+              <span className="text-[#C8102E] dark:text-[#FCA5A5]">Alto (7-10)</span>
             </div>
           </div>
         </div>
@@ -159,7 +169,7 @@ export const ValoracionRiesgo: React.FC<ValoracionRiesgoProps> = ({
           <div className="flex items-center justify-between gap-2">
             <label
               htmlFor="factores-proteccion-input"
-              className="text-sm font-semibold text-[#1F4D2C]"
+              className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
             >
               Factores de protección y medidas acordadas
             </label>
@@ -171,7 +181,7 @@ export const ValoracionRiesgo: React.FC<ValoracionRiesgoProps> = ({
             value={valoracion.factores_proteccion}
             onChange={(e) => onChange({ factores_proteccion: e.target.value })}
             placeholder="Factores protectores identificados, plan de seguridad y red de contención acordada..."
-            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:placeholder:text-[#A6B5A3]/60"
           />
         </div>
       </div>

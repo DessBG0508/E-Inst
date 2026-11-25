@@ -7,6 +7,7 @@ import {
   Star,
   UserPlus,
   Library,
+  Megaphone,
 } from "lucide-react";
 import {
   InstitutionalSidebar,
@@ -21,7 +22,8 @@ export type PsychologistNavSection =
   | "bitacora"
   | "encuestas"
   | "canalizaciones"
-  | "recursos";
+  | "recursos"
+  | "anuncios";
 
 interface PsychologistSidebarProps {
   activeSection: PsychologistNavSection;
@@ -90,6 +92,11 @@ export function PsychologistSidebar({
       id: "recursos",
       label: "Recursos y Videos",
       icon: Library,
+    },
+    {
+      id: "anuncios",
+      label: "Anuncios y Talleres",
+      icon: Megaphone,
     },
   ];
 

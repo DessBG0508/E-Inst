@@ -56,7 +56,7 @@ export function DirectivoSidebar({
     },
     {
       id: "asignaciones",
-      label: "Asignaciones",
+      label: "Asignar tutores",
       icon: Grid3X3,
     },
     {

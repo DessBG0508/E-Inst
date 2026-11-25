@@ -60,14 +60,14 @@ export function AlertaPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#FEE2E2] px-4 py-6 font-sans text-[#1A1A1A] sm:px-6 sm:py-8">
+    <div className="min-h-screen w-full bg-[#FEE2E2] px-4 py-6 font-sans text-[#1A1A1A] transition-colors dark:bg-[#1E0B0E] dark:text-[#F5F1E8] sm:px-6 sm:py-8">
       {/* Botón Volver en esquina superior izquierda */}
       <div className="mx-auto mb-6 max-w-5xl">
         <Button
           type="button"
           variant="ghost"
           onClick={() => navigate({ to: "/chat" })}
-          className="h-9 cursor-pointer gap-2 rounded-md px-3 text-sm font-medium text-[#1F4D2C] hover:bg-[#1F4D2C]/10 hover:text-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+          className="h-9 cursor-pointer gap-2 rounded-md px-3 text-sm font-medium text-[#1F4D2C] hover:bg-[#1F4D2C]/10 hover:text-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10 dark:hover:text-[#8FC9B5]"
         >
           <ArrowLeft className="size-4" strokeWidth={1.75} />
           <span>Volver al chat</span>
@@ -81,22 +81,22 @@ export function AlertaPage() {
           initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full rounded-lg border-2 border-[#C8102E] bg-white p-6 shadow-sm sm:p-8"
+          className="w-full rounded-lg border-2 border-[#C8102E] bg-white p-6 shadow-sm dark:bg-[#1A2618] sm:p-8"
         >
           {/* Encabezado */}
           <header className="flex flex-col items-center text-center">
             <AlertTriangle
-              className="size-12 text-[#C8102E]"
+              className="size-12 text-[#C8102E] dark:text-[#F87171]"
               strokeWidth={1.75}
               aria-hidden="true"
             />
             <h1
               id="alerta-crisis-title"
-              className="mt-4 font-sans text-3xl font-bold tracking-tight text-[#C8102E]"
+              className="mt-4 font-sans text-3xl font-bold tracking-tight text-[#C8102E] dark:text-[#F87171]"
             >
               Necesitas ayuda ahora
             </h1>
-            <p className="mt-2 font-sans text-base font-medium text-[#1A1A1A]">
+            <p className="mt-2 font-sans text-base font-medium text-[#1A1A1A] dark:text-[#F5F1E8]">
               No estás solo. Estas líneas están disponibles 24/7.
             </p>
           </header>
@@ -106,7 +106,7 @@ export function AlertaPage() {
             <Button
               type="button"
               onClick={handleCallMainLine}
-              className="h-14 w-full cursor-pointer gap-3 rounded-lg bg-[#C8102E] px-4 text-base font-bold text-white transition-colors hover:bg-[#9B0C24] focus-visible:ring-2 focus-visible:ring-[#C8102E] focus-visible:ring-offset-2 sm:text-lg"
+              className="h-auto min-h-14 w-full cursor-pointer gap-2.5 whitespace-normal rounded-lg bg-[#C8102E] px-4 py-3 text-center text-base font-bold leading-snug text-white transition-colors hover:bg-[#9B0C24] focus-visible:ring-2 focus-visible:ring-[#C8102E] focus-visible:ring-offset-2 sm:text-lg"
             >
               <Phone className="size-5 shrink-0" strokeWidth={2} aria-hidden="true" />
               <span>Llamar ahora a Línea de la Vida — 800 911 2000</span>
@@ -123,15 +123,23 @@ export function AlertaPage() {
               return (
                 <article
                   key={contact.id}
-                  className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6"
+                  className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#0F1A12]"
                 >
                   <div>
-                    <Icon className="size-8 text-[#1F4D2C]" strokeWidth={1.75} aria-hidden="true" />
-                    <h2 className="mt-3 text-sm font-semibold text-[#1A1A1A]">{contact.name}</h2>
-                    <p className="mt-1 font-sans text-lg font-bold leading-snug text-[#1A1A1A] tabular-nums">
+                    <Icon
+                      className="size-8 text-[#1F4D2C] dark:text-[#8FC9B5]"
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                    />
+                    <h2 className="mt-3 text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
+                      {contact.name}
+                    </h2>
+                    <p className="mt-1 font-sans text-lg font-bold leading-snug text-[#1A1A1A] tabular-nums dark:text-[#F5F1E8]">
                       {contact.number}
                     </p>
-                    <p className="mt-1 text-xs font-medium text-[#6B6B6B]">{contact.schedule}</p>
+                    <p className="mt-1 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
+                      {contact.schedule}
+                    </p>
                   </div>
 
                   <Button
@@ -150,17 +158,17 @@ export function AlertaPage() {
           {/* Aviso inferior */}
           <aside
             aria-label="Aviso clínico importante"
-            className="mt-6 flex items-start gap-3 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4"
+            className="mt-6 flex items-start gap-3 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 dark:border-[#2D3F2A] dark:bg-[#0F1A12]"
           >
             <Info
-              className="mt-0.5 size-5 shrink-0 text-[#1F4D2C]"
+              className="mt-0.5 size-5 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]"
               strokeWidth={1.75}
               aria-hidden="true"
             />
-            <p className="font-sans text-sm font-medium leading-relaxed text-[#1A1A1A]">
+            <p className="font-sans text-sm font-medium leading-relaxed text-[#1A1A1A] dark:text-[#F5F1E8]">
               Este tamizaje no constituye un diagnóstico clínico. Si tu vida o la de alguien más
-              está en riesgo inmediato, marca <span className="font-bold text-[#C8102E]">911</span>{" "}
-              ahora.
+              está en riesgo inmediato, marca{" "}
+              <span className="font-bold text-[#C8102E] dark:text-[#F87171]">911</span> ahora.
             </p>
           </aside>
         </motion.section>

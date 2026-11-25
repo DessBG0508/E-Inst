@@ -60,12 +60,13 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 3. Rol Psicólogo: puede ver /psicologo, /expedientes, /directivo, /perfil, / y /citas
+    // 3. Rol Psicólogo: puede ver /psicologo, /expedientes, /directivo, /anuncios, /perfil y /
     if (user.role === "psicologo") {
       if (
         !pathname.startsWith("/psicologo") &&
         !pathname.startsWith("/expedientes") &&
         !pathname.startsWith("/directivo") &&
+        !pathname.startsWith("/anuncios") &&
         pathname !== "/perfil" &&
         pathname !== "/"
       ) {
@@ -75,11 +76,12 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 4. Roles Jefatura / Coordinador: puede ver /directivo, /auditoria, /perfil y /
+    // 4. Roles Jefatura / Coordinador: puede ver /directivo, /auditoria, /anuncios, /perfil y /
     if (user.role === "jefatura" || user.role === "coordinador") {
       if (
         !pathname.startsWith("/directivo") &&
         !pathname.startsWith("/auditoria") &&
+        !pathname.startsWith("/anuncios") &&
         pathname !== "/perfil" &&
         pathname !== "/"
       ) {
@@ -89,9 +91,14 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 5. Rol Tutor: puede ver /tutor, /perfil y /
+    // 5. Rol Tutor: puede ver /tutor, /anuncios, /perfil y /
     if (user.role === "tutor") {
-      if (!pathname.startsWith("/tutor") && pathname !== "/perfil" && pathname !== "/") {
+      if (
+        !pathname.startsWith("/tutor") &&
+        !pathname.startsWith("/anuncios") &&
+        pathname !== "/perfil" &&
+        pathname !== "/"
+      ) {
         toast.info("Redirigido al panel de tutoría correspondiente a tu rol.");
         navigate({ to: "/tutor", replace: true });
       }
@@ -149,7 +156,8 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       pathname !== "/" &&
       !pathname.startsWith("/psicologo") &&
       !pathname.startsWith("/expedientes") &&
-      !pathname.startsWith("/directivo")
+      !pathname.startsWith("/directivo") &&
+      !pathname.startsWith("/anuncios")
     )
       return null;
     if (
@@ -158,7 +166,8 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       pathname !== "/perfil" &&
       pathname !== "/" &&
       !pathname.startsWith("/directivo") &&
-      !pathname.startsWith("/auditoria")
+      !pathname.startsWith("/auditoria") &&
+      !pathname.startsWith("/anuncios")
     )
       return null;
     if (
@@ -166,7 +175,8 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       pathname !== "/aviso-privacidad" &&
       pathname !== "/perfil" &&
       pathname !== "/" &&
-      !pathname.startsWith("/tutor")
+      !pathname.startsWith("/tutor") &&
+      !pathname.startsWith("/anuncios")
     )
       return null;
     if (

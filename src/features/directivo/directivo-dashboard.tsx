@@ -38,7 +38,7 @@ import {
 } from "@/features/encuesta/encuesta-service";
 import { DirectivoSidebar, type DirectivoNavSection } from "./directivo-sidebar";
 import { DirectivoResumenEjecutivo } from "./directivo-resumen-ejecutivo";
-import { DirectivoAsignacionesMatrix } from "./directivo-asignaciones-matrix";
+import { TutoresAsignacionPanel } from "./tutores-asignacion-panel";
 import { DirectivoCanalizacionesView } from "./directivo-canalizaciones-view";
 
 const SECTION_LABELS: Record<DirectivoNavSection, string> = {
@@ -46,7 +46,7 @@ const SECTION_LABELS: Record<DirectivoNavSection, string> = {
   estudiantes: "Estudiantes",
   tutores: "Tutores",
   canalizaciones: "Canalizaciones",
-  asignaciones: "Asignaciones",
+  asignaciones: "Asignar tutores",
   reportes: "Reportes",
 };
 
@@ -414,7 +414,7 @@ export function DirectivoDashboard() {
 
             {activeSection === "canalizaciones" && <DirectivoCanalizacionesView />}
 
-            {activeSection === "asignaciones" && <DirectivoAsignacionesMatrix />}
+            {activeSection === "asignaciones" && <TutoresAsignacionPanel />}
 
             {activeSection === "reportes" && (
               <div className="space-y-6">

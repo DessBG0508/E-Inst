@@ -1,6 +1,7 @@
+import { isSupabaseConfigured } from "./supabase";
 import type { Appointment, CaseSummary, Mood } from "./types";
 
-export const DEMO_MODE = true;
+export const DEMO_MODE = !isSupabaseConfigured || import.meta.env.VITE_DEMO_MODE === "true";
 
 export const moods: Mood[] = [
   { id: "muy-bien", label: "Feliz", value: 5, tone: "teal" },

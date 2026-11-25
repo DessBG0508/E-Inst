@@ -1,13 +1,29 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export const supabaseUrl: string = import.meta.env.VITE_SUPABASE_URL ?? "";
-export const supabaseAnonKey: string = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
+export const supabaseUrl: string = (import.meta.env.VITE_SUPABASE_URL ?? "").trim();
+export const supabaseAnonKey: string = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
+
+function isValidSupabaseUrl(url: string): boolean {
+  if (!url || url.includes("[") || url.includes("]") || url.includes("tu-proyecto")) {
+    return false;
+  }
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname.includes(".");
+  } catch {
+    return false;
+  }
+}
+
+function isValidAnonKey(key: string): boolean {
+  if (!key || key.includes("[") || key.includes("]") || key.includes("tu-anon-key")) {
+    return false;
+  }
+  return key.length > 20;
+}
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-  supabaseAnonKey &&
-  supabaseUrl.startsWith("https://") &&
-  supabaseAnonKey.length > 20,
+  isValidSupabaseUrl(supabaseUrl) && isValidAnonKey(supabaseAnonKey),
 );
 
 function createUnconfiguredQueryBuilder() {

@@ -3,7 +3,6 @@ import {
   ArrowRightLeft,
   CalendarRange,
   CheckCircle2,
-  ClipboardList,
   Copy,
   Grid3X3,
   Plus,
@@ -13,8 +12,6 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,21 +39,17 @@ import {
   copyTutorAssignmentsFromPreviousPeriod,
   getAllStudentsForDirectivo,
   getAllTutorGroupAssignments,
-  getCanalizaciones,
   getPreviousPeriodo,
   getTutorProfiles,
   saveBulkTutorAssignments,
   updateStudentAcademicGroup,
   updateTutorAssignment,
-  type CanalizacionEstado,
-  type CanalizacionPrioridad,
-  type CanalizacionRecord,
   type TutorGrupoAssignment,
   type TutorProfile,
   type TutorStudentItem,
 } from "@/features/tutor/tutor-service";
 
-type PanelTab = "asignaciones" | "estudiantes" | "canalizaciones";
+type PanelTab = "asignaciones" | "estudiantes";
 
 interface GridRowItem {
   key: string;
@@ -67,45 +60,8 @@ interface GridRowItem {
 
 const SEMESTRES = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
-const ESTADO_BADGE: Record<CanalizacionEstado, { label: string; cls: string }> = {
-  pendiente: {
-    label: "Pendiente",
-    cls: "border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  },
-  aceptada: {
-    label: "Aceptada",
-    cls: "border-blue-200 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
-  },
-  completada: {
-    label: "Completada",
-    cls: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
-  },
-  rechazada: {
-    label: "Rechazada",
-    cls: "border-rose-200 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
-  },
-};
-
-const PRIORIDAD_BADGE: Record<CanalizacionPrioridad, string> = {
-  baja: "border-slate-200 bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300",
-  normal: "border-blue-200 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
-  alta: "border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  urgente: "border-rose-200 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
-};
-
 function makeGridKey(carrera: string, semestre: string, grupo: string): string {
   return `${carrera.trim().toLowerCase()}|${semestre.trim()}|${grupo.trim().toLowerCase()}`;
-}
-
-function formatFecha(iso?: string): string {
-  if (!iso) return "Reciente";
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return "Reciente";
-    return format(d, "dd MMM yyyy", { locale: es });
-  } catch {
-    return "Reciente";
-  }
 }
 
 export function TutoresAsignacionPanel() {
@@ -113,7 +69,6 @@ export function TutoresAsignacionPanel() {
 
   const [tutores, setTutores] = useState<TutorProfile[]>([]);
   const [allAsignaciones, setAllAsignaciones] = useState<TutorGrupoAssignment[]>([]);
-  const [canalizaciones, setCanalizaciones] = useState<CanalizacionRecord[]>([]);
   const [estudiantes, setEstudiantes] = useState<TutorStudentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -146,19 +101,16 @@ export function TutoresAsignacionPanel() {
   const loadAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [profiles, groupAssignments, allCanalizaciones, studentsList] = await Promise.all([
+      const [profiles, groupAssignments, studentsList] = await Promise.all([
         getTutorProfiles(),
         getAllTutorGroupAssignments(),
-        getCanalizaciones(),
         getAllStudentsForDirectivo(),
       ]);
       setTutores(profiles);
       setAllAsignaciones(groupAssignments);
-      setCanalizaciones(allCanalizaciones);
       setEstudiantes(studentsList);
-    } catch (err) {
-      console.error("Error cargando tutores, periodos y estudiantes:", err);
-      toast.error("No se pudieron cargar los datos de tutorías.");
+    } catch {
+      toast.error("No se pudieron cargar los datos de asignaciones y tutorías.");
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +120,6 @@ export function TutoresAsignacionPanel() {
     loadAll();
   }, [loadAll]);
 
-  // Lista combinada de periodos disponibles
   const availablePeriodos = useMemo(() => {
     const set = new Set<string>([...TESH_PERIODOS_SUGERIDOS]);
     allAsignaciones.forEach((a) => {
@@ -180,7 +131,6 @@ export function TutoresAsignacionPanel() {
 
   const previousPeriodo = useMemo(() => getPreviousPeriodo(selectedPeriodo), [selectedPeriodo]);
 
-  // Asignaciones del periodo seleccionado
   const periodAssignments = useMemo(() => {
     return allAsignaciones
       .filter((a) => (a.periodo || "2026-2") === selectedPeriodo)
@@ -207,7 +157,6 @@ export function TutoresAsignacionPanel() {
     return allAsignaciones.some((a) => (a.periodo || "2026-2") === previousPeriodo);
   }, [allAsignaciones, previousPeriodo]);
 
-  // Sincronizar selecciones de la grilla con asignaciones activas del periodo elegido
   const syncGridWithSelectedPeriod = useCallback(
     (sourceAssignments: TutorGrupoAssignment[]) => {
       const nextSelections: Record<string, string> = {};
@@ -248,7 +197,6 @@ export function TutoresAsignacionPanel() {
     syncGridWithSelectedPeriod(periodAssignments);
   }, [selectedPeriodo, periodAssignments, syncGridWithSelectedPeriod]);
 
-  // Filas base de la grilla (7 carreras × 9 semestres × 1-3 grupos) + extras del periodo
   const allGridRows = useMemo<GridRowItem[]>(() => {
     const rows: GridRowItem[] = [];
     const seenKeys = new Set<string>();
@@ -463,30 +411,20 @@ export function TutoresAsignacionPanel() {
     }
   };
 
-  const canalizacionesStats = useMemo(() => {
-    return {
-      total: canalizaciones.length,
-      pendientes: canalizaciones.filter((c) => c.estado === "pendiente").length,
-      aceptadas: canalizaciones.filter((c) => c.estado === "aceptada").length,
-      completadas: canalizaciones.filter((c) => c.estado === "completada").length,
-      urgentes: canalizaciones.filter((c) => c.prioridad === "urgente").length,
-    };
-  }, [canalizaciones]);
+  const selectControlClassName =
+    "h-10 w-full rounded-lg border border-[#E5DFD3] bg-white px-3 text-xs font-semibold text-[#1A1A1A] focus:border-[#1F4D2C] focus:ring-2 focus:ring-[#1F4D2C]/20 focus:outline-none dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]";
 
   return (
     <div className="space-y-6">
       {/* Cabecera de sección */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 border-b border-[#E5DFD3] pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#2D3F2A]">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-[#1B198F] dark:text-indigo-300">
-            Gestión Tutorial Institucional
-          </p>
-          <h2 className="font-display text-2xl font-bold text-[#1B198F] dark:text-foreground">
-            Asignación de Tutores por Periodo y Recursamiento
+          <h2 className="text-xl font-bold tracking-tight text-[#1A1A1A] sm:text-2xl dark:text-[#F5F1E8]">
+            Asignar tutores por periodo y recursamiento
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Administra las 7 carreras del TESH, semestres 1º al 9º, cambios semestrales y alumnos en
-            recursamiento.
+          <p className="mt-1 text-xs font-medium text-[#6B6B6B] sm:text-sm dark:text-[#A8B5A0]">
+            Administra las 7 carreras del TESH, semestres 1º al 9º (1–3 grupos por semestre), copia
+            entre periodos y reubica a estudiantes que recursan.
           </p>
         </div>
 
@@ -495,9 +433,9 @@ export function TutoresAsignacionPanel() {
           variant="outline"
           size="sm"
           onClick={loadAll}
-          className="rounded-xl text-xs font-semibold w-fit"
+          className="h-10 w-fit shrink-0 whitespace-nowrap"
         >
-          <RefreshCw className={`mr-1.5 size-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
           Actualizar datos
         </Button>
       </div>
@@ -505,21 +443,21 @@ export function TutoresAsignacionPanel() {
       {/* Pestañas del módulo */}
       <div
         role="tablist"
-        aria-label="Secciones de gestión tutorial"
-        className="flex flex-wrap items-center gap-2 border-b border-border pb-3"
+        aria-label="Secciones de asignación de tutores"
+        className="flex flex-wrap items-center gap-2 border-b border-[#E5DFD3] pb-3 dark:border-[#2D3F2A]"
       >
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === "asignaciones"}
           onClick={() => setActiveTab("asignaciones")}
-          className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+          className={`inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border px-4 text-xs font-semibold transition-colors ${
             activeTab === "asignaciones"
-              ? "border-[#1B198F] bg-[#1B198F] text-white"
-              : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              ? "border-[#1F4D2C] bg-[#1F4D2C] text-white"
+              : "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8] dark:hover:bg-[#223120]"
           }`}
         >
-          <CalendarRange className="size-3.5" />
+          <CalendarRange className="size-4" />
           Asignaciones por periodo
         </button>
 
@@ -528,65 +466,44 @@ export function TutoresAsignacionPanel() {
           role="tab"
           aria-selected={activeTab === "estudiantes"}
           onClick={() => setActiveTab("estudiantes")}
-          className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+          className={`inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border px-4 text-xs font-semibold transition-colors ${
             activeTab === "estudiantes"
-              ? "border-[#1B198F] bg-[#1B198F] text-white"
-              : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              ? "border-[#1F4D2C] bg-[#1F4D2C] text-white"
+              : "border-[#E5DFD3] bg-white text-[#1A1A1A] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8] dark:hover:bg-[#223120]"
           }`}
         >
-          <Users className="size-3.5" />
+          <Users className="size-4" />
           Estudiantes
           <span
-            className={`rounded-md px-1.5 py-0.5 text-[10px] ${
+            className={`rounded px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${
               activeTab === "estudiantes"
                 ? "bg-white/20 text-white"
-                : "bg-muted text-muted-foreground"
+                : "bg-[#F5F1E8] text-[#1F4D2C] dark:bg-[#0F1A12] dark:text-[#8FC9B5]"
             }`}
           >
             {estudiantes.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "canalizaciones"}
-          onClick={() => setActiveTab("canalizaciones")}
-          className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
-            activeTab === "canalizaciones"
-              ? "border-[#1B198F] bg-[#1B198F] text-white"
-              : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          }`}
-        >
-          <ClipboardList className="size-3.5" />
-          Canalizaciones
-          <span
-            className={`rounded-md px-1.5 py-0.5 text-[10px] ${
-              activeTab === "canalizaciones"
-                ? "bg-white/20 text-white"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {canalizaciones.length}
           </span>
         </button>
       </div>
 
       {activeTab === "asignaciones" && (
         <div className="space-y-6">
-          {/* 1. BARRA SUPERIOR: SELECTOR DE PERIODO Y ACCIONES RÁPIDAS */}
-          <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          {/* 1. VISTA DE ASIGNACIONES POR PERIODO */}
+          <section className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
               <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-1.5 min-w-48">
-                  <Label htmlFor="directivo-periodo-select" className="text-xs font-bold">
+                <div className="min-w-48 space-y-1.5">
+                  <Label
+                    htmlFor="directivo-periodo-select"
+                    className="text-xs font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]"
+                  >
                     Periodo académico
                   </Label>
                   <select
                     id="directivo-periodo-select"
                     value={selectedPeriodo}
                     onChange={(e) => setSelectedPeriodo(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs sm:text-sm font-bold text-[#1B198F] dark:text-foreground focus:border-[#1B198F] focus:outline-none"
+                    className={selectControlClassName}
                   >
                     {availablePeriodos.map((p) => (
                       <option key={p} value={p}>
@@ -602,9 +519,9 @@ export function TutoresAsignacionPanel() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowCustomPeriodo(true)}
-                    className="rounded-xl text-xs font-semibold h-9.5"
+                    className="h-10 shrink-0 whitespace-nowrap"
                   >
-                    <Plus className="mr-1.5 size-3.5" />
+                    <Plus className="size-4" />
                     Otro periodo
                   </Button>
                 ) : (
@@ -613,13 +530,13 @@ export function TutoresAsignacionPanel() {
                       value={customPeriodoInput}
                       onChange={(e) => setCustomPeriodoInput(e.target.value)}
                       placeholder="Ej. 2028-1"
-                      className="w-28 rounded-xl text-xs h-9.5"
+                      className="h-10 w-28 text-xs"
                     />
                     <Button
                       type="button"
                       size="sm"
                       onClick={handleAddCustomPeriodo}
-                      className="rounded-xl bg-[#1B198F] hover:bg-[#1B198F]/90 text-white text-xs h-9.5"
+                      className="h-10"
                     >
                       Aplicar
                     </Button>
@@ -628,7 +545,7 @@ export function TutoresAsignacionPanel() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowCustomPeriodo(false)}
-                      className="rounded-xl text-xs h-9.5"
+                      className="h-10"
                     >
                       Cancelar
                     </Button>
@@ -639,12 +556,12 @@ export function TutoresAsignacionPanel() {
               <div className="flex flex-wrap items-center gap-2.5">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="accent"
                   disabled={isCopyingPeriod}
                   onClick={handleCopyFromPreviousPeriod}
-                  className="rounded-xl border-[#1B198F]/35 text-[#1B198F] dark:text-indigo-300 hover:bg-[#1B198F]/10 text-xs font-bold h-9.5"
+                  className="h-10 shrink-0 whitespace-nowrap text-xs"
                 >
-                  <Copy className="mr-1.5 size-3.5" />
+                  <Copy className="size-4" />
                   {isCopyingPeriod
                     ? "Copiando..."
                     : `Copiar del periodo anterior (${previousPeriodo})`}
@@ -653,55 +570,65 @@ export function TutoresAsignacionPanel() {
                 <Button
                   type="button"
                   onClick={() => setShowBulkGrid((prev) => !prev)}
-                  className="rounded-xl bg-[#1B198F] hover:bg-[#1B198F]/90 text-white text-xs font-bold h-9.5"
+                  className="h-10 shrink-0 whitespace-nowrap text-xs"
                 >
-                  <Grid3X3 className="mr-1.5 size-3.5" />
+                  <Grid3X3 className="size-4" />
                   {showBulkGrid ? "Ocultar grilla masiva" : "Abrir asignación masiva"}
                 </Button>
               </div>
             </div>
 
-            {/* Resumen del periodo y tutores disponibles */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/60">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <Badge
-                  variant="outline"
-                  className="border-[#1B198F]/30 bg-[#1B198F]/10 text-[#1B198F] dark:text-indigo-300 font-bold"
-                >
+            {/* Resumen del periodo */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E5DFD3] pt-3 text-xs dark:border-[#2D3F2A]">
+              <div className="flex flex-wrap items-center gap-2 text-[#6B6B6B] dark:text-[#A8B5A0]">
+                <span className="font-semibold text-[#1F4D2C] tabular-nums dark:text-[#8FC9B5]">
                   {activePeriodAssignments.length} activas en {selectedPeriodo}
-                </Badge>
-                <Badge variant="outline" className="font-semibold text-muted-foreground">
-                  {tutores.length} tutores con rol=&apos;tutor&apos;
-                </Badge>
+                </span>
+                <span aria-hidden="true">·</span>
+                <span className="tabular-nums">
+                  {tutores.length} tutores disponibles (rol=&apos;tutor&apos;)
+                </span>
                 {previousPeriodHasAssignments && (
-                  <span className="text-[11px] text-muted-foreground">
-                    Al copiar o guardar nuevas asignaciones, las del periodo anterior se marcan
-                    automáticamente como inactivas.
-                  </span>
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      Al guardar o copiar nuevas asignaciones, las anteriores del mismo grupo pasan
+                      a inactivas.
+                    </span>
+                  </>
                 )}
               </div>
 
-              <label className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground cursor-pointer">
+              <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#6B6B6B] dark:text-[#A8B5A0]">
                 <input
                   type="checkbox"
                   checked={showInactiveRows}
                   onChange={(e) => setShowInactiveRows(e.target.checked)}
-                  className="rounded border-border accent-[#1B198F]"
+                  className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C]"
                 />
                 Mostrar inactivas
               </label>
             </div>
 
             {/* Tabla de asignaciones del periodo */}
-            {visiblePeriodAssignments.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center space-y-4">
+            {isLoading ? (
+              <div className="space-y-2 py-4">
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="h-11 animate-pulse rounded-lg bg-[#F5F1E8] dark:bg-[#0F1A12]"
+                  />
+                ))}
+              </div>
+            ) : visiblePeriodAssignments.length === 0 ? (
+              <div className="space-y-4 rounded-lg border border-dashed border-[#E5DFD3] bg-[#F5F1E8]/50 p-8 text-center dark:border-[#2D3F2A] dark:bg-[#0F1A12]/60">
                 <div>
-                  <p className="text-sm font-bold text-foreground">
+                  <p className="text-sm font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
                     No hay asignaciones activas registradas para el periodo {selectedPeriodo}.
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Puedes inicializar todas las carreras y grupos en la grilla masiva o copiar la
-                    plantilla del periodo anterior ({previousPeriodo}).
+                  <p className="mt-1 text-xs text-[#6B6B6B] dark:text-[#A8B5A0]">
+                    Inicializa las carreras y grupos en la grilla de asignación masiva o copia las
+                    asignaciones vigentes del periodo anterior ({previousPeriodo}).
                   </p>
                 </div>
 
@@ -709,9 +636,9 @@ export function TutoresAsignacionPanel() {
                   <Button
                     type="button"
                     onClick={handleOpenCreateFromScratch}
-                    className="rounded-xl bg-[#1B198F] hover:bg-[#1B198F]/90 text-white text-xs font-bold h-9.5"
+                    className="h-10 shrink-0 whitespace-nowrap text-xs"
                   >
-                    <Plus className="mr-1.5 size-3.5" />
+                    <Plus className="size-4" />
                     Crear asignaciones desde cero
                   </Button>
                   <Button
@@ -719,42 +646,56 @@ export function TutoresAsignacionPanel() {
                     variant="outline"
                     disabled={isCopyingPeriod || !previousPeriodHasAssignments}
                     onClick={handleCopyFromPreviousPeriod}
-                    className="rounded-xl border-[#1B198F]/35 text-[#1B198F] dark:text-indigo-300 text-xs font-bold h-9.5"
+                    className="h-10 shrink-0 whitespace-nowrap text-xs"
                   >
-                    <Copy className="mr-1.5 size-3.5" />
+                    <Copy className="size-4" />
                     Copiar del periodo anterior ({previousPeriodo})
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-x-auto">
+              <div className="overflow-x-auto rounded-lg border border-[#E5DFD3] dark:border-[#2D3F2A]">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/40">
-                      <TableHead className="text-xs font-bold">Carrera</TableHead>
-                      <TableHead className="text-xs font-bold">Semestre</TableHead>
-                      <TableHead className="text-xs font-bold">Grupo</TableHead>
-                      <TableHead className="text-xs font-bold">Tutor asignado</TableHead>
-                      <TableHead className="text-xs font-bold">Estado</TableHead>
-                      <TableHead className="text-xs font-bold text-right">Acción</TableHead>
+                    <TableRow className="border-[#E5DFD3] bg-[#F5F1E8] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:hover:bg-[#0F1A12]">
+                      <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Carrera
+                      </TableHead>
+                      <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Semestre
+                      </TableHead>
+                      <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Grupo
+                      </TableHead>
+                      <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Tutor asignado
+                      </TableHead>
+                      <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Estado
+                      </TableHead>
+                      <TableHead className="text-right text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Acción
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {visiblePeriodAssignments.map((asig) => {
                       const isActive = asig.activo !== false;
                       return (
-                        <TableRow key={asig.id} className={!isActive ? "opacity-60" : undefined}>
-                          <TableCell className="text-xs font-semibold text-foreground">
+                        <TableRow
+                          key={asig.id}
+                          className={`border-[#E5DFD3] hover:bg-[#F5F1E8]/50 dark:border-[#2D3F2A] dark:hover:bg-[#0F1A12]/50 ${
+                            !isActive ? "opacity-65" : ""
+                          }`}
+                        >
+                          <TableCell className="text-xs font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
                             {asig.carrera}
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
+                          <TableCell className="text-xs font-medium text-[#6B6B6B] tabular-nums dark:text-[#A8B5A0]">
                             {asig.semestre}º Semestre
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className="border-[#1B198F]/30 bg-[#1B198F]/10 text-[#1B198F] dark:text-indigo-300 text-xs font-bold"
-                            >
+                            <Badge variant="outline" className="font-mono text-xs tabular-nums">
                               {asig.grupo}
                             </Badge>
                           </TableCell>
@@ -764,7 +705,7 @@ export function TutoresAsignacionPanel() {
                               value={asig.tutor_id}
                               disabled={!isActive}
                               onChange={(e) => handleInlineTutorChange(asig, e.target.value)}
-                              className="max-w-60 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground focus:border-[#1B198F] focus:outline-none disabled:opacity-60"
+                              className="h-9 max-w-64 rounded-lg border border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1A1A1A] focus:border-[#1F4D2C] focus:outline-none disabled:opacity-60 dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
                             >
                               {!tutores.some((t) => t.id === asig.tutor_id) && (
                                 <option value={asig.tutor_id}>
@@ -780,17 +721,11 @@ export function TutoresAsignacionPanel() {
                           </TableCell>
                           <TableCell>
                             {isActive ? (
-                              <Badge
-                                variant="outline"
-                                className="border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 text-[11px] font-bold"
-                              >
+                              <Badge variant="primary" className="text-[11px]">
                                 Activa
                               </Badge>
                             ) : (
-                              <Badge
-                                variant="outline"
-                                className="border-slate-200 bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400 text-[11px] font-semibold"
-                              >
+                              <Badge variant="neutral" className="text-[11px]">
                                 Inactiva
                               </Badge>
                             )}
@@ -801,7 +736,7 @@ export function TutoresAsignacionPanel() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleToggleAssignmentActive(asig)}
-                              className="rounded-lg text-xs font-semibold h-8"
+                              className="h-8 text-xs"
                             >
                               {isActive ? "Desactivar" : "Reactivar"}
                             </Button>
@@ -819,20 +754,20 @@ export function TutoresAsignacionPanel() {
           {showBulkGrid && (
             <section
               id="asignacion-masiva-grid"
-              className="rounded-2xl border border-border bg-card p-5 space-y-4"
+              className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]"
             >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="flex items-start sm:items-center gap-2.5">
-                  <div className="grid size-9 place-items-center rounded-xl bg-[#1B198F]/10 text-[#1B198F] dark:text-indigo-300 shrink-0">
-                    <Grid3X3 className="size-4" />
+              <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                <div className="flex items-start gap-3 sm:items-center">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#1F4D2C]/10 text-[#1F4D2C] dark:bg-[#1F4D2C]/30 dark:text-[#8FC9B5]">
+                    <Grid3X3 className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-foreground">
-                      Asignación Masiva por Carrera, Semestre y Grupo ({selectedPeriodo})
+                    <h3 className="text-base font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
+                      Asignación masiva por carrera, semestre y grupo ({selectedPeriodo})
                     </h3>
-                    <p className="text-xs text-muted-foreground">
-                      Precargado con las 7 carreras del TESH y semestres 1º al 9º. Selecciona el
-                      tutor para cada grupo y guarda todo en una sola operación.
+                    <p className="text-xs text-[#6B6B6B] dark:text-[#A8B5A0]">
+                      Precargado con las 7 carreras oficiales del TESH y semestres 1º al 9º.
+                      Selecciona el tutor para cada grupo y guarda en una sola operación.
                     </p>
                   </div>
                 </div>
@@ -841,9 +776,9 @@ export function TutoresAsignacionPanel() {
                   type="button"
                   disabled={isSavingBulk || selectedGridEntries.length === 0}
                   onClick={handleSaveBulkAssignments}
-                  className="rounded-xl bg-[#1B198F] hover:bg-[#1B198F]/90 text-white text-xs font-bold h-10 shrink-0"
+                  className="h-10 shrink-0 whitespace-nowrap text-xs"
                 >
-                  <Save className="mr-1.5 size-4" />
+                  <Save className="size-4" />
                   {isSavingBulk
                     ? "Guardando asignaciones..."
                     : `Guardar todas las asignaciones (${selectedGridEntries.length})`}
@@ -851,32 +786,35 @@ export function TutoresAsignacionPanel() {
               </div>
 
               {/* Tutores disponibles */}
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-muted/20 p-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mr-1">
-                  Tutores disponibles:
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/60 px-4 py-3 text-xs dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
+                <span className="font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                  Tutores disponibles (rol=&apos;tutor&apos;):
                 </span>
                 {tutores.map((t) => (
                   <span
                     key={t.id}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs"
+                    className="inline-flex items-center gap-1.5 font-medium text-[#1A1A1A] dark:text-[#F5F1E8]"
                   >
-                    <UserCheck className="size-3 text-[#1B198F] dark:text-indigo-300" />
-                    <span className="font-semibold text-foreground">{t.nombre}</span>
+                    <UserCheck className="size-3.5 text-[#B8860B]" />
+                    {t.nombre}
                   </span>
                 ))}
               </div>
 
-              {/* Controles de la grilla */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="grid-filter-career" className="text-xs font-bold">
+              {/* Filtros de la grilla */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="grid-filter-career"
+                    className="text-xs font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]"
+                  >
                     Filtrar por carrera
                   </Label>
                   <select
                     id="grid-filter-career"
                     value={gridCareerFilter}
                     onChange={(e) => setGridCareerFilter(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:border-[#1B198F] focus:outline-none"
+                    className={selectControlClassName}
                   >
                     <option value="all">Todas las carreras (7)</option>
                     {TESH_TUTORIAS_CARRERAS.map((career) => (
@@ -887,15 +825,18 @@ export function TutoresAsignacionPanel() {
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="grid-filter-semester" className="text-xs font-bold">
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="grid-filter-semester"
+                    className="text-xs font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]"
+                  >
                     Filtrar por semestre
                   </Label>
                   <select
                     id="grid-filter-semester"
                     value={gridSemesterFilter}
                     onChange={(e) => setGridSemesterFilter(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:border-[#1B198F] focus:outline-none"
+                    className={selectControlClassName}
                   >
                     <option value="all">Todos los semestres (1º–9º)</option>
                     {SEMESTRES.map((s) => (
@@ -906,15 +847,18 @@ export function TutoresAsignacionPanel() {
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="grid-groups-count" className="text-xs font-bold">
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="grid-groups-count"
+                    className="text-xs font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]"
+                  >
                     Grupos por semestre
                   </Label>
                   <select
                     id="grid-groups-count"
                     value={groupsPerSemester}
                     onChange={(e) => setGroupsPerSemester(Number(e.target.value) as 1 | 2 | 3)}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:border-[#1B198F] focus:outline-none"
+                    className={selectControlClassName}
                   >
                     <option value={1}>1 grupo por semestre (ej. 101)</option>
                     <option value={2}>2 grupos por semestre (ej. 101, 102)</option>
@@ -922,13 +866,13 @@ export function TutoresAsignacionPanel() {
                   </select>
                 </div>
 
-                <div className="flex items-end pb-1">
-                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer">
+                <div className="flex items-end pb-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
                     <input
                       type="checkbox"
                       checked={gridOnlyUnassigned}
                       onChange={(e) => setGridOnlyUnassigned(e.target.checked)}
-                      className="rounded border-border accent-[#1B198F]"
+                      className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C]"
                     />
                     Mostrar solo grupos sin tutor
                   </label>
@@ -936,14 +880,20 @@ export function TutoresAsignacionPanel() {
               </div>
 
               {/* Grilla de combinaciones Carrera + Semestre + Grupo -> Dropdown Tutor */}
-              <div className="rounded-xl border border-border overflow-x-auto max-h-[540px] overflow-y-auto">
+              <div className="max-h-[540px] overflow-x-auto overflow-y-auto rounded-lg border border-[#E5DFD3] dark:border-[#2D3F2A]">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur-xs">
-                    <TableRow>
-                      <TableHead className="text-xs font-bold">Carrera</TableHead>
-                      <TableHead className="text-xs font-bold w-28">Semestre</TableHead>
-                      <TableHead className="text-xs font-bold w-24">Grupo</TableHead>
-                      <TableHead className="text-xs font-bold min-w-64">
+                  <TableHeader className="sticky top-0 z-10 bg-[#F5F1E8] dark:bg-[#0F1A12]">
+                    <TableRow className="border-[#E5DFD3] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:hover:bg-[#0F1A12]">
+                      <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Carrera
+                      </TableHead>
+                      <TableHead className="w-28 text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Semestre
+                      </TableHead>
+                      <TableHead className="w-24 text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                        Grupo
+                      </TableHead>
+                      <TableHead className="min-w-64 text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
                         Tutor asignado (rol = &apos;tutor&apos;)
                       </TableHead>
                     </TableRow>
@@ -953,7 +903,7 @@ export function TutoresAsignacionPanel() {
                       <TableRow>
                         <TableCell
                           colSpan={4}
-                          className="text-center py-8 text-xs text-muted-foreground"
+                          className="py-8 text-center text-xs text-[#6B6B6B] dark:text-[#A8B5A0]"
                         >
                           No hay combinaciones que coincidan con los filtros seleccionados.
                         </TableCell>
@@ -964,19 +914,20 @@ export function TutoresAsignacionPanel() {
                         return (
                           <TableRow
                             key={row.key}
-                            className={selectedTutorId ? "bg-[#1B198F]/[0.03]" : undefined}
+                            className={`border-[#E5DFD3] dark:border-[#2D3F2A] ${
+                              selectedTutorId
+                                ? "bg-[#1F4D2C]/[0.04] dark:bg-[#1F4D2C]/20"
+                                : "hover:bg-[#F5F1E8]/40 dark:hover:bg-[#0F1A12]/40"
+                            }`}
                           >
-                            <TableCell className="text-xs font-semibold text-foreground">
+                            <TableCell className="text-xs font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
                               {row.carrera}
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
+                            <TableCell className="text-xs text-[#6B6B6B] tabular-nums dark:text-[#A8B5A0]">
                               {row.semestre}º Semestre
                             </TableCell>
                             <TableCell>
-                              <Badge
-                                variant="outline"
-                                className="border-[#1B198F]/30 bg-[#1B198F]/10 text-[#1B198F] dark:text-indigo-300 text-xs font-bold"
-                              >
+                              <Badge variant="outline" className="font-mono text-xs tabular-nums">
                                 {row.grupo}
                               </Badge>
                             </TableCell>
@@ -996,7 +947,7 @@ export function TutoresAsignacionPanel() {
                                     return next;
                                   });
                                 }}
-                                className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground focus:border-[#1B198F] focus:outline-none"
+                                className="h-9 w-full rounded-lg border border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1A1A1A] focus:border-[#1F4D2C] focus:outline-none dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
                               >
                                 <option value="">— Sin tutor asignado —</option>
                                 {tutores.map((t) => (
@@ -1014,10 +965,10 @@ export function TutoresAsignacionPanel() {
                 </Table>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/60">
-                <p className="text-xs text-muted-foreground">
-                  Mostrando {filteredGridRows.length} de {allGridRows.length} grupos totales •{" "}
-                  <strong className="text-foreground">
+              <div className="flex flex-col justify-between gap-3 border-t border-[#E5DFD3] pt-3 sm:flex-row sm:items-center dark:border-[#2D3F2A]">
+                <p className="text-xs text-[#6B6B6B] tabular-nums dark:text-[#A8B5A0]">
+                  Mostrando {filteredGridRows.length} de {allGridRows.length} grupos totales ·{" "}
+                  <strong className="text-[#1F4D2C] dark:text-[#8FC9B5]">
                     {selectedGridEntries.length} grupo(s) con tutor seleccionado
                   </strong>
                 </p>
@@ -1028,7 +979,7 @@ export function TutoresAsignacionPanel() {
                     variant="outline"
                     size="sm"
                     onClick={() => setGridSelections({})}
-                    className="rounded-xl text-xs font-semibold h-9"
+                    className="h-9 shrink-0 whitespace-nowrap text-xs"
                   >
                     Limpiar selección
                   </Button>
@@ -1036,9 +987,9 @@ export function TutoresAsignacionPanel() {
                     type="button"
                     disabled={isSavingBulk || selectedGridEntries.length === 0}
                     onClick={handleSaveBulkAssignments}
-                    className="rounded-xl bg-[#1B198F] hover:bg-[#1B198F]/90 text-white text-xs font-bold h-9"
+                    className="h-9 shrink-0 whitespace-nowrap text-xs"
                   >
-                    <CheckCircle2 className="mr-1.5 size-3.5" />
+                    <CheckCircle2 className="size-4" />
                     {isSavingBulk ? "Guardando..." : "Guardar todas las asignaciones"}
                   </Button>
                 </div>
@@ -1050,32 +1001,30 @@ export function TutoresAsignacionPanel() {
 
       {activeTab === "estudiantes" && (
         /* 4. GESTIÓN DE ESTUDIANTES QUE RECURSAN */
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-2.5">
-              <div className="grid size-9 place-items-center rounded-xl bg-[#1B198F]/10 text-[#1B198F] dark:text-indigo-300 shrink-0">
-                <ArrowRightLeft className="size-4" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-foreground">
-                  Gestión de Estudiantes y Recursamiento
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Busca por nombre o matrícula para reubicar a un estudiante en su nueva carrera,
-                  semestre y grupo. El cambio actualiza automáticamente las listas del tutor.
-                </p>
-              </div>
+        <section className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+          <div className="flex items-start gap-3 sm:items-center">
+            <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#B8860B]/15 text-[#B8860B]">
+              <ArrowRightLeft className="size-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
+                Gestión de estudiantes que recursan
+              </h3>
+              <p className="text-xs text-[#6B6B6B] dark:text-[#A8B5A0]">
+                Busca por nombre o matrícula y actualiza carrera, semestre y grupo. Al guardar, el
+                estudiante aparece en su grupo nuevo y desaparece del anterior.
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#6B6B6B] dark:text-[#A8B5A0]" />
               <Input
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
                 placeholder="Buscar estudiante por nombre o matrícula..."
-                className="pl-9 rounded-xl text-xs h-10"
+                className="h-10 pl-10 text-xs"
               />
             </div>
 
@@ -1083,7 +1032,7 @@ export function TutoresAsignacionPanel() {
               aria-label="Filtrar estudiantes por carrera"
               value={studentCareerFilter}
               onChange={(e) => setStudentCareerFilter(e.target.value)}
-              className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:border-[#1B198F] focus:outline-none h-10"
+              className={selectControlClassName}
             >
               <option value="all">Todas las carreras</option>
               {TESH_TUTORIAS_CARRERAS.map((career) => (
@@ -1094,16 +1043,28 @@ export function TutoresAsignacionPanel() {
             </select>
           </div>
 
-          <div className="rounded-xl border border-border overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-[#E5DFD3] dark:border-[#2D3F2A]">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead className="text-xs font-bold">Nombre completo</TableHead>
-                  <TableHead className="text-xs font-bold">Matrícula</TableHead>
-                  <TableHead className="text-xs font-bold">Carrera actual</TableHead>
-                  <TableHead className="text-xs font-bold">Semestre</TableHead>
-                  <TableHead className="text-xs font-bold">Grupo</TableHead>
-                  <TableHead className="text-xs font-bold text-right">Acción</TableHead>
+                <TableRow className="border-[#E5DFD3] bg-[#F5F1E8] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:hover:bg-[#0F1A12]">
+                  <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                    Nombre completo
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                    Matrícula
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                    Carrera actual
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                    Semestre
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                    Grupo
+                  </TableHead>
+                  <TableHead className="text-right text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                    Acción
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1111,29 +1072,31 @@ export function TutoresAsignacionPanel() {
                   <TableRow>
                     <TableCell
                       colSpan={6}
-                      className="text-center py-8 text-xs text-muted-foreground"
+                      className="py-8 text-center text-xs text-[#6B6B6B] dark:text-[#A8B5A0]"
                     >
                       No se encontraron estudiantes con ese nombre o matrícula.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredEstudiantes.map((st) => (
-                    <TableRow key={st.id}>
-                      <TableCell className="text-xs sm:text-sm font-semibold text-foreground">
+                    <TableRow
+                      key={st.id}
+                      className="border-[#E5DFD3] hover:bg-[#F5F1E8]/50 dark:border-[#2D3F2A] dark:hover:bg-[#0F1A12]/50"
+                    >
+                      <TableCell className="text-xs font-semibold text-[#1A1A1A] sm:text-sm dark:text-[#F5F1E8]">
                         {st.nombre}
                       </TableCell>
-                      <TableCell className="font-mono text-xs font-semibold text-foreground/85">
+                      <TableCell className="font-mono text-xs font-semibold text-[#6B6B6B] tabular-nums dark:text-[#A8B5A0]">
                         {st.matricula}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{st.carrera}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="text-xs text-[#1A1A1A] dark:text-[#F5F1E8]">
+                        {st.carrera}
+                      </TableCell>
+                      <TableCell className="text-xs text-[#6B6B6B] tabular-nums dark:text-[#A8B5A0]">
                         {st.semestre}º Semestre
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className="border-[#1B198F]/30 bg-[#1B198F]/10 text-[#1B198F] dark:text-indigo-300 text-xs font-bold"
-                        >
+                        <Badge variant="outline" className="font-mono text-xs tabular-nums">
                           {st.grupo}
                         </Badge>
                       </TableCell>
@@ -1142,142 +1105,14 @@ export function TutoresAsignacionPanel() {
                           type="button"
                           size="sm"
                           onClick={() => handleOpenEditStudent(st)}
-                          className="rounded-lg bg-[#1B198F] hover:bg-[#1B198F]/90 text-white text-xs font-semibold h-8"
+                          className="h-8 shrink-0 whitespace-nowrap text-xs"
                         >
-                          <ArrowRightLeft className="mr-1.5 size-3.5" />
+                          <ArrowRightLeft className="size-3.5" />
                           Cambiar grupo
                         </Button>
                       </TableCell>
                     </TableRow>
                   ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </section>
-      )}
-
-      {activeTab === "canalizaciones" && (
-        /* Resumen institucional de canalizaciones */
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-5">
-          <div className="flex items-center gap-2.5">
-            <div className="grid size-9 place-items-center rounded-xl bg-[#1B198F]/10 text-[#1B198F] dark:text-indigo-300">
-              <ClipboardList className="size-4" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-foreground">
-                Todas las Canalizaciones del Sistema (Resumen Agregado)
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Monitoreo institucional del flujo tutor → área psicológica sin exposición clínica
-                sensible.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <div className="rounded-xl border border-border bg-muted/20 p-3.5">
-              <span className="text-[11px] font-bold uppercase text-muted-foreground">Total</span>
-              <p className="font-numeric text-2xl font-bold text-[#1B198F] dark:text-foreground mt-1">
-                {canalizacionesStats.total}
-              </p>
-            </div>
-            <div className="rounded-xl border border-amber-200 bg-amber-50/40 dark:border-amber-900/50 dark:bg-amber-950/20 p-3.5">
-              <span className="text-[11px] font-bold uppercase text-amber-700 dark:text-amber-300">
-                Pendientes
-              </span>
-              <p className="font-numeric text-2xl font-bold text-amber-700 dark:text-amber-300 mt-1">
-                {canalizacionesStats.pendientes}
-              </p>
-            </div>
-            <div className="rounded-xl border border-blue-200 bg-blue-50/40 dark:border-blue-900/50 dark:bg-blue-950/20 p-3.5">
-              <span className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-300">
-                Aceptadas
-              </span>
-              <p className="font-numeric text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">
-                {canalizacionesStats.aceptadas}
-              </p>
-            </div>
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/50 dark:bg-emerald-950/20 p-3.5">
-              <span className="text-[11px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
-                Completadas
-              </span>
-              <p className="font-numeric text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">
-                {canalizacionesStats.completadas}
-              </p>
-            </div>
-            <div className="col-span-2 sm:col-span-1 rounded-xl border border-rose-200 bg-rose-50/40 dark:border-rose-900/50 dark:bg-rose-950/20 p-3.5">
-              <span className="text-[11px] font-bold uppercase text-rose-700 dark:text-rose-300">
-                Urgentes
-              </span>
-              <p className="font-numeric text-2xl font-bold text-rose-700 dark:text-rose-300 mt-1">
-                {canalizacionesStats.urgentes}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead className="text-xs font-bold">Carrera / Grupo</TableHead>
-                  <TableHead className="text-xs font-bold">Tutor Solicitante</TableHead>
-                  <TableHead className="text-xs font-bold">Estudiante / Folio</TableHead>
-                  <TableHead className="text-xs font-bold">Prioridad</TableHead>
-                  <TableHead className="text-xs font-bold">Estado</TableHead>
-                  <TableHead className="text-xs font-bold">Fecha</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {canalizaciones.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-center py-6 text-xs text-muted-foreground"
-                    >
-                      No existen canalizaciones registradas en el sistema.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  canalizaciones.map((c) => {
-                    const est = ESTADO_BADGE[c.estado] || ESTADO_BADGE.pendiente;
-                    const prio = PRIORIDAD_BADGE[c.prioridad] || PRIORIDAD_BADGE.normal;
-                    return (
-                      <TableRow key={c.id}>
-                        <TableCell className="text-xs text-foreground">
-                          <div className="font-semibold">{c.carrera || "TESH"}</div>
-                          {c.grupo && (
-                            <span className="text-[11px] text-muted-foreground">
-                              Grupo {c.grupo}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {c.tutor_nombre || "Tutor TESH"}
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold text-foreground">
-                          {c.estudiante_nombre || "Estudiante"}
-                          {c.folio ? ` (${c.folio})` : ""}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`${prio} text-[11px] font-bold capitalize`}
-                          >
-                            {c.prioridad}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={`${est.cls} text-[11px] font-bold`}>
-                            {est.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatFecha(c.created_at)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
                 )}
               </TableBody>
             </Table>
@@ -1292,37 +1127,39 @@ export function TutoresAsignacionPanel() {
           if (!open && !isUpdatingStudent) setEditingStudent(null);
         }}
       >
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="rounded-lg border border-[#E5DFD3] bg-white text-[#1A1A1A] sm:max-w-md dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8]">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-[#1B198F] dark:text-foreground">
-              Actualizar Grupo por Recursamiento
+            <DialogTitle className="text-base font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+              Actualizar grupo por recursamiento
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-xs text-[#6B6B6B] dark:text-[#A8B5A0]">
               {editingStudent
-                ? `Reasigna a ${editingStudent.nombre} (${editingStudent.matricula}). Dejará de aparecer en su grupo anterior automáticamente.`
+                ? `Reasigna a ${editingStudent.nombre} (${editingStudent.matricula}). Al guardar aparecerá en el grupo nuevo y desaparecerá del anterior.`
                 : ""}
             </DialogDescription>
           </DialogHeader>
 
           {editingStudent && (
             <div className="space-y-4 py-2">
-              <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs space-y-1">
-                <p className="font-bold text-foreground">{editingStudent.nombre}</p>
-                <p className="text-muted-foreground">
+              <div className="space-y-1 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/60 p-3 text-xs dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
+                <p className="font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
+                  {editingStudent.nombre}
+                </p>
+                <p className="text-[#6B6B6B] dark:text-[#A8B5A0]">
                   Actual: {editingStudent.carrera} · {editingStudent.semestre}º Sem · Grupo{" "}
                   {editingStudent.grupo}
                 </p>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="recursamiento-carrera" className="text-xs font-bold">
+                <Label htmlFor="recursamiento-carrera" className="text-xs font-semibold">
                   Nueva carrera
                 </Label>
                 <select
                   id="recursamiento-carrera"
                   value={editCarrera}
                   onChange={(e) => setEditCarrera(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs sm:text-sm font-semibold text-foreground focus:border-[#1B198F] focus:outline-none"
+                  className={selectControlClassName}
                 >
                   {!TESH_TUTORIAS_CARRERAS.includes(
                     editCarrera as (typeof TESH_TUTORIAS_CARRERAS)[number],
@@ -1337,7 +1174,7 @@ export function TutoresAsignacionPanel() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="recursamiento-semestre" className="text-xs font-bold">
+                  <Label htmlFor="recursamiento-semestre" className="text-xs font-semibold">
                     Nuevo semestre
                   </Label>
                   <select
@@ -1346,13 +1183,12 @@ export function TutoresAsignacionPanel() {
                     onChange={(e) => {
                       const nextSem = e.target.value;
                       setEditSemestre(nextSem);
-                      // Sugerir grupo acorde si tenía formato N01/N02/N03
                       const suffixMatch = editGrupo.match(/^\d(\d{2})$/);
                       if (suffixMatch) {
                         setEditGrupo(`${nextSem}${suffixMatch[1]}`);
                       }
                     }}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs sm:text-sm font-semibold text-foreground focus:border-[#1B198F] focus:outline-none"
+                    className={selectControlClassName}
                   >
                     {SEMESTRES.map((s) => (
                       <option key={s} value={s}>
@@ -1363,7 +1199,7 @@ export function TutoresAsignacionPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="recursamiento-grupo" className="text-xs font-bold">
+                  <Label htmlFor="recursamiento-grupo" className="text-xs font-semibold">
                     Nuevo grupo
                   </Label>
                   <Input
@@ -1371,7 +1207,7 @@ export function TutoresAsignacionPanel() {
                     value={editGrupo}
                     onChange={(e) => setEditGrupo(e.target.value)}
                     placeholder={`Ej. ${editSemestre}01`}
-                    className="rounded-xl text-xs sm:text-sm font-semibold h-9.5"
+                    className="h-10 text-xs font-semibold"
                   />
                 </div>
               </div>
@@ -1384,7 +1220,7 @@ export function TutoresAsignacionPanel() {
               variant="outline"
               disabled={isUpdatingStudent}
               onClick={() => setEditingStudent(null)}
-              className="rounded-xl text-xs font-semibold"
+              className="h-10 text-xs"
             >
               Cancelar
             </Button>
@@ -1392,9 +1228,9 @@ export function TutoresAsignacionPanel() {
               type="button"
               disabled={isUpdatingStudent || !editGrupo.trim()}
               onClick={handleSaveStudentGroupChange}
-              className="rounded-xl bg-[#1B198F] hover:bg-[#1B198F]/90 text-white text-xs font-bold"
+              className="h-10 text-xs"
             >
-              <Save className="mr-1.5 size-3.5" />
+              <Save className="size-4" />
               {isUpdatingStudent ? "Guardando..." : "Guardar cambio de grupo"}
             </Button>
           </DialogFooter>

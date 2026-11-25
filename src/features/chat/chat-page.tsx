@@ -1231,7 +1231,7 @@ export function ChatPage() {
                                       toast.success("Folio copiado al portapapeles");
                                     }
                                   }}
-                                  className="h-7 cursor-pointer gap-1 rounded-md border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1F4D2C] hover:bg-[#E0F0E8]"
+                                  className="h-7 cursor-pointer gap-1 rounded-md border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1F4D2C] hover:bg-[#E0F0E8] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#8FC9B5] dark:hover:bg-[#1F4D2C]/30"
                                 >
                                   <Copy className="size-3" strokeWidth={1.75} />
                                   <span>Copiar</span>
@@ -1277,9 +1277,12 @@ export function ChatPage() {
                                   </Button>
                                   <a
                                     href="tel:8009112000"
-                                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 text-xs font-semibold text-[#1A1A1A] hover:bg-[#E0F0E8]"
+                                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 text-xs font-semibold text-[#1A1A1A] hover:bg-[#E0F0E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:hover:bg-[#1F4D2C]/30"
                                   >
-                                    <Phone className="size-3.5 text-[#1F4D2C]" strokeWidth={1.75} />
+                                    <Phone
+                                      className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]"
+                                      strokeWidth={1.75}
+                                    />
                                     <span>Línea de la Vida 800 911 2000</span>
                                   </a>
                                 </div>
@@ -1350,7 +1353,7 @@ export function ChatPage() {
                       variant="outline"
                       size="sm"
                       onClick={handleResetChat}
-                      className="h-9 cursor-pointer gap-1.5 rounded-lg border-[#E5DFD3] bg-white px-4 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8]"
+                      className="h-9 cursor-pointer gap-1.5 rounded-lg border-[#E5DFD3] bg-white px-4 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:hover:bg-[#1F4D2C]/30"
                     >
                       <RotateCcw className="size-3.5" strokeWidth={1.75} />
                       <span>Nuevo tamizaje</span>

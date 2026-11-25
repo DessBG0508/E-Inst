@@ -10,10 +10,10 @@ interface ContextoPsicosocialProps {
 }
 
 const READONLY_CLASS =
-  "w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-sm font-medium text-[#6B6B6B] cursor-default focus:outline-none";
+  "w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-sm font-medium text-[#6B6B6B] cursor-default focus:outline-none dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3]";
 
 const EDITABLE_CLASS =
-  "w-full rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]";
+  "w-full rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:placeholder:text-[#A6B5A3]/60";
 
 export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
   paciente,
@@ -45,11 +45,14 @@ export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
         </span>
       </div>
 
-      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
+      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <label htmlFor="ctx-carrera" className="text-sm font-semibold text-[#1F4D2C]">
+              <label
+                htmlFor="ctx-carrera"
+                className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+              >
                 Carrera y semestre
               </label>
               <BadgeOrigen tipo="AUTOMÁTICO" />
@@ -65,7 +68,10 @@ export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <label htmlFor="ctx-grupo" className="text-sm font-semibold text-[#1F4D2C]">
+              <label
+                htmlFor="ctx-grupo"
+                className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+              >
                 Grupo
               </label>
               <BadgeOrigen tipo="AUTOMÁTICO" />
@@ -81,7 +87,10 @@ export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <label htmlFor="ctx-convivencia" className="text-sm font-semibold text-[#1F4D2C]">
+              <label
+                htmlFor="ctx-convivencia"
+                className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+              >
                 Convivencia
               </label>
               <BadgeOrigen tipo="PSICÓLOGO" />
@@ -98,7 +107,10 @@ export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <label htmlFor="ctx-laboral" className="text-sm font-semibold text-[#1F4D2C]">
+              <label
+                htmlFor="ctx-laboral"
+                className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+              >
                 Situación laboral
               </label>
               <BadgeOrigen tipo="PSICÓLOGO" />
@@ -115,7 +127,10 @@ export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <label htmlFor="ctx-red" className="text-sm font-semibold text-[#1F4D2C]">
+              <label
+                htmlFor="ctx-red"
+                className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+              >
                 Red de apoyo
               </label>
               <BadgeOrigen tipo="PSICÓLOGO" />
@@ -132,7 +147,10 @@ export const ContextoPsicosocial: React.FC<ContextoPsicosocialProps> = ({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <label htmlFor="ctx-estres" className="text-sm font-semibold text-[#1F4D2C]">
+              <label
+                htmlFor="ctx-estres"
+                className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+              >
                 Factores de estrés actuales
               </label>
               <BadgeOrigen tipo="PSICÓLOGO" />

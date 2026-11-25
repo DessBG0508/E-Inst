@@ -513,20 +513,24 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
       id="expediente-clinico-container"
     >
       {/* Header Clínico Superior */}
-      <div className="flex flex-col gap-4 rounded-lg border border-[#E5DFD3] bg-white p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+      <div className="flex flex-col gap-4 rounded-lg border border-[#E5DFD3] bg-white p-4 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#1F4D2C] text-white">
             <FileText className="size-5" />
           </div>
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-bold text-[#1A1A1A]">Expediente Clínico</h2>
-              <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-2.5 py-0.5 font-mono text-xs font-bold text-[#1F4D2C]">
+              <h2 className="text-base font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
+                Expediente Clínico
+              </h2>
+              <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-2.5 py-0.5 font-mono text-xs font-bold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                 {numeroExpedienteHeader}
               </span>
-              <span className="font-mono text-xs text-[#6B6B6B]">Tamizaje: {folio}</span>
+              <span className="font-mono text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
+                Tamizaje: {folio}
+              </span>
             </div>
-            <p className="text-xs text-[#6B6B6B]">
+            <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
               {isLoading
                 ? "Cargando información clínica desde Supabase..."
                 : ultimaGuardado
@@ -543,16 +547,16 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
           <button
             type="button"
             onClick={() => setVistaContinua((prev) => !prev)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-white px-3 text-xs font-semibold text-[#1A1A1A] transition-colors hover:bg-[#F5F1E8]"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-white px-3 text-xs font-semibold text-[#1A1A1A] transition-colors hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:hover:bg-[#2D3F2A]/60"
           >
-            <Layers className="size-3.5 text-[#1F4D2C]" />
+            <Layers className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
             <span>{vistaContinua ? "Vista por secciones" : "Vista continua (5 págs.)"}</span>
           </button>
 
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#1F4D2C] bg-white px-3 text-xs font-semibold text-[#1F4D2C] transition-colors hover:bg-[#1F4D2C]/10"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#1F4D2C] bg-white px-3 text-xs font-semibold text-[#1F4D2C] transition-colors hover:bg-[#1F4D2C]/10 dark:border-[#8FC9B5] dark:bg-[#0F1A12] dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10"
           >
             <Printer className="size-3.5" />
             <span>Imprimir PDF</span>
@@ -581,7 +585,7 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-9 items-center rounded-lg border border-[#E5DFD3] bg-white px-3 text-xs font-semibold text-[#6B6B6B] transition-colors hover:bg-[#F5F1E8] hover:text-[#1A1A1A]"
+              className="inline-flex h-9 items-center rounded-lg border border-[#E5DFD3] bg-white px-3 text-xs font-semibold text-[#6B6B6B] transition-colors hover:bg-[#F5F1E8] hover:text-[#1A1A1A] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3] dark:hover:bg-[#2D3F2A]/60 dark:hover:text-[#F5F1E8]"
             >
               Cerrar
             </button>
@@ -597,8 +601,8 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
             aria-label="Secciones del expediente clínico"
             className="w-full shrink-0 lg:w-64 print:hidden"
           >
-            <div className="rounded-lg border border-[#E5DFD3] bg-white p-2.5 space-y-1">
-              <p className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+            <div className="rounded-lg border border-[#E5DFD3] bg-white p-2.5 space-y-1 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+              <p className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]">
                 Estructura (5 páginas)
               </p>
               <div className="flex flex-row gap-1 overflow-x-auto lg:flex-col">
@@ -612,32 +616,38 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                       onClick={() => setPaginaActiva(item.page)}
                       className={`flex min-w-[200px] lg:min-w-0 items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors ${
                         isActive
-                          ? "border-l-4 border-[#1F4D2C] bg-[#F5F1E8] text-[#1F4D2C]"
-                          : "border-l-4 border-transparent text-[#1A1A1A] hover:bg-[#F5F1E8]/60"
+                          ? "border-l-4 border-[#1F4D2C] bg-[#F5F1E8] text-[#1F4D2C] dark:border-[#8FC9B5] dark:bg-[#0F1A12] dark:text-[#8FC9B5]"
+                          : "border-l-4 border-transparent text-[#1A1A1A] hover:bg-[#F5F1E8]/60 dark:text-[#F5F1E8] dark:hover:bg-[#0F1A12]/60"
                       }`}
                     >
                       <Icon
                         className={`mt-0.5 size-4 shrink-0 ${
-                          isActive ? "text-[#1F4D2C]" : "text-[#6B6B6B]"
+                          isActive
+                            ? "text-[#1F4D2C] dark:text-[#8FC9B5]"
+                            : "text-[#6B6B6B] dark:text-[#A6B5A3]"
                         }`}
                       />
                       <div className="min-w-0">
                         <p className={`text-xs ${isActive ? "font-bold" : "font-semibold"}`}>
                           {item.page}. {item.title}
                         </p>
-                        <p className="truncate text-[11px] text-[#6B6B6B]">{item.subtitle}</p>
+                        <p className="truncate text-[11px] text-[#6B6B6B] dark:text-[#A6B5A3]">
+                          {item.subtitle}
+                        </p>
                       </div>
                     </button>
                   );
                 })}
               </div>
 
-              <div className="mt-3 border-t border-[#E5DFD3] pt-3 px-2.5">
-                <div className="flex items-center justify-between text-[11px] text-[#6B6B6B]">
+              <div className="mt-3 border-t border-[#E5DFD3] pt-3 px-2.5 dark:border-[#2D3F2A]">
+                <div className="flex items-center justify-between text-[11px] text-[#6B6B6B] dark:text-[#A6B5A3]">
                   <span>Consentimiento:</span>
                   <span
                     className={`font-semibold ${
-                      consentimientoFirmado ? "text-[#1F4D2C]" : "text-[#B8860B]"
+                      consentimientoFirmado
+                        ? "text-[#1F4D2C] dark:text-[#8FC9B5]"
+                        : "text-[#B8860B] dark:text-[#FCD34D]"
                     }`}
                   >
                     {consentimientoFirmado ? "Verificado" : "Pendiente"}
@@ -653,23 +663,23 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
           <div className="space-y-8 print:space-y-6">
             {/* PÁGINA 1: Identificación (auto-poblado desde Supabase — readonly) */}
             {(vistaContinua || paginaActiva === 1) && (
-              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0 print:break-after-page">
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6 print:border-none print:p-0 print:break-after-page">
                 <div
                   role="banner"
-                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]"
                 >
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Tecnológico de Estudios Superiores de Huixquilucan · Equilibra TESH
                     </p>
-                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C] dark:text-[#8FC9B5]">
                       EXPEDIENTE CLÍNICO · {numeroExpedienteHeader}
                     </h1>
-                    <p className="text-xs text-[#6B6B6B]">
+                    <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Página 1 — Identificación institucional del estudiante
                     </p>
                   </div>
-                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                     Página 1 de 5
                   </span>
                 </div>
@@ -682,7 +692,7 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                   numeroExpediente={numeroExpedienteHeader}
                 />
 
-                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B] dark:border-[#2D3F2A] dark:text-[#A6B5A3]">
                   Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
                 </footer>
               </article>
@@ -690,23 +700,23 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
 
             {/* PÁGINA 2: Motivo de consulta */}
             {(vistaContinua || paginaActiva === 2) && (
-              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0 print:break-after-page">
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6 print:border-none print:p-0 print:break-after-page">
                 <div
                   role="banner"
-                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]"
                 >
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Equilibra TESH · Expediente {numeroExpedienteHeader}
                     </p>
-                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C] dark:text-[#8FC9B5]">
                       MOTIVO DE CONSULTA
                     </h1>
-                    <p className="text-xs text-[#6B6B6B]">
+                    <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Página 2 — Relato textual y referencia de tamizaje
                     </p>
                   </div>
-                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                     Página 2 de 5
                   </span>
                 </div>
@@ -727,7 +737,7 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                   transcriptVoz={transcriptVoz}
                 />
 
-                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B] dark:border-[#2D3F2A] dark:text-[#A6B5A3]">
                   Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
                 </footer>
               </article>
@@ -735,23 +745,23 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
 
             {/* PÁGINA 3: Historia + Antecedentes */}
             {(vistaContinua || paginaActiva === 3) && (
-              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0 print:break-after-page">
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6 print:border-none print:p-0 print:break-after-page">
                 <div
                   role="banner"
-                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]"
                 >
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Equilibra TESH · Expediente {numeroExpedienteHeader}
                     </p>
-                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C] dark:text-[#8FC9B5]">
                       HISTORIA Y ANTECEDENTES CLÍNICOS
                     </h1>
-                    <p className="text-xs text-[#6B6B6B]">
+                    <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Página 3 — Evolución del problema y antecedentes relevantes
                     </p>
                   </div>
-                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                     Página 3 de 5
                   </span>
                 </div>
@@ -772,7 +782,7 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                   }
                 />
 
-                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B] dark:border-[#2D3F2A] dark:text-[#A6B5A3]">
                   Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
                 </footer>
               </article>
@@ -780,23 +790,23 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
 
             {/* PÁGINA 4: Contexto + Estado Mental */}
             {(vistaContinua || paginaActiva === 4) && (
-              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0 print:break-after-page">
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6 print:border-none print:p-0 print:break-after-page">
                 <div
                   role="banner"
-                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]"
                 >
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Equilibra TESH · Expediente {numeroExpedienteHeader}
                     </p>
-                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C] dark:text-[#8FC9B5]">
                       CONTEXTO PSICOSOCIAL Y ESTADO MENTAL
                     </h1>
-                    <p className="text-xs text-[#6B6B6B]">
+                    <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Página 4 — Entorno académico/familiar y exploración semiológica
                     </p>
                   </div>
-                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                     Página 4 de 5
                   </span>
                 </div>
@@ -820,7 +830,7 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                   }
                 />
 
-                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B] dark:border-[#2D3F2A] dark:text-[#A6B5A3]">
                   Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
                 </footer>
               </article>
@@ -828,23 +838,23 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
 
             {/* PÁGINA 5: Valoración de riesgo + Hipótesis + Objetivos + Trazabilidad */}
             {(vistaContinua || paginaActiva === 5) && (
-              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6 print:border-none print:p-0">
+              <article className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6 print:border-none print:p-0">
                 <div
                   role="banner"
-                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4"
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]"
                 >
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Equilibra TESH · Expediente {numeroExpedienteHeader}
                     </p>
-                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C]">
+                    <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#1F4D2C] dark:text-[#8FC9B5]">
                       VALORACIÓN, HIPÓTESIS, OBJETIVOS Y TRAZABILIDAD
                     </h1>
-                    <p className="text-xs text-[#6B6B6B]">
+                    <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                       Página 5 — Seguridad clínica, plan terapéutico y auditoría
                     </p>
                   </div>
-                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C]">
+                  <span className="rounded-md border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-1 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                     Página 5 de 5
                   </span>
                 </div>
@@ -880,7 +890,7 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                   nombrePsicologo={user?.name}
                 />
 
-                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B]">
+                <footer className="border-t border-[#E5DFD3] pt-3 text-center text-[11px] text-[#6B6B6B] dark:border-[#2D3F2A] dark:text-[#A6B5A3]">
                   Equilibra TESH · Expediente Clínico Confidencial · {numeroExpedienteHeader}
                 </footer>
               </article>
@@ -888,7 +898,7 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
           </div>
 
           {/* Barra inferior de consentimiento informado + navegación entre páginas */}
-          <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-white p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+          <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-white p-4 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:flex-row sm:items-center sm:justify-between print:hidden">
             <label className="flex cursor-pointer items-center gap-2.5">
               <input
                 type="checkbox"
@@ -901,9 +911,9 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                     },
                   })
                 }
-                className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+                className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A]"
               />
-              <span className="text-sm font-medium text-[#1A1A1A]">
+              <span className="text-sm font-medium text-[#1A1A1A] dark:text-[#F5F1E8]">
                 He obtenido consentimiento informado del paciente
               </span>
             </label>
@@ -915,19 +925,19 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
                     type="button"
                     disabled={paginaActiva <= 1}
                     onClick={() => setPaginaActiva((p) => Math.max(1, p - 1))}
-                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40"
+                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40 dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:hover:bg-[#2D3F2A]/60"
                   >
                     <ChevronLeft className="size-3.5" />
                     <span>Anterior</span>
                   </button>
-                  <span className="px-2 text-xs font-semibold text-[#6B6B6B]">
+                  <span className="px-2 text-xs font-semibold text-[#6B6B6B] dark:text-[#A6B5A3]">
                     {activePageMeta.page} / 5
                   </span>
                   <button
                     type="button"
                     disabled={paginaActiva >= 5}
                     onClick={() => setPaginaActiva((p) => Math.min(5, p + 1))}
-                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40"
+                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] disabled:opacity-40 dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:hover:bg-[#2D3F2A]/60"
                   >
                     <span>Siguiente</span>
                     <ChevronRight className="size-3.5" />

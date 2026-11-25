@@ -13,9 +13,9 @@ interface IdentificacionProps {
 }
 
 const READONLY_FIELD_CLASS =
-  "w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-sm font-medium text-[#6B6B6B] cursor-default focus:outline-none";
+  "w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-sm font-medium text-[#6B6B6B] cursor-default focus:outline-none dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3]";
 
-const LABEL_CLASS = "text-sm font-semibold text-[#1F4D2C]";
+const LABEL_CLASS = "text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]";
 
 export const Identificacion: React.FC<IdentificacionProps> = ({
   paciente,
@@ -73,9 +73,9 @@ export const Identificacion: React.FC<IdentificacionProps> = ({
         </span>
       </div>
 
-      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
-        <div className="mb-4 flex items-center justify-between border-b border-[#E5DFD3] pb-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#6B6B6B]">
+      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6">
+        <div className="mb-4 flex items-center justify-between border-b border-[#E5DFD3] pb-3 dark:border-[#2D3F2A]">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]">
             Ficha institucional del estudiante
           </p>
           <BadgeOrigen tipo="AUTOMÁTICO" />

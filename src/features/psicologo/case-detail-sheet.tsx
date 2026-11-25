@@ -414,7 +414,7 @@ export function CaseDetailSheet({
 
       {/* Modal del Expediente Clínico Oficial de 5 Páginas */}
       <Dialog open={openExpedienteOficial} onOpenChange={setOpenExpedienteOficial}>
-        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-4 sm:p-6 rounded-lg border-[#E5DFD3] bg-[#F5F1E8]">
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-4 sm:p-6 rounded-lg border-[#E5DFD3] bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
           <DialogHeader className="px-4 pt-2">
             <DialogTitle className="sr-only">
               Expediente Clínico Oficial de {item?.studentName || item?.initials}

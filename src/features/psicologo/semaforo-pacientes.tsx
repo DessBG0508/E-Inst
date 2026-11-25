@@ -410,22 +410,24 @@ export function SemaforoPacientes() {
   }, [pacientes]);
 
   const SortIcon = ({ col }: { col: SortColumn }) => {
-    if (sortBy !== col) return <ArrowUpDown className="size-3.5 text-[#6B6B6B]" />;
+    if (sortBy !== col) {
+      return <ArrowUpDown className="size-3.5 text-[#6B6B6B] dark:text-[#A6B5A3]" />;
+    }
     return sortDir === "asc" ? (
-      <ArrowUp className="size-3.5 text-[#1F4D2C]" />
+      <ArrowUp className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
     ) : (
-      <ArrowDown className="size-3.5 text-[#1F4D2C]" />
+      <ArrowDown className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
     );
   };
 
   return (
     <TooltipProvider delayDuration={150}>
-      <section className="space-y-4 rounded-lg border border-[#E5DFD3] bg-white p-6">
+      <section className="space-y-4 rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
         {/* Encabezado Semáforo de pacientes + Tooltip de criterios */}
-        <div className="flex flex-col gap-3 border-b border-[#E5DFD3] pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A] sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold tracking-tight text-[#1A1A1A]">
+              <h3 className="text-lg font-bold tracking-tight text-[#1A1A1A] dark:text-[#F5F1E8]">
                 Semáforo de pacientes
               </h3>
               <Tooltip>
@@ -433,14 +435,14 @@ export function SemaforoPacientes() {
                   <button
                     type="button"
                     aria-label="Criterios clínicos del semáforo de pacientes"
-                    className="inline-flex size-6 items-center justify-center rounded-full border border-[#E5DFD3] bg-[#F5F1E8] text-[#1F4D2C] transition-colors hover:bg-[#E5DFD3]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+                    className="inline-flex size-6 items-center justify-center rounded-full border border-[#E5DFD3] bg-[#F5F1E8] text-[#1F4D2C] transition-colors hover:bg-[#E5DFD3]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5] dark:hover:bg-[#2D3F2A]/60"
                   >
                     <Info className="size-3.5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent
                   side="right"
-                  className="max-w-xs border border-[#E5DFD3] bg-[#0F1A12] p-3 text-xs leading-relaxed text-[#F5F1E8]"
+                  className="max-w-xs border border-[#E5DFD3] bg-[#0F1A12] p-3 text-xs leading-relaxed text-[#F5F1E8] dark:border-[#2D3F2A]"
                 >
                   <p className="font-semibold text-[#D4A82B] mb-1.5">
                     Criterios clínicos de triaje (PHQ-9 / GAD-7)
@@ -462,7 +464,7 @@ export function SemaforoPacientes() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <p className="mt-0.5 text-xs text-[#6B6B6B]">
+            <p className="mt-0.5 text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
               Priorización clínica ROJO → AMARILLO → VERDE. Tamizaje orientativo, no diagnóstico.
             </p>
           </div>
@@ -473,7 +475,7 @@ export function SemaforoPacientes() {
             size="sm"
             onClick={fetchPacientes}
             disabled={isLoading}
-            className="h-9 rounded-lg border-[#E5DFD3] bg-white text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8]"
+            className="h-9 rounded-lg border-[#E5DFD3] bg-white text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:hover:bg-[#2D3F2A]/50"
           >
             <RefreshCw className={`mr-1.5 size-3.5 ${isLoading ? "animate-spin" : ""}`} />
             <span>Actualizar</span>
@@ -483,18 +485,18 @@ export function SemaforoPacientes() {
         {/* Filtros sobrios */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
           <div className="relative md:col-span-5">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#6B6B6B]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#6B6B6B] dark:text-[#A6B5A3]" />
             <Input
               type="search"
               placeholder="Buscar por nombre, matrícula o folio EQ-XXXX..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 rounded-lg border-[#E5DFD3] bg-white pl-9 text-xs sm:text-sm text-[#1A1A1A] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+              className="h-9 rounded-lg border-[#E5DFD3] bg-white pl-9 text-xs sm:text-sm text-[#1A1A1A] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
               aria-label="Buscar pacientes"
             />
           </div>
 
-          <div className="md:col-span-4 flex items-center gap-1 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-1">
+          <div className="md:col-span-4 flex items-center gap-1 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-1 dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
             {(
               [
                 { id: "todos", label: `Todos (${conteoPorNivel.total})` },
@@ -511,14 +513,16 @@ export function SemaforoPacientes() {
                     ? "bg-[#B8860B] text-white"
                     : tab.id === "verde"
                       ? "bg-[#1F4D2C] text-white"
-                      : "bg-white text-[#1A1A1A] shadow-2xs";
+                      : "bg-white text-[#1A1A1A] shadow-2xs dark:bg-[#1A2618] dark:text-[#F5F1E8]";
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setNivelFilter(tab.id)}
                   className={`flex-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
-                    active ? activeStyles : "text-[#6B6B6B] hover:text-[#1A1A1A]"
+                    active
+                      ? activeStyles
+                      : "text-[#6B6B6B] hover:text-[#1A1A1A] dark:text-[#A6B5A3] dark:hover:text-[#F5F1E8]"
                   }`}
                 >
                   {tab.label}
@@ -530,12 +534,12 @@ export function SemaforoPacientes() {
           <div className="md:col-span-3">
             <Select value={carreraFilter} onValueChange={setCarreraFilter}>
               <SelectTrigger
-                className="h-9 rounded-lg border-[#E5DFD3] bg-white text-xs text-[#1A1A1A] focus:ring-[#1F4D2C]"
+                className="h-9 rounded-lg border-[#E5DFD3] bg-white text-xs text-[#1A1A1A] focus:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
                 aria-label="Filtrar por carrera"
               >
                 <SelectValue placeholder="Todas las carreras" />
               </SelectTrigger>
-              <SelectContent className="rounded-lg border-[#E5DFD3] bg-white">
+              <SelectContent className="rounded-lg border-[#E5DFD3] bg-white dark:border-[#2D3F2A] dark:bg-[#1A2618]">
                 <SelectItem value="todas" className="text-xs">
                   Todas las carreras (7)
                 </SelectItem>
@@ -551,7 +555,7 @@ export function SemaforoPacientes() {
 
         {/* Estado Loading */}
         {isLoading && (
-          <div className="space-y-3 rounded-lg border border-[#E5DFD3] p-4">
+          <div className="space-y-3 rounded-lg border border-[#E5DFD3] p-4 dark:border-[#2D3F2A]">
             {[1, 2, 3, 4, 5].map((idx) => (
               <div key={idx} className="flex items-center justify-between gap-4 py-2">
                 <div className="flex items-center gap-3">
@@ -571,8 +575,8 @@ export function SemaforoPacientes() {
 
         {/* Estado Vacío */}
         {!isLoading && pacientesFiltrados.length === 0 && (
-          <div className="rounded-lg border border-dashed border-[#E5DFD3] bg-[#F5F1E8]/40 p-10 text-center space-y-3">
-            <p className="text-sm font-semibold text-[#1A1A1A]">
+          <div className="rounded-lg border border-dashed border-[#E5DFD3] bg-[#F5F1E8]/40 p-10 text-center space-y-3 dark:border-[#2D3F2A] dark:bg-[#0F1A12]/50">
+            <p className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
               No hay pacientes que coincidan con los filtros aplicados
             </p>
             {(searchTerm || nivelFilter !== "todos" || carreraFilter !== "todas") && (
@@ -585,7 +589,7 @@ export function SemaforoPacientes() {
                   setNivelFilter("todos");
                   setCarreraFilter("todas");
                 }}
-                className="h-9 rounded-lg border-[#E5DFD3] text-xs font-semibold text-[#1F4D2C]"
+                className="h-9 rounded-lg border-[#E5DFD3] text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:text-[#8FC9B5]"
               >
                 Limpiar filtros
               </Button>
@@ -596,53 +600,53 @@ export function SemaforoPacientes() {
         {/* Tabla Desktop */}
         {!isLoading && pacientesFiltrados.length > 0 && (
           <>
-            <div className="hidden md:block overflow-x-auto rounded-lg border border-[#E5DFD3]">
+            <div className="hidden md:block overflow-x-auto rounded-lg border border-[#E5DFD3] dark:border-[#2D3F2A]">
               <Table>
-                <TableHeader className="bg-[#F5F1E8]">
-                  <TableRow className="border-b border-[#E5DFD3] hover:bg-transparent">
+                <TableHeader className="bg-[#F5F1E8] dark:bg-[#0F1A12]">
+                  <TableRow className="border-b border-[#E5DFD3] hover:bg-transparent dark:border-[#2D3F2A]">
                     <TableHead className="py-3 pl-4">
                       <button
                         type="button"
                         onClick={() => handleSortToggle("nombre")}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1F4D2C] hover:underline"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1F4D2C] hover:underline dark:text-[#8FC9B5]"
                       >
                         <span>Paciente</span>
                         <SortIcon col="nombre" />
                       </button>
                     </TableHead>
-                    <TableHead className="py-3 text-xs font-semibold text-[#1F4D2C]">
+                    <TableHead className="py-3 text-xs font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
                       Carrera / Semestre
                     </TableHead>
                     <TableHead className="py-3 text-center">
                       <button
                         type="button"
                         onClick={() => handleSortToggle("nivel")}
-                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-[#1F4D2C] hover:underline"
+                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-[#1F4D2C] hover:underline dark:text-[#8FC9B5]"
                       >
                         <span>Nivel</span>
                         <SortIcon col="nivel" />
                       </button>
                     </TableHead>
-                    <TableHead className="py-3 text-center text-xs font-semibold text-[#1F4D2C]">
+                    <TableHead className="py-3 text-center text-xs font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
                       Tamizaje
                     </TableHead>
                     <TableHead className="py-3">
                       <button
                         type="button"
                         onClick={() => handleSortToggle("fecha")}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1F4D2C] hover:underline"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1F4D2C] hover:underline dark:text-[#8FC9B5]"
                       >
                         <span>Fecha último tamizaje</span>
                         <SortIcon col="fecha" />
                       </button>
                     </TableHead>
-                    <TableHead className="py-3 pr-4 text-right text-xs font-semibold text-[#1F4D2C]">
+                    <TableHead className="py-3 pr-4 text-right text-xs font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
                       Acciones
                     </TableHead>
                   </TableRow>
                 </TableHeader>
 
-                <TableBody className="divide-y divide-[#E5DFD3]">
+                <TableBody className="divide-y divide-[#E5DFD3] dark:divide-[#2D3F2A]">
                   {pacientesFiltrados.map((paciente) => {
                     const nivelLower = (paciente.ultimo_nivel || "verde").toLowerCase();
                     const isRedOrBlocked = nivelLower === "rojo" || Boolean(paciente.bloqueado);
@@ -654,25 +658,25 @@ export function SemaforoPacientes() {
                     return (
                       <TableRow
                         key={paciente.folio}
-                        className="bg-white transition-colors hover:bg-[#F5F1E8]/50"
+                        className="bg-white transition-colors hover:bg-[#F5F1E8]/50 dark:bg-[#1A2618] dark:hover:bg-[#0F1A12]/60"
                       >
                         {/* Avatar circular + Nombre + Matrícula + Folio EQ-XXXX */}
                         <TableCell className="py-3.5 pl-4">
                           <div className="flex items-center gap-3">
                             <div
                               aria-hidden="true"
-                              className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[#E5DFD3] bg-[#F5F1E8] text-xs font-bold text-[#1F4D2C]"
+                              className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[#E5DFD3] bg-[#F5F1E8] text-xs font-bold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]"
                             >
                               {avatarInitials}
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-[#1A1A1A]">
+                              <p className="truncate text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
                                 {displayName}
                               </p>
-                              <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[#6B6B6B]">
+                              <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                                 <span className="font-mono">{displayMatricula}</span>
                                 <span>·</span>
-                                <span className="font-mono font-semibold text-[#1F4D2C]">
+                                <span className="font-mono font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
                                   {paciente.folio}
                                 </span>
                               </p>
@@ -683,10 +687,10 @@ export function SemaforoPacientes() {
                         {/* Carrera / Semestre */}
                         <TableCell className="py-3.5">
                           <div className="max-w-[210px]">
-                            <p className="truncate text-xs font-medium text-[#1A1A1A]">
+                            <p className="truncate text-xs font-medium text-[#1A1A1A] dark:text-[#F5F1E8]">
                               {paciente.carrera || "TESH Huixquilucan"}
                             </p>
-                            <p className="text-xs text-[#6B6B6B]">
+                            <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                               {paciente.semestre
                                 ? String(paciente.semestre).includes("Semestre")
                                   ? paciente.semestre
@@ -703,14 +707,14 @@ export function SemaforoPacientes() {
 
                         {/* Puntajes */}
                         <TableCell className="py-3.5 text-center">
-                          <div className="inline-flex items-center gap-1.5 rounded-md border border-[#E5DFD3] bg-[#F5F1E8]/60 px-2.5 py-1 text-xs text-[#1A1A1A]">
+                          <div className="inline-flex items-center gap-1.5 rounded-md border border-[#E5DFD3] bg-[#F5F1E8]/60 px-2.5 py-1 text-xs text-[#1A1A1A] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
                             <span>PHQ-9: {paciente.phq9_total ?? 0}</span>
-                            <span className="text-[#6B6B6B]">·</span>
+                            <span className="text-[#6B6B6B] dark:text-[#A6B5A3]">·</span>
                             <span>GAD-7: {paciente.gad7_total ?? 0}</span>
                             {(paciente.item9 ?? 0) > 0 && (
                               <>
-                                <span className="text-[#6B6B6B]">·</span>
-                                <span className="font-bold text-[#C8102E]">
+                                <span className="text-[#6B6B6B] dark:text-[#A6B5A3]">·</span>
+                                <span className="font-bold text-[#C8102E] dark:text-[#FCA5A5]">
                                   Ít.9: {paciente.item9}
                                 </span>
                               </>
@@ -719,7 +723,7 @@ export function SemaforoPacientes() {
                         </TableCell>
 
                         {/* Fecha último tamizaje */}
-                        <TableCell className="py-3.5 text-xs text-[#6B6B6B]">
+                        <TableCell className="py-3.5 text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                           {formatFechaTamizaje(paciente.ultimo_tamizaje)}
                         </TableCell>
 
@@ -733,7 +737,7 @@ export function SemaforoPacientes() {
                               onClick={() => setPacienteParaNotas(paciente)}
                               title="Notas de voz del estudiante"
                               aria-label={`Notas de voz de ${displayName}`}
-                              className="size-9 rounded-lg text-[#6B6B6B] hover:bg-[#F5F1E8] hover:text-[#1F4D2C]"
+                              className="size-9 rounded-lg text-[#6B6B6B] hover:bg-[#F5F1E8] hover:text-[#1F4D2C] dark:text-[#A6B5A3] dark:hover:bg-[#0F1A12] dark:hover:text-[#8FC9B5]"
                             >
                               <Mic className="size-4" />
                             </Button>
@@ -745,7 +749,7 @@ export function SemaforoPacientes() {
                               onClick={() => setPacienteParaContacto(paciente)}
                               title="Registrar llamada o contacto"
                               aria-label={`Contactar a ${displayName}`}
-                              className="size-9 rounded-lg text-[#6B6B6B] hover:bg-[#F5F1E8] hover:text-[#1F4D2C]"
+                              className="size-9 rounded-lg text-[#6B6B6B] hover:bg-[#F5F1E8] hover:text-[#1F4D2C] dark:text-[#A6B5A3] dark:hover:bg-[#0F1A12] dark:hover:text-[#8FC9B5]"
                             >
                               <PhoneCall className="size-4" />
                             </Button>
@@ -755,7 +759,7 @@ export function SemaforoPacientes() {
                               size="sm"
                               variant="ghost"
                               onClick={() => setPacienteParaExpediente(paciente)}
-                              className="h-9 rounded-lg px-3 text-xs font-semibold text-[#1F4D2C] hover:bg-[#1F4D2C]/10 hover:text-[#1F4D2C]"
+                              className="h-9 rounded-lg px-3 text-xs font-semibold text-[#1F4D2C] hover:bg-[#1F4D2C]/10 hover:text-[#1F4D2C] dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10 dark:hover:text-[#8FC9B5]"
                             >
                               <FileText className="mr-1.5 size-4" />
                               <span>Ver expediente</span>
@@ -792,18 +796,18 @@ export function SemaforoPacientes() {
                 return (
                   <div
                     key={paciente.folio}
-                    className="rounded-lg border border-[#E5DFD3] bg-white p-4 space-y-3"
+                    className="rounded-lg border border-[#E5DFD3] bg-white p-4 space-y-3 dark:border-[#2D3F2A] dark:bg-[#1A2618]"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[#E5DFD3] bg-[#F5F1E8] text-xs font-bold text-[#1F4D2C]">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[#E5DFD3] bg-[#F5F1E8] text-xs font-bold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
                           {avatarInitials}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[#1A1A1A]">
+                          <p className="truncate text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
                             {displayName}
                           </p>
-                          <p className="font-mono text-xs text-[#6B6B6B]">
+                          <p className="font-mono text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                             {paciente.matricula || "Matrícula reservada"} · {paciente.folio}
                           </p>
                         </div>
@@ -811,20 +815,20 @@ export function SemaforoPacientes() {
                       {renderRiskPill(nivelLower)}
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-[#6B6B6B] border-t border-[#E5DFD3] pt-2.5">
+                    <div className="flex items-center justify-between text-xs text-[#6B6B6B] border-t border-[#E5DFD3] pt-2.5 dark:border-[#2D3F2A] dark:text-[#A6B5A3]">
                       <span>
                         PHQ-9: {paciente.phq9_total ?? 0} · GAD-7: {paciente.gad7_total ?? 0}
                       </span>
                       <span>{formatFechaTamizaje(paciente.ultimo_tamizaje)}</span>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#E5DFD3] pt-2.5">
+                    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#E5DFD3] pt-2.5 dark:border-[#2D3F2A]">
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
                         onClick={() => setPacienteParaExpediente(paciente)}
-                        className="h-9 rounded-lg text-xs font-semibold text-[#1F4D2C] hover:bg-[#1F4D2C]/10"
+                        className="h-9 rounded-lg text-xs font-semibold text-[#1F4D2C] hover:bg-[#1F4D2C]/10 dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10"
                       >
                         <FileText className="mr-1.5 size-3.5" />
                         <span>Ver expediente</span>
@@ -856,14 +860,14 @@ export function SemaforoPacientes() {
             if (!open) setPacienteALiberar(null);
           }}
         >
-          <DialogContent className="max-w-md rounded-lg border border-[#E5DFD3] bg-white p-6">
+          <DialogContent className="max-w-md rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
             <DialogHeader className="space-y-2 text-left">
-              <DialogTitle className="text-base font-bold text-[#1A1A1A]">
+              <DialogTitle className="text-base font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
                 Confirmar atención y liberación
               </DialogTitle>
-              <DialogDescription className="text-sm text-[#6B6B6B] leading-relaxed">
+              <DialogDescription className="text-sm text-[#6B6B6B] leading-relaxed dark:text-[#A6B5A3]">
                 Paciente:{" "}
-                <strong className="text-[#1A1A1A]">
+                <strong className="text-[#1A1A1A] dark:text-[#F5F1E8]">
                   {pacienteALiberar?.nombre || pacienteALiberar?.iniciales}
                 </strong>{" "}
                 (Folio <span className="font-mono font-semibold">{pacienteALiberar?.folio}</span>).
@@ -879,7 +883,7 @@ export function SemaforoPacientes() {
                 variant="outline"
                 disabled={isLiberando}
                 onClick={() => setPacienteALiberar(null)}
-                className="h-9 rounded-lg border-[#E5DFD3] text-xs font-semibold text-[#1A1A1A]"
+                className="h-9 rounded-lg border-[#E5DFD3] text-xs font-semibold text-[#1A1A1A] dark:border-[#2D3F2A] dark:text-[#F5F1E8]"
               >
                 Cancelar
               </Button>
@@ -923,7 +927,7 @@ export function SemaforoPacientes() {
             if (!open) setPacienteParaExpediente(null);
           }}
         >
-          <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 sm:p-6">
+          <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 dark:border-[#2D3F2A] dark:bg-[#0F1A12] sm:p-6">
             <DialogHeader className="sr-only">
               <DialogTitle>
                 Expediente Clínico de{" "}

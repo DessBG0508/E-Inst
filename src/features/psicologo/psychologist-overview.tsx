@@ -85,12 +85,12 @@ export function PsychologistOverview({
   return (
     <div className="space-y-6 pb-10">
       {/* Encabezado Sobrio de Sección */}
-      <div className="flex flex-col gap-3 border-b border-[#E5DFD3] pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A] sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-[#1A1A1A] sm:text-2xl">
+          <h2 className="text-xl font-bold tracking-tight text-[#1A1A1A] dark:text-[#F5F1E8] sm:text-2xl">
             Resumen Clínico de Acompañamiento
           </h2>
-          <p className="mt-0.5 text-xs text-[#6B6B6B] sm:text-sm">
+          <p className="mt-0.5 text-xs text-[#6B6B6B] dark:text-[#A6B5A3] sm:text-sm">
             Panel de triaje, atención prioritaria y seguimiento psicológico del TESH Huixquilucan.
           </p>
         </div>
@@ -98,9 +98,9 @@ export function PsychologistOverview({
         <div
           role="note"
           aria-label="Aviso clínico obligatorio"
-          className="inline-flex items-center gap-2 rounded-lg border border-[#E5DFD3] bg-white px-3.5 py-2 text-xs font-semibold text-[#1F4D2C]"
+          className="inline-flex items-center gap-2 rounded-lg border border-[#E5DFD3] bg-white px-3.5 py-2 text-xs font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#8FC9B5]"
         >
-          <Info className="size-4 shrink-0 text-[#1F4D2C]" />
+          <Info className="size-4 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]" />
           <span>Tamizaje orientativo, no diagnóstico</span>
         </div>
       </div>
@@ -111,15 +111,22 @@ export function PsychologistOverview({
         className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
         {/* 1. Pacientes en seguimiento */}
-        <div className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6">
+        <div className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
           <div className="flex items-start justify-between gap-2">
-            <span className="text-sm font-semibold text-[#1A1A1A]">Pacientes en seguimiento</span>
-            <Users className="size-5 shrink-0 text-[#1F4D2C]" strokeWidth={1.75} />
+            <span className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
+              Pacientes en seguimiento
+            </span>
+            <Users
+              className="size-5 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]"
+              strokeWidth={1.75}
+            />
           </div>
 
           <div className="mt-4">
-            <p className="text-3xl font-bold tracking-tight text-[#1F4D2C]">{seguimientoCount}</p>
-            <p className="mt-1 text-xs text-[#6B6B6B]">
+            <p className="text-3xl font-bold tracking-tight text-[#1F4D2C] dark:text-[#8FC9B5]">
+              {seguimientoCount}
+            </p>
+            <p className="mt-1 text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
               De {cases.length} expedientes activos en plataforma
             </p>
           </div>
@@ -127,7 +134,7 @@ export function PsychologistOverview({
           <button
             type="button"
             onClick={() => onNavigateToSection("expedientes")}
-            className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#1F4D2C] hover:underline"
+            className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#1F4D2C] hover:underline dark:text-[#8FC9B5]"
           >
             <span>Ver expedientes</span>
             <ArrowRight className="size-3.5" />
@@ -135,19 +142,21 @@ export function PsychologistOverview({
         </div>
 
         {/* 2. Alertas rojas pendientes */}
-        <div className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6">
+        <div className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
           <div className="flex items-start justify-between gap-2">
-            <span className="text-sm font-semibold text-[#1A1A1A]">Alertas rojas pendientes</span>
-            <span className="inline-flex items-center rounded-md border border-[#C8102E]/30 bg-[#FEE2E2] px-2 py-0.5 text-[11px] font-bold text-[#C8102E]">
+            <span className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
+              Alertas rojas pendientes
+            </span>
+            <span className="inline-flex items-center rounded-md border border-[#C8102E]/30 bg-[#FEE2E2] px-2 py-0.5 text-[11px] font-bold text-[#C8102E] dark:border-[#F87171]/30 dark:bg-[#3B1219] dark:text-[#FCA5A5]">
               SLA 2h
             </span>
           </div>
 
           <div className="mt-4 flex items-center gap-3">
-            <span className="inline-flex min-w-14 items-center justify-center rounded-lg bg-[#FEE2E2] px-3 py-1.5 text-2xl font-bold text-[#C8102E]">
+            <span className="inline-flex min-w-14 items-center justify-center rounded-lg bg-[#FEE2E2] px-3 py-1.5 text-2xl font-bold text-[#C8102E] dark:bg-[#3B1219] dark:text-[#FCA5A5]">
               {pendingRedAlertsCount}
             </span>
-            <p className="text-xs leading-snug text-[#6B6B6B]">
+            <p className="text-xs leading-snug text-[#6B6B6B] dark:text-[#A6B5A3]">
               Casos con atención inmediata y bloqueo preventivo activo
             </p>
           </div>
@@ -155,7 +164,7 @@ export function PsychologistOverview({
           <button
             type="button"
             onClick={() => onNavigateToSection("alertas")}
-            className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#C8102E] hover:underline"
+            className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#C8102E] hover:underline dark:text-[#FCA5A5]"
           >
             <AlertTriangle className="size-3.5" />
             <span>Atender alertas</span>
@@ -163,25 +172,34 @@ export function PsychologistOverview({
         </div>
 
         {/* 3. Citas hoy + lista de próximas 3 citas */}
-        <div className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6">
+        <div className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <span className="text-sm font-semibold text-[#1A1A1A]">Citas hoy</span>
-              <p className="mt-1 text-2xl font-bold text-[#1F4D2C]">{todayAppointmentsCount}</p>
+              <span className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
+                Citas hoy
+              </span>
+              <p className="mt-1 text-2xl font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                {todayAppointmentsCount}
+              </p>
             </div>
-            <Calendar className="size-5 shrink-0 text-[#1F4D2C]" strokeWidth={1.75} />
+            <Calendar
+              className="size-5 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]"
+              strokeWidth={1.75}
+            />
           </div>
 
-          <div className="mt-3 space-y-1.5 border-t border-[#E5DFD3] pt-3">
+          <div className="mt-3 space-y-1.5 border-t border-[#E5DFD3] pt-3 dark:border-[#2D3F2A]">
             {nextThreeAppointments.length === 0 ? (
-              <p className="text-xs text-[#6B6B6B]">Sin citas programadas próximamente.</p>
+              <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
+                Sin citas programadas próximamente.
+              </p>
             ) : (
               nextThreeAppointments.map((apt) => (
                 <div key={apt.id} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="truncate font-medium text-[#1A1A1A]">
+                  <span className="truncate font-medium text-[#1A1A1A] dark:text-[#F5F1E8]">
                     {apt.studentName || "Estudiante TESH"}
                   </span>
-                  <span className="shrink-0 font-mono text-[11px] text-[#6B6B6B]">
+                  <span className="shrink-0 font-mono text-[11px] text-[#6B6B6B] dark:text-[#A6B5A3]">
                     {apt.timeSlot.split(" ")[0]}
                   </span>
                 </div>
@@ -192,7 +210,7 @@ export function PsychologistOverview({
           <button
             type="button"
             onClick={() => onNavigateToSection("agenda")}
-            className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#1F4D2C] hover:underline"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#1F4D2C] hover:underline dark:text-[#8FC9B5]"
           >
             <span>Abrir agenda</span>
             <ArrowRight className="size-3.5" />
@@ -200,17 +218,22 @@ export function PsychologistOverview({
         </div>
 
         {/* 4. Encuestas pendientes + link a /encuesta */}
-        <div className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6">
+        <div className="flex flex-col justify-between rounded-lg border border-[#E5DFD3] bg-white p-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
           <div className="flex items-start justify-between gap-2">
-            <span className="text-sm font-semibold text-[#1A1A1A]">Encuestas pendientes</span>
-            <ClipboardCheck className="size-5 shrink-0 text-[#B8860B]" strokeWidth={1.75} />
+            <span className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
+              Encuestas pendientes
+            </span>
+            <ClipboardCheck
+              className="size-5 shrink-0 text-[#B8860B] dark:text-[#D4A82B]"
+              strokeWidth={1.75}
+            />
           </div>
 
           <div className="mt-4">
-            <p className="text-3xl font-bold tracking-tight text-[#1F4D2C]">
+            <p className="text-3xl font-bold tracking-tight text-[#1F4D2C] dark:text-[#8FC9B5]">
               {pendingSurveysCount}
             </p>
-            <p className="mt-1 text-xs text-[#6B6B6B]">
+            <p className="mt-1 text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
               Evaluaciones de satisfacción por alta o seguimiento PB-021
             </p>
           </div>
@@ -218,7 +241,7 @@ export function PsychologistOverview({
           <div className="mt-4 flex items-center justify-between gap-2">
             <Link
               to="/encuesta"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#1F4D2C] hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#1F4D2C] hover:underline dark:text-[#8FC9B5]"
             >
               <span>Ir a /encuesta</span>
               <ArrowRight className="size-3.5" />
@@ -226,7 +249,7 @@ export function PsychologistOverview({
             <button
               type="button"
               onClick={() => onNavigateToSection("encuestas")}
-              className="text-xs font-medium text-[#6B6B6B] hover:text-[#1A1A1A] hover:underline"
+              className="text-xs font-medium text-[#6B6B6B] hover:text-[#1A1A1A] hover:underline dark:text-[#A6B5A3] dark:hover:text-[#F5F1E8]"
             >
               Resultados
             </button>

@@ -31,21 +31,21 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
         </h3>
       </div>
 
-      <div className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
-        <div className="divide-y divide-[#E5DFD3]">
+      <div className="space-y-5 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6">
+        <div className="divide-y divide-[#E5DFD3] dark:divide-[#2D3F2A]">
           <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-sm font-semibold text-[#1F4D2C] sm:w-1/3">
+            <span className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5] sm:w-1/3">
               Consentimiento informado
             </span>
             <div className="sm:w-1/2">
-              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/60 px-3 py-2">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8]/60 px-3 py-2 dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
                 <input
                   type="checkbox"
                   checked={objetivos.consentimiento_firmado}
                   onChange={(e) => onChange({ consentimiento_firmado: e.target.checked })}
-                  className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+                  className="size-4 rounded border-[#E5DFD3] accent-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A]"
                 />
-                <span className="text-sm font-medium text-[#1A1A1A]">
+                <span className="text-sm font-medium text-[#1A1A1A] dark:text-[#F5F1E8]">
                   He obtenido consentimiento informado del paciente
                 </span>
               </label>
@@ -58,7 +58,7 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
           <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <label
               htmlFor="obj-frecuencia"
-              className="text-sm font-semibold text-[#1F4D2C] sm:w-1/3"
+              className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5] sm:w-1/3"
             >
               Frecuencia acordada
             </label>
@@ -67,7 +67,7 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
                 id="obj-frecuencia"
                 value={objetivos.frecuencia_acordada || "Semanal"}
                 onChange={(e) => onChange({ frecuencia_acordada: e.target.value })}
-                className="w-full max-w-xs rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm font-medium text-[#1A1A1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+                className="w-full max-w-xs rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm font-medium text-[#1A1A1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
               >
                 <option value="Semanal">Semanal</option>
                 <option value="Quincenal">Quincenal</option>
@@ -83,7 +83,7 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
           <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <label
               htmlFor="obj-proxima-cita"
-              className="text-sm font-semibold text-[#1F4D2C] sm:w-1/3"
+              className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5] sm:w-1/3"
             >
               Próxima cita
             </label>
@@ -94,11 +94,11 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
                 value={objetivos.proxima_cita}
                 onChange={(e) => onChange({ proxima_cita: e.target.value })}
                 placeholder="Ej. 10-nov-2026 10:00 AM"
-                className="w-full max-w-xs rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+                className="w-full max-w-xs rounded-lg border border-[#E5DFD3] bg-white px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:placeholder:text-[#A6B5A3]/60"
               />
               <Link
                 to="/psicologo"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-xs font-semibold text-[#1F4D2C] hover:bg-[#E5DFD3]/60 print:hidden"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-xs font-semibold text-[#1F4D2C] hover:bg-[#E5DFD3]/60 dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5] dark:hover:bg-[#2D3F2A]/60 print:hidden"
               >
                 <Calendar className="size-3.5" />
                 <span>Agenda</span>
@@ -110,11 +110,15 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
           </div>
 
           <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-sm font-semibold text-[#1F4D2C] sm:w-1/3">Estado de bloqueo</span>
+            <span className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5] sm:w-1/3">
+              Estado de bloqueo
+            </span>
             <div className="flex flex-wrap items-center gap-3 sm:w-1/2">
               <span
                 className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold ${
-                  isBloqueado ? "bg-[#FEE2E2] text-[#C8102E]" : "bg-[#E0F0E8] text-[#1F4D2C]"
+                  isBloqueado
+                    ? "bg-[#FEE2E2] text-[#C8102E] dark:bg-[#3B1219] dark:text-[#FCA5A5]"
+                    : "bg-[#E0F0E8] text-[#1F4D2C] dark:bg-[#173620] dark:text-[#8FC9B5]"
                 }`}
               >
                 {isBloqueado ? (
@@ -146,7 +150,10 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
 
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between gap-2">
-            <label htmlFor="notas-libres-input" className="text-sm font-semibold text-[#1F4D2C]">
+            <label
+              htmlFor="notas-libres-input"
+              className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+            >
               Notas libres y plan terapéutico
             </label>
             <BadgeOrigen tipo="PSICÓLOGO" />
@@ -157,7 +164,7 @@ export const ObjetivosSesion: React.FC<ObjetivosSesionProps> = ({
             value={objetivos.notas_libres}
             onChange={(e) => onChange({ notas_libres: e.target.value })}
             placeholder="Objetivos iniciales, acuerdos terapéuticos, indicaciones entre sesiones..."
-            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:placeholder:text-[#A6B5A3]/60"
           />
         </div>
       </div>

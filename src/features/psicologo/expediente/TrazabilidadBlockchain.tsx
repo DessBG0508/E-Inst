@@ -40,9 +40,9 @@ export const TrazabilidadBlockchain: React.FC<TrazabilidadBlockchainProps> = ({
         </span>
       </div>
 
-      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
-        <div className="mb-4 flex items-center justify-between border-b border-[#E5DFD3] pb-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B6B]">
+      <div className="rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6">
+        <div className="mb-4 flex items-center justify-between border-b border-[#E5DFD3] pb-3 dark:border-[#2D3F2A]">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B6B] dark:text-[#A6B5A3]">
             Bitácora criptográfica institucional
           </span>
           <BadgeOrigen tipo="AUTOMÁTICO" />
@@ -50,7 +50,10 @@ export const TrazabilidadBlockchain: React.FC<TrazabilidadBlockchainProps> = ({
 
         <div className="grid grid-cols-1 gap-4">
           <div className="space-y-1.5">
-            <label htmlFor="traz-hash" className="text-sm font-semibold text-[#1F4D2C]">
+            <label
+              htmlFor="traz-hash"
+              className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+            >
               Hash del expediente
             </label>
             <input
@@ -58,12 +61,15 @@ export const TrazabilidadBlockchain: React.FC<TrazabilidadBlockchainProps> = ({
               type="text"
               readOnly
               value={hashExpediente}
-              className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 font-mono text-xs text-[#6B6B6B] cursor-default focus:outline-none"
+              className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 font-mono text-xs text-[#6B6B6B] cursor-default focus:outline-none dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3]"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="traz-hash-previo" className="text-sm font-semibold text-[#1F4D2C]">
+            <label
+              htmlFor="traz-hash-previo"
+              className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+            >
               Hash previo en cadena
             </label>
             <input
@@ -71,23 +77,26 @@ export const TrazabilidadBlockchain: React.FC<TrazabilidadBlockchainProps> = ({
               type="text"
               readOnly
               value={hashPrevio}
-              className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 font-mono text-xs text-[#6B6B6B] cursor-default focus:outline-none"
+              className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 font-mono text-xs text-[#6B6B6B] cursor-default focus:outline-none dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3]"
             />
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label htmlFor="traz-anclado" className="text-sm font-semibold text-[#1F4D2C]">
+              <label
+                htmlFor="traz-anclado"
+                className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+              >
                 Anclado en Polygon Amoy
               </label>
-              <div className="flex items-center gap-2 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-xs font-medium text-[#6B6B6B]">
-                <ShieldCheck className="size-4 shrink-0 text-[#1F4D2C]" />
+              <div className="flex items-center gap-2 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-xs font-medium text-[#6B6B6B] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3]">
+                <ShieldCheck className="size-4 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]" />
                 <span className="truncate">{ancladoEn}</span>
                 <a
                   href={txHashUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="ml-auto inline-flex text-[#1F4D2C] hover:underline print:hidden"
+                  className="ml-auto inline-flex text-[#1F4D2C] hover:underline dark:text-[#8FC9B5] print:hidden"
                   aria-label="Ver transacción en explorador Polygon"
                 >
                   <ExternalLink className="size-3.5" />
@@ -96,7 +105,10 @@ export const TrazabilidadBlockchain: React.FC<TrazabilidadBlockchainProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="traz-liberado-por" className="text-sm font-semibold text-[#1F4D2C]">
+              <label
+                htmlFor="traz-liberado-por"
+                className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
+              >
                 Responsable clínico
               </label>
               <input
@@ -104,7 +116,7 @@ export const TrazabilidadBlockchain: React.FC<TrazabilidadBlockchainProps> = ({
                 type="text"
                 readOnly
                 value={liberadoPor}
-                className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-sm font-medium text-[#6B6B6B] cursor-default focus:outline-none"
+                className="w-full rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 py-2 text-sm font-medium text-[#6B6B6B] cursor-default focus:outline-none dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3]"
               />
             </div>
           </div>

@@ -39,17 +39,19 @@ export const HistoriaProblema: React.FC<HistoriaProblemaProps> = ({
         </span>
       </div>
 
-      <div className="space-y-4 rounded-lg border border-[#E5DFD3] bg-white p-5 sm:p-6">
-        <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 sm:flex-row sm:items-start sm:gap-4">
+      <div className="space-y-4 rounded-lg border border-[#E5DFD3] bg-white p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:p-6">
+        <div className="flex flex-col gap-3 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 dark:border-[#2D3F2A] dark:bg-[#0F1A12] sm:flex-row sm:items-start sm:gap-4">
           <BadgeOrigen tipo="AUTOMÁTICO" className="shrink-0 self-start" />
-          <p className="text-sm leading-relaxed text-[#6B6B6B]">{defaultHistorialAuto}</p>
+          <p className="text-sm leading-relaxed text-[#6B6B6B] dark:text-[#A6B5A3]">
+            {defaultHistorialAuto}
+          </p>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <label
               htmlFor="historia-clinica-input"
-              className="block text-sm font-semibold text-[#1F4D2C]"
+              className="block text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]"
             >
               Historia clínica del problema
             </label>
@@ -61,7 +63,7 @@ export const HistoriaProblema: React.FC<HistoriaProblemaProps> = ({
             value={historiaClinica}
             onChange={(e) => onChange(e.target.value)}
             placeholder="Registra la cronología del malestar, desencadenantes académicos o personales e intentos previos de afrontamiento..."
-            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C]"
+            className="w-full resize-y rounded-lg border border-[#E5DFD3] bg-white p-3.5 text-sm leading-relaxed text-[#1A1A1A] placeholder:text-[#6B6B6B]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8] dark:placeholder:text-[#A6B5A3]/60"
           />
         </div>
       </div>

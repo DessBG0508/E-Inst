@@ -366,6 +366,7 @@ const SEED_ALERTAS: AlertaInasistencia[] = [
     mensaje:
       "Dess Bautista (Matrícula 202310452) registró 2 inasistencias consecutivas (2026-11-16 y 2026-11-20).",
     leida_tutor: false,
+    leida_estudiante: false,
     created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
   },
   {

@@ -300,14 +300,14 @@ export function NotificationsCenter({
           {role === "psicologo"
             ? pendingRedCount > 0 && (
                 <span
-                  className="absolute -right-1 -top-1 flex min-w-5 h-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-black text-white shadow-md ring-2 ring-card animate-pulse"
+                  className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C8102E] px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-[#1A2618]"
                   title={`${pendingRedCount} alertas de nivel rojo pendientes de atención`}
                 >
                   {pendingRedCount > 9 ? "9+" : pendingRedCount}
                 </span>
               )
             : unreadCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-card animate-pulse">
+                <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[#B8860B] text-[10px] font-bold text-white ring-2 ring-white dark:ring-[#1A2618]">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -316,22 +316,22 @@ export function NotificationsCenter({
 
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md border-border bg-card p-0 flex flex-col h-full"
+        className="flex h-full w-full flex-col border-[#E5DFD3] bg-white p-0 text-[#1A1A1A] sm:max-w-md dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8]"
       >
-        <SheetHeader className="p-5 border-b border-border/60 bg-muted/20">
+        <SheetHeader className="border-b border-[#E5DFD3] bg-[#F5F1E8] p-5 dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="grid size-9 place-items-center rounded-xl bg-accent/15 text-accent">
-                <Bell className="size-5" />
+            <div className="flex items-center gap-2.5">
+              <div className="grid size-9 place-items-center rounded-lg bg-[#1F4D2C] text-white">
+                <Bell className="size-4" />
               </div>
               <div>
-                <SheetTitle className="text-lg font-bold text-foreground">
+                <SheetTitle className="text-base font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
                   {role === "psicologo" ? "Alertas y Notificaciones" : "Notificaciones"}
                 </SheetTitle>
-                <SheetDescription className="text-xs text-muted-foreground">
+                <SheetDescription className="text-xs text-[#6B6B6B] dark:text-[#A8B5A0]">
                   {role === "psicologo"
                     ? pendingRedCount > 0
-                      ? `${pendingRedCount} alerta(s) nivel rojo pendientes (para_psicologo)`
+                      ? `${pendingRedCount} alerta(s) nivel rojo pendientes`
                       : "Sin alertas críticas pendientes"
                     : unreadCount > 0
                       ? `${unreadCount} pendientes de atención`
@@ -345,7 +345,7 @@ export function NotificationsCenter({
                 variant="ghost"
                 size="sm"
                 onClick={handleMarkAllRead}
-                className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1.5 px-2"
+                className="h-8 gap-1.5 px-2.5 text-xs text-[#1F4D2C] hover:bg-white dark:text-[#8FC9B5] dark:hover:bg-[#1A2618]"
               >
                 <CheckCheck className="size-3.5" />
                 <span>Marcar leídas</span>
@@ -354,18 +354,12 @@ export function NotificationsCenter({
           </div>
 
           {role === "psicologo" && pendingRedCount > 0 && (
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-rose-600 animate-ping" />
-                <span className="font-bold text-rose-700 dark:text-rose-300">
-                  {pendingRedCount}{" "}
-                  {pendingRedCount === 1 ? "caso en nivel rojo" : "casos en nivel rojo"} por atender
-                </span>
-              </div>
-              <Badge
-                variant="destructive"
-                className="bg-rose-600 text-[10px] font-bold text-white px-2 py-0.5"
-              >
+            <div className="mt-3 flex items-center justify-between rounded-lg border border-[#C8102E]/30 bg-white px-3 py-2 text-xs dark:bg-[#1A2618]">
+              <span className="font-bold text-[#C8102E]">
+                {pendingRedCount}{" "}
+                {pendingRedCount === 1 ? "caso en nivel rojo" : "casos en nivel rojo"} por atender
+              </span>
+              <Badge variant="danger" className="px-2 py-0.5 text-[10px]">
                 Alta Prioridad
               </Badge>
             </div>
@@ -376,44 +370,40 @@ export function NotificationsCenter({
               size="sm"
               variant={filter === "all" ? "default" : "outline"}
               onClick={() => setFilter("all")}
-              className={`h-7 rounded-lg text-xs px-2.5 ${
-                filter === "all" ? "bg-primary text-primary-foreground" : "bg-card/70"
-              }`}
+              className="h-8 rounded-lg px-2.5 text-xs"
             >
               Todas ({combinedNotifications.length})
             </Button>
             <Button
               size="sm"
-              variant={filter === "alerts" ? "default" : "outline"}
+              variant={filter === "alerts" ? "danger" : "outline"}
               onClick={() => setFilter("alerts")}
-              className={`h-7 rounded-lg text-xs px-2.5 ${
-                filter === "alerts" ? "bg-rose-500 text-white" : "bg-card/70"
-              }`}
+              className="h-8 rounded-lg px-2.5 text-xs"
             >
               Alertas ({combinedNotifications.filter((n) => n.type.startsWith("alerta")).length})
             </Button>
             <Button
               size="sm"
-              variant={filter === "citas" ? "default" : "outline"}
+              variant={filter === "citas" ? "accent" : "outline"}
               onClick={() => setFilter("citas")}
-              className={`h-7 rounded-lg text-xs px-2.5 ${
-                filter === "citas" ? "bg-teal text-white" : "bg-card/70"
-              }`}
+              className="h-8 rounded-lg px-2.5 text-xs"
             >
               Citas ({combinedNotifications.filter((n) => n.type.startsWith("cita")).length})
             </Button>
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {filteredNotifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-              <div className="grid size-14 place-items-center rounded-2xl bg-muted/40 mb-3 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-16 text-center text-[#6B6B6B] dark:text-[#A8B5A0]">
+              <div className="mb-3 grid size-14 place-items-center rounded-lg bg-[#F5F1E8] dark:bg-[#0F1A12]">
                 <Inbox className="size-7" />
               </div>
-              <p className="text-sm font-semibold text-foreground">No hay notificaciones</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                No tienes alertas en este filtro en este momento.
+              <p className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
+                No hay notificaciones
+              </p>
+              <p className="mt-1 max-w-xs text-xs">
+                No tienes avisos pendientes en este filtro en este momento.
               </p>
             </div>
           ) : (
@@ -423,48 +413,50 @@ export function NotificationsCenter({
                 <div
                   key={notif.id}
                   onClick={() => handleAction(notif)}
-                  className={`relative p-3.5 rounded-2xl border transition-all cursor-pointer group ${
+                  className={`group relative cursor-pointer rounded-lg border p-3.5 transition-colors ${
                     notif.read
-                      ? "bg-card/50 border-border/50 hover:bg-card hover:border-border"
+                      ? "border-[#E5DFD3] bg-[#F5F1E8]/40 dark:border-[#2D3F2A] dark:bg-[#0F1A12]/40"
                       : isAlert
-                        ? "bg-rose-50/70 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 shadow-sm"
-                        : "bg-lavender-soft/70 border-accent/20 shadow-sm"
+                        ? "border-[#C8102E]/35 bg-white hover:border-[#C8102E] dark:bg-[#0F1A12]"
+                        : "border-[#B8860B]/40 bg-white hover:border-[#1F4D2C] dark:bg-[#0F1A12]"
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <div
-                      className={`grid size-9 shrink-0 place-items-center rounded-xl ${
+                      className={`grid size-9 shrink-0 place-items-center rounded-lg ${
                         isAlert
-                          ? "bg-rose-100 dark:bg-rose-900/40"
+                          ? "bg-[#C8102E]/10 text-[#C8102E]"
                           : notif.type.startsWith("cita")
-                            ? "bg-teal/15"
-                            : "bg-accent/15"
+                            ? "bg-[#B8860B]/15 text-[#B8860B]"
+                            : "bg-[#1F4D2C]/10 text-[#1F4D2C] dark:text-[#8FC9B5]"
                       }`}
                     >
                       {renderIcon(notif.type)}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2">
                         <h4
-                          className={`text-xs font-bold truncate ${
-                            !notif.read ? "text-foreground" : "text-muted-foreground"
+                          className={`text-xs font-bold leading-snug ${
+                            !notif.read
+                              ? "text-[#1A1A1A] dark:text-[#F5F1E8]"
+                              : "text-[#6B6B6B] dark:text-[#A8B5A0]"
                           }`}
                         >
                           {notif.title}
                         </h4>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
+                        <span className="shrink-0 font-mono text-[10px] text-[#6B6B6B] tabular-nums dark:text-[#A8B5A0]">
                           {notif.timestamp}
                         </span>
                       </div>
 
-                      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                      <p className="mt-1 text-xs leading-relaxed text-[#6B6B6B] dark:text-[#A8B5A0]">
                         {notif.message}
                       </p>
 
-                      <div className="mt-2.5 flex items-center justify-between pt-1">
+                      <div className="mt-2.5 flex items-center justify-between gap-2 pt-1">
                         {notif.actionLabel ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent group-hover:underline">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1F4D2C] group-hover:underline dark:text-[#8FC9B5]">
                             {notif.actionLabel}
                             <ChevronRight className="size-3" />
                           </span>
@@ -473,7 +465,14 @@ export function NotificationsCenter({
                         )}
 
                         {!notif.read && (
-                          <span className="size-2 rounded-full bg-accent ring-2 ring-card shrink-0" />
+                          <button
+                            type="button"
+                            onClick={(e) => handleMarkAsRead(notif.id, e)}
+                            className="inline-flex cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold text-[#6B6B6B] transition-colors hover:bg-[#F5F1E8] hover:text-[#1F4D2C] dark:text-[#A8B5A0] dark:hover:bg-[#1A2618] dark:hover:text-[#8FC9B5]"
+                          >
+                            <CheckCheck className="size-3" />
+                            Marcar leída
+                          </button>
                         )}
                       </div>
                     </div>
