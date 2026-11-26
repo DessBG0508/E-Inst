@@ -66,11 +66,17 @@ export function AlertaPage() {
         <Button
           type="button"
           variant="ghost"
-          onClick={() => navigate({ to: "/chat" })}
-          className="h-9 cursor-pointer gap-2 rounded-md px-3 text-sm font-medium text-[#1F4D2C] hover:bg-[#1F4D2C]/10 hover:text-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10 dark:hover:text-[#8FC9B5]"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              window.history.back();
+              return;
+            }
+            navigate({ to: "/chat" });
+          }}
+          className="h-9 cursor-pointer gap-2 rounded-md px-3 text-sm font-semibold text-[#1F4D2C] hover:bg-[#1F4D2C]/10 hover:text-[#1F4D2C] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:text-[#8FC9B5] dark:hover:bg-[#8FC9B5]/10 dark:hover:text-[#8FC9B5]"
         >
           <ArrowLeft className="size-4" strokeWidth={1.75} />
-          <span>Volver al chat</span>
+          <span>Volver</span>
         </Button>
       </div>
 

@@ -1,6 +1,15 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, ChevronDown, ChevronRight, Home, LogOut, Menu, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  Home,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -153,10 +162,14 @@ export interface InstitutionalHeaderProps {
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   sidebarOffsetClassName?: string;
+  showBackButton?: boolean;
+  onBackClick?: () => void;
+  backFallbackRoute?: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
   psicologo: "Psicólogo Clínico",
+  medico: "Médico Universitario",
   tutor: "Tutor de Grupo",
   jefatura: "Jefatura de Carrera",
   coordinador: "Coordinador Directivo",
@@ -177,6 +190,9 @@ export function InstitutionalHeader({
   isSidebarOpen = false,
   onToggleSidebar,
   sidebarOffsetClassName = "",
+  showBackButton = true,
+  onBackClick,
+  backFallbackRoute,
 }: InstitutionalHeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -193,6 +209,32 @@ export function InstitutionalHeader({
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  const defaultBackRoute =
+    backFallbackRoute ||
+    (user?.role === "psicologo"
+      ? "/psicologo"
+      : user?.role === "medico"
+        ? "/medico"
+        : user?.role === "tutor"
+          ? "/tutor"
+          : user?.role === "jefatura"
+            ? "/jefatura"
+            : user?.role === "directivo" || user?.role === "coordinador"
+              ? "/directivo"
+              : "/");
+
+  const handleBack = () => {
+    if (onBackClick) {
+      onBackClick();
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    navigate({ to: defaultBackRoute });
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -240,7 +282,7 @@ export function InstitutionalHeader({
             {titleBadge && <div className="hidden shrink-0 sm:flex">{titleBadge}</div>}
           </div>
 
-          {/* Derecha: Utilidades del módulo + Botón Crisis (solo módulos con paciente) + Avatar Dropdown */}
+          {/* Derecha: Utilidades del módulo + Botón Crisis + Volver + Avatar Dropdown */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {actions && <div className="flex items-center gap-2">{actions}</div>}
 
@@ -252,6 +294,20 @@ export function InstitutionalHeader({
               >
                 <AlertTriangle className="size-[18px] shrink-0" strokeWidth={1.75} />
                 <span>Crisis</span>
+              </Button>
+            )}
+
+            {showBackButton && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+                aria-label="Volver a la pantalla anterior"
+                className="h-9 shrink-0 cursor-pointer gap-1.5 rounded-lg border border-white/25 bg-white/10 px-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:px-3"
+              >
+                <ArrowLeft className="size-4 shrink-0" strokeWidth={1.75} />
+                <span className="hidden sm:inline">Volver</span>
               </Button>
             )}
 

@@ -2,6 +2,21 @@ export { ELI_SYSTEM_INSTRUCTIONS } from "@/config/eli-prompt";
 
 export type ScreeningNivel = "verde" | "amarillo" | "rojo";
 
+export type TriajeTipo = "medico" | "psicologo" | "mixto";
+
+export interface TriajeAction {
+  label: string;
+  tipo: "medico" | "psicologo";
+  to: "/citas";
+}
+
+export interface TriajeRecomendacion {
+  tipo: TriajeTipo;
+  mensaje: string;
+  razones: string[];
+  acciones: TriajeAction[];
+}
+
 export interface ScreeningPatientData {
   iniciales: string;
   edad: number;
@@ -30,6 +45,7 @@ export interface ScreeningState {
   phq9Items: number[];
   folio?: string;
   nivel?: ScreeningNivel;
+  triaje?: TriajeRecomendacion;
 }
 
 export const INITIAL_SCREENING_STATE: ScreeningState = {
@@ -82,6 +98,36 @@ export const CRISIS_MESSAGE =
 export function generateFolio(): string {
   const randomNum = Math.floor(1000 + Math.random() * 9000);
   return `EQ-${randomNum}`;
+}
+
+export function getTodayMexicoDateString(): string {
+  return new Date().toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+export function computeInitialsFromName(name?: string | null, email?: string | null): string {
+  const cleaned = (name || "").replace(/\b(mtro|mtra|dr|dra|ing|lic|prof)\.?\b/gi, " ").trim();
+  if (cleaned) {
+    const letters = cleaned
+      .split(/\s+/)
+      .filter((w) => w.length > 0)
+      .map((w) => w.charAt(0).toUpperCase())
+      .join("")
+      .replace(/[^A-ZÁÉÍÓÚÑ]/g, "");
+    if (letters.length > 0) {
+      return letters.slice(0, 4);
+    }
+  }
+
+  const emailPrefix = (email || "").split("@")[0]?.replace(/[^a-zA-Z0-9]/g, "") || "";
+  if (emailPrefix.length > 0) {
+    return emailPrefix.slice(0, 2).toUpperCase();
+  }
+
+  return "";
 }
 
 export function normalize(text: string): string {
@@ -218,6 +264,13 @@ export interface ScreeningFinalJson {
   nivel: ScreeningNivel;
   alerta: boolean;
   recomendaciones: string;
+  triaje?: TriajeRecomendacion;
+}
+
+export interface EliPrefillPatient {
+  iniciales?: string;
+  fecha?: string;
+  semestre?: string;
 }
 
 export interface EliStepResult {
@@ -229,6 +282,12 @@ export interface EliStepResult {
   quickReplies?: string[];
   folio?: string;
   nivel?: ScreeningNivel;
+  scores?: {
+    gad7Total: number;
+    phq9Total: number;
+    item9: number;
+  };
+  triaje?: TriajeRecomendacion;
   isReadyForSubmission?: boolean;
   submissionPayload?: {
     paciente: {
@@ -243,11 +302,155 @@ export interface EliStepResult {
   };
 }
 
+const PHYSICAL_SYMPTOM_KEYWORDS: Array<{ keyword: string; label: string }> = [
+  { keyword: "dolor de cabeza", label: "dolores de cabeza frecuentes" },
+  { keyword: "cefalea", label: "dolores de cabeza frecuentes" },
+  { keyword: "migrana", label: "migraña o cefalea" },
+  { keyword: "insomnio", label: "insomnio o trastorno del sueño" },
+  { keyword: "no puedo dormir", label: "insomnio o dificultad para dormir" },
+  { keyword: "no duermo", label: "insomnio o dificultad para dormir" },
+  { keyword: "fatiga", label: "fatiga crónica" },
+  { keyword: "cansancio extremo", label: "fatiga crónica" },
+  { keyword: "agotamiento fisico", label: "fatiga crónica" },
+  { keyword: "aliment", label: "problemas alimenticios" },
+  { keyword: "apetito", label: "alteraciones del apetito" },
+  { keyword: "gastritis", label: "molestias gastrointestinales / somatización" },
+  { keyword: "estomago", label: "molestias estomacales / somatización" },
+  { keyword: "nausea", label: "náuseas o somatización" },
+  { keyword: "mareo", label: "mareos o síntomas físicos" },
+  { keyword: "somatiz", label: "posible somatización" },
+  { keyword: "palpitaciones", label: "palpitaciones o síntomas físicos" },
+  { keyword: "fisico", label: "malestar físico" },
+];
+
+/**
+ * Triaje automatizado de Eli:
+ * Determina si los síntomas son principalmente físicos (Médico universitario),
+ * emocionales (Psicólogo) o mixtos (Médico primero + Psicólogo).
+ */
+export function evaluateTriajeFromScreening(params: {
+  gad7Items: number[];
+  phq9Items: number[];
+  extraText?: string;
+}): TriajeRecomendacion {
+  const gad7 = params.gad7Items || [];
+  const phq9 = params.phq9Items || [];
+
+  const gad7Item4 = gad7[3] ?? 0; // Dificultad para relajarse / tensión física
+  const phq9Sleep = phq9[2] ?? 0; // Dificultad para dormir / dormir demasiado
+  const phq9Fatigue = phq9[3] ?? 0; // Cansancio o poca energía (fatiga crónica)
+  const phq9Appetite = phq9[4] ?? 0; // Poco apetito o comer en exceso
+  const phq9Item9 = phq9[8] ?? 0; // Pensamientos de muerte o autolesión
+
+  const physicalReasons: string[] = [];
+  if (gad7Item4 >= 3 || phq9Sleep >= 3 || (gad7Item4 >= 2 && phq9Sleep >= 2)) {
+    physicalReasons.push(
+      "Insomnio severo o dificultad marcada para descansar (GAD-7 ítem 4 / PHQ-9 ítem 3)",
+    );
+  }
+  if (phq9Fatigue >= 2) {
+    physicalReasons.push("Fatiga persistente o baja energía física (PHQ-9 ítem 4)");
+  }
+  if (phq9Appetite >= 2) {
+    physicalReasons.push("Alteraciones alimenticias o de apetito (PHQ-9 ítem 5)");
+  }
+
+  if (params.extraText) {
+    const normExtra = normalize(params.extraText);
+    for (const entry of PHYSICAL_SYMPTOM_KEYWORDS) {
+      if (normExtra.includes(entry.keyword) && !physicalReasons.includes(entry.label)) {
+        physicalReasons.push(entry.label);
+      }
+    }
+  }
+
+  const emotionalCore =
+    (gad7[0] ?? 0) +
+    (gad7[1] ?? 0) +
+    (gad7[2] ?? 0) +
+    (gad7[4] ?? 0) +
+    (gad7[5] ?? 0) +
+    (gad7[6] ?? 0) +
+    (phq9[0] ?? 0) +
+    (phq9[1] ?? 0) +
+    (phq9[5] ?? 0) +
+    (phq9[6] ?? 0) +
+    (phq9[7] ?? 0) +
+    phq9Item9;
+
+  const anxietyCore = (gad7[0] ?? 0) + (gad7[1] ?? 0) + (gad7[2] ?? 0) + (gad7[6] ?? 0);
+  const depressionCore = (phq9[0] ?? 0) + (phq9[1] ?? 0) + (phq9[5] ?? 0);
+
+  const hasEmotional =
+    phq9Item9 >= 1 || emotionalCore >= 7 || anxietyCore >= 5 || depressionCore >= 4;
+  const hasPhysical = physicalReasons.length > 0;
+
+  const emotionalReasons: string[] = [];
+  if (phq9Item9 >= 1) {
+    emotionalReasons.push("Señales prioritarias de alerta emocional (PHQ-9 ítem 9)");
+  }
+  if (anxietyCore >= 5) {
+    emotionalReasons.push("Indicadores emocionales de ansiedad o preocupación persistente");
+  }
+  if (depressionCore >= 4) {
+    emotionalReasons.push("Indicadores emocionales de ánimo decaído o desesperanza");
+  }
+
+  if (hasPhysical && hasEmotional) {
+    return {
+      tipo: "mixto",
+      mensaje:
+        "Te sugiero agendar PRIMERO con el médico para descartar causas físicas, y también con el psicólogo para apoyo emocional.",
+      razones: [...physicalReasons, ...emotionalReasons],
+      acciones: [
+        { label: "Agendar con médico", tipo: "medico", to: "/citas" },
+        { label: "Agendar con psicólogo", tipo: "psicologo", to: "/citas" },
+      ],
+    };
+  }
+
+  if (hasPhysical) {
+    return {
+      tipo: "medico",
+      mensaje:
+        "Te sugiero agendar una cita con el MÉDICO universitario para descartar causas físicas. Si el médico lo considera necesario, te canalizará con el psicólogo.",
+      razones: physicalReasons,
+      acciones: [{ label: "Agendar con médico", tipo: "medico", to: "/citas" }],
+    };
+  }
+
+  return {
+    tipo: "psicologo",
+    mensaje: "Te sugiero agendar una cita con el PSICÓLOGO.",
+    razones:
+      emotionalReasons.length > 0
+        ? emotionalReasons
+        : ["Orientación y acompañamiento psicológico preventivo"],
+    acciones: [{ label: "Agendar con psicólogo", tipo: "psicologo", to: "/citas" }],
+  };
+}
+
 /**
  * Motor central de la aplicación de tamizaje por Eli conforme al protocolo oficial.
  */
-export function processEliMessage(userText: string, currentState: ScreeningState): EliStepResult {
+export function processEliMessage(
+  userText: string,
+  currentState: ScreeningState,
+  extraUserContext?: string,
+  prefillPatient?: EliPrefillPatient,
+): EliStepResult {
   const trimmed = userText.trim();
+  const defaultInitials = (
+    currentState.paciente?.iniciales ||
+    prefillPatient?.iniciales ||
+    ""
+  ).trim();
+  const defaultFecha = (
+    currentState.paciente?.fecha ||
+    prefillPatient?.fecha ||
+    getTodayMexicoDateString()
+  ).trim();
+  const defaultSemestre = currentState.paciente?.semestre || prefillPatient?.semestre;
 
   // PASO 0 — Mensaje de bienvenida EXACTO
   if (currentState.step === "not_started") {
@@ -255,6 +458,12 @@ export function processEliMessage(userText: string, currentState: ScreeningState
       replyText: ELI_WELCOME_MESSAGE,
       nextState: {
         ...currentState,
+        paciente: {
+          ...currentState.paciente,
+          iniciales: defaultInitials,
+          fecha: defaultFecha,
+          semestre: defaultSemestre,
+        },
         step: "waiting_consent",
       },
       quickReplies: ["Sí", "No"],
@@ -285,10 +494,31 @@ export function processEliMessage(userText: string, currentState: ScreeningState
       norm === "iniciar" ||
       norm === "iniciar tamizaje"
     ) {
+      if (defaultInitials) {
+        return {
+          replyText: "Perfecto. ¿Qué edad tienes?",
+          nextState: {
+            ...currentState,
+            paciente: {
+              ...currentState.paciente,
+              iniciales: defaultInitials,
+              fecha: defaultFecha,
+              semestre: defaultSemestre,
+            },
+            step: "waiting_age",
+          },
+        };
+      }
+
       return {
         replyText: "Perfecto. ¿Cuáles son tus iniciales?",
         nextState: {
           ...currentState,
+          paciente: {
+            ...currentState.paciente,
+            fecha: defaultFecha,
+            semestre: defaultSemestre,
+          },
           step: "waiting_initials",
         },
       };
@@ -308,6 +538,12 @@ export function processEliMessage(userText: string, currentState: ScreeningState
       replyText: ELI_WELCOME_MESSAGE,
       nextState: {
         ...INITIAL_SCREENING_STATE,
+        paciente: {
+          ...INITIAL_SCREENING_STATE.paciente,
+          iniciales: prefillPatient?.iniciales || "",
+          fecha: prefillPatient?.fecha || getTodayMexicoDateString(),
+          semestre: prefillPatient?.semestre,
+        },
         step: "waiting_consent",
       },
       quickReplies: ["Sí", "No"],
@@ -391,23 +627,24 @@ export function processEliMessage(userText: string, currentState: ScreeningState
       };
     }
 
-    const todayStr = new Date().toLocaleDateString("es-MX", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+    const resolvedFecha = defaultFecha || getTodayMexicoDateString();
 
     return {
-      replyText: "¿Fecha de hoy?",
+      replyText: `${GAD7_ANUNCIO}\n\n${GAD7_QUESTIONS[0]}`,
       nextState: {
         ...currentState,
         paciente: {
           ...currentState.paciente,
+          iniciales: currentState.paciente.iniciales || defaultInitials,
           sexo: resolvedSex,
+          fecha: resolvedFecha,
+          semestre: defaultSemestre,
         },
-        step: "waiting_fecha",
+        step: "gad7",
+        currentQuestionIndex: 0,
+        gad7Items: [],
       },
-      quickReplies: [todayStr, "Hoy"],
+      quickReplies: ["Nunca", "Varios días", "Más de la mitad de los días", "Casi todos los días"],
     };
   }
 
@@ -567,6 +804,11 @@ export function processEliMessage(userText: string, currentState: ScreeningState
     }
 
     const folio = generateFolio();
+    const triaje = evaluateTriajeFromScreening({
+      gad7Items: currentState.gad7Items,
+      phq9Items: updatedItems,
+      extraText: extraUserContext,
+    });
 
     const recomendaciones =
       nivel === "rojo"
@@ -575,45 +817,31 @@ export function processEliMessage(userText: string, currentState: ScreeningState
           ? "Orientación o Terapia Psicológica recomendada"
           : "Consejería preventiva opcional";
 
-    // FORMATO JSON FINAL (claves exactas, sin acentos, al terminar el ítem 9)
-    const jsonOutput = JSON.stringify({
-      paciente: {
-        iniciales: currentState.paciente.iniciales || "",
-        edad: currentState.paciente.edad || 0,
-        sexo: currentState.paciente.sexo || "",
-        fecha: currentState.paciente.fecha || new Date().toLocaleDateString("es-MX"),
-      },
-      GAD_7: {
-        total: gad7Total,
-        items: currentState.gad7Items,
-      },
-      PHQ_9: {
-        total: phq9Total,
-        items: updatedItems,
-        item9: item9Score,
-      },
-      alerta: isCrisis,
-      recomendaciones,
-    });
+    const nivelLabel =
+      nivel === "rojo"
+        ? "Rojo (Atención prioritaria)"
+        : nivel === "amarillo"
+          ? "Amarillo (Seguimiento recomendado)"
+          : "Verde (Sin alerta clínica)";
 
-    // Construcción de la respuesta de Eli
+    // Construcción de la respuesta limpia de Eli (sin JSON crudo) + Semáforo + Triaje profesional
     let replyText = "";
     if (hasCrisisItem9) {
-      replyText = `${CRISIS_MESSAGE}\n\nTu folio de tamizaje es: ${folio}\nEscríbelo en el formulario de la Agenda para vincular tus resultados.\n\n${jsonOutput}\nGracias. Un profesional revisará tus respuestas.`;
+      replyText = `${CRISIS_MESSAGE}\n\nSemáforo clínico: ${nivelLabel}\n${triaje.mensaje}\n\nTu folio de tamizaje es: ${folio}\nEscríbelo en el formulario de la Agenda para vincular tus resultados.\n\nGracias. Un profesional revisará tus respuestas.`;
     } else if (nivel === "rojo") {
-      replyText = `${CRISIS_MESSAGE}\n\nRequieres atención prioritaria. Por favor agenda tu cita hoy mismo en el apartado 'Agenda de Citas' de esta plataforma y elige TERAPIA PSICOLÓGICA.\n\nTu folio de tamizaje es: ${folio}\nEscríbelo en el formulario para vincular tus resultados.\n\n${jsonOutput}\nGracias. Un profesional revisará tus respuestas.`;
+      replyText = `${CRISIS_MESSAGE}\n\nSemáforo clínico: ${nivelLabel}\n${triaje.mensaje}\n\nTu folio de tamizaje es: ${folio}\nEscríbelo en el formulario para vincular tus resultados.\n\nGracias. Un profesional revisará tus respuestas.`;
     } else if (nivel === "amarillo") {
-      replyText = `Tus resultados sugieren que sería beneficioso recibir apoyo profesional. Te recomiendo agendar una cita en el apartado 'Agenda de Citas' de esta plataforma, eligiendo ORIENTACIÓN o TERAPIA PSICOLÓGICA.\n\nTu folio de tamizaje es: ${folio}\nEscríbelo en el formulario para vincular tus resultados.\n\n${jsonOutput}\nGracias. Un profesional revisará tus respuestas.`;
+      replyText = `Gracias por completar tu tamizaje. ${triaje.mensaje}\n\nSemáforo clínico: ${nivelLabel}\nTu folio de tamizaje es: ${folio}\nEscríbelo en el formulario para vincular tus resultados.\n\nGracias. Un profesional revisará tus respuestas.`;
     } else {
-      replyText = `Tus resultados no muestran señales de alerta en este momento. Si en algún momento lo deseas, puedes agendar una sesión de CONSEJERÍA en el apartado 'Agenda de Citas' de esta plataforma.\n\nTu folio de tamizaje es: ${folio} por si deseas vincularlo.\n\n${jsonOutput}\nGracias. Un profesional revisará tus respuestas.`;
+      replyText = `Tus resultados no muestran señales de alerta clínica grave en este momento. ${triaje.mensaje}\n\nSemáforo clínico: ${nivelLabel}\nTu folio de tamizaje es: ${folio} por si deseas vincularlo.\n\nGracias. Un profesional revisará tus respuestas.`;
     }
 
     const finalJson: ScreeningFinalJson = {
       paciente: {
-        iniciales: currentState.paciente.iniciales || "",
+        iniciales: currentState.paciente.iniciales || defaultInitials || "N/A",
         edad: currentState.paciente.edad || 0,
         sexo: currentState.paciente.sexo || "",
-        fecha: currentState.paciente.fecha || new Date().toLocaleDateString("es-MX"),
+        fecha: currentState.paciente.fecha || defaultFecha || getTodayMexicoDateString(),
       },
       GAD_7: {
         total: gad7Total,
@@ -628,6 +856,7 @@ export function processEliMessage(userText: string, currentState: ScreeningState
       nivel,
       alerta: isCrisis,
       recomendaciones,
+      triaje,
     };
 
     return {
@@ -639,20 +868,27 @@ export function processEliMessage(userText: string, currentState: ScreeningState
         step: "completed",
         folio,
         nivel,
+        triaje,
       },
       folio,
       nivel,
+      scores: {
+        gad7Total,
+        phq9Total,
+        item9: item9Score,
+      },
+      triaje,
       isCrisis,
       isCompleted: true,
       finalJson,
       isReadyForSubmission: true,
       submissionPayload: {
         paciente: {
-          iniciales: currentState.paciente.iniciales || "",
+          iniciales: currentState.paciente.iniciales || defaultInitials || "N/A",
           edad: currentState.paciente.edad || 0,
           sexo: currentState.paciente.sexo || "",
-          fecha: currentState.paciente.fecha || new Date().toLocaleDateString("es-MX"),
-          semestre: currentState.paciente.semestre,
+          fecha: currentState.paciente.fecha || defaultFecha || getTodayMexicoDateString(),
+          semestre: currentState.paciente.semestre || defaultSemestre,
         },
         GAD7: currentState.gad7Items,
         PHQ9: updatedItems,

@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { AlertCircle, Calendar, CheckCircle2, ClipboardList, Settings } from "lucide-react";
 import { toast } from "sonner";
-import {
-  InstitutionalHeader,
-  type InstitutionalBreadcrumbItem,
-} from "@/components/layout/institutional-header";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { StudentTopBar } from "@/components/layout/student-top-bar";
 import { AjustesModal } from "@/components/settings/ajustes-modal";
 import { useAuth } from "@/lib/auth-context";
+import { DEMO_MODE } from "@/lib/mock-data";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { clearLegacyUnscopedScreeningData, getStoredUserFolio } from "@/lib/screening-storage";
 import { CalendarioCitas } from "@/features/agenda/CalendarioCitas";
 import { FormularioSolicitud } from "@/features/agenda/FormularioSolicitud";
@@ -18,7 +16,11 @@ import {
   crearSolicitudCita,
   getSolicitudesEstudiante,
 } from "@/features/agenda/agenda-service";
-import type { PsicologoDisponible, SolicitudCita } from "@/features/agenda/types";
+import type {
+  ProfesionalDisponible,
+  SolicitudCita,
+  TipoProfesional,
+} from "@/features/agenda/types";
 import {
   getStudentPendingCanalizaciones,
   type CanalizacionRecord,
@@ -26,20 +28,18 @@ import {
 
 type CitasStep = "calendario" | "solicitud" | "estado";
 
-const STEP_LABELS: Record<CitasStep, string> = {
-  calendario: "1. Calendario",
-  solicitud: "2. Solicitud",
-  estado: "3. Mis citas",
-};
-
 export function CitasPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const search = useSearch({ from: "/citas" });
 
+  const [tipoProfesional, setTipoProfesional] = useState<TipoProfesional>(() =>
+    search.tipo === "medico" ? "medico" : "psicologo",
+  );
   const [step, setStep] = useState<CitasStep>("calendario");
   const [selectedFecha, setSelectedFecha] = useState<string>("");
   const [selectedHora, setSelectedHora] = useState<string>("");
-  const [assignedPsicologo, setAssignedPsicologo] = useState<PsicologoDisponible | null>(null);
+  const [assignedPsicologo, setAssignedPsicologo] = useState<ProfesionalDisponible | null>(null);
 
   const [citas, setCitas] = useState<SolicitudCita[]>([]);
   const [isLoadingCitas, setIsLoadingCitas] = useState(true);
@@ -47,18 +47,31 @@ export function CitasPage() {
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [pendingCanalizaciones, setPendingCanalizaciones] = useState<CanalizacionRecord[]>([]);
 
-  const studentUserId = user?.id || "demo-student-dess";
+  const useLiveSupabase = !DEMO_MODE && isSupabaseConfigured;
+  const studentUserId = user?.id || (useLiveSupabase ? "" : "demo-student-dess");
   const resolveStudentFolio = useCallback(() => {
     clearLegacyUnscopedScreeningData();
-    return getStoredUserFolio(user?.id, user?.email) || user?.matricula || "EQ-9374";
-  }, [user?.email, user?.id, user?.matricula]);
+    return (
+      getStoredUserFolio(user?.id, user?.email) ||
+      user?.matricula ||
+      (useLiveSupabase ? "" : "EQ-9374")
+    );
+  }, [useLiveSupabase, user?.email, user?.id, user?.matricula]);
 
   const loadCitas = useCallback(async () => {
+    if (!studentUserId) {
+      setCitas([]);
+      setIsLoadingCitas(false);
+      return;
+    }
     setIsLoadingCitas(true);
     try {
       const folio = resolveStudentFolio();
       const list = await getSolicitudesEstudiante(studentUserId, folio);
       setCitas(list);
+    } catch {
+      toast.error("No fue posible consultar tus citas en el servidor.");
+      setCitas([]);
     } finally {
       setIsLoadingCitas(false);
     }
@@ -69,6 +82,10 @@ export function CitasPage() {
   }, [loadCitas]);
 
   useEffect(() => {
+    if (!studentUserId) {
+      setPendingCanalizaciones([]);
+      return;
+    }
     let active = true;
     getStudentPendingCanalizaciones(studentUserId)
       .then((list) => {
@@ -80,14 +97,30 @@ export function CitasPage() {
     };
   }, [studentUserId]);
 
+  useEffect(() => {
+    if (search.tipo === "medico" || search.tipo === "psicologo") {
+      setTipoProfesional(search.tipo);
+      setAssignedPsicologo(null);
+    }
+  }, [search.tipo]);
+
   const hasActiveAppointment = citas.some(
-    (c) => c.estado === "pendiente" || c.estado === "confirmada",
+    (c) =>
+      (c.tipo_profesional || "psicologo") === tipoProfesional &&
+      (c.estado === "pendiente" || c.estado === "confirmada"),
   );
 
-  const handleSelectSlot = (fecha: string, hora: string, psicologo: PsicologoDisponible) => {
+  const handleChangeTipoProfesional = (nuevoTipo: TipoProfesional) => {
+    setTipoProfesional(nuevoTipo);
+    setSelectedFecha("");
+    setSelectedHora("");
+    setAssignedPsicologo(null);
+  };
+
+  const handleSelectSlot = (fecha: string, hora: string, profesional: ProfesionalDisponible) => {
     setSelectedFecha(fecha);
     setSelectedHora(hora);
-    setAssignedPsicologo(psicologo);
+    setAssignedPsicologo(profesional);
     setStep("solicitud");
   };
 
@@ -110,9 +143,12 @@ export function CitasPage() {
         user_id: studentUserId,
         psicologo_id: assignedPsicologo.id,
         nombre_psicologo: assignedPsicologo.nombre,
+        tipo_profesional: tipoProfesional,
         iniciales_estudiante: iniciales,
         carrera_estudiante: user?.carrera || "Ing. en Sistemas Computacionales",
         semestre_estudiante: user?.semestre ? `${user.semestre}º Semestre` : "5º Semestre",
+        grupo_estudiante: user?.grupo || undefined,
+        matricula: user?.matricula || undefined,
         email: user?.email,
         nombre_estudiante: user?.name,
         fecha_cita: selectedFecha,
@@ -150,45 +186,26 @@ export function CitasPage() {
     }
   };
 
-  const breadcrumbs: InstitutionalBreadcrumbItem[] = [
-    {
-      label: "Bienestar Estudiantil",
-      onClick: () => navigate({ to: "/bienestar" }),
-    },
-    {
-      label: "Agendar cita",
-      onClick: () => setStep("calendario"),
-    },
-    {
-      label: STEP_LABELS[step],
-    },
-  ];
-
   return (
     <div className="flex min-h-screen flex-col bg-[#F5F1E8] text-[#1A1A1A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
-      <InstitutionalHeader
-        moduleTitle="Agendar cita"
-        breadcrumbs={breadcrumbs}
-        onHomeClick={() => navigate({ to: "/bienestar" })}
-        showCrisisButton={true}
-        onCrisisClick={() => navigate({ to: "/alerta" })}
-        actions={
-          <>
-            <AjustesModal
-              rol="estudiante"
-              trigger={
-                <button
-                  type="button"
-                  aria-label="Abrir configuración y ajustes"
-                  title="Configuración y ajustes"
-                  className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <Settings className="size-[18px]" strokeWidth={1.75} />
-                </button>
-              }
-            />
-            <ThemeToggle className="size-9 rounded-lg border border-white/20 bg-white/10 text-white shadow-none backdrop-blur-none hover:scale-100 hover:border-white/30 hover:bg-white/15 [&_svg]:size-[18px] [&_svg]:text-white" />
-          </>
+      <StudentTopBar
+        title="Agendar cita"
+        backTo={step === "calendario" ? "/" : undefined}
+        onBack={step === "calendario" ? () => navigate({ to: "/" }) : () => setStep("calendario")}
+        rightActions={
+          <AjustesModal
+            rol="estudiante"
+            trigger={
+              <button
+                type="button"
+                aria-label="Abrir configuración y ajustes"
+                title="Configuración y ajustes"
+                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <Settings className="size-[18px]" strokeWidth={1.75} />
+              </button>
+            }
+          />
         }
       />
 
@@ -252,20 +269,23 @@ export function CitasPage() {
           </nav>
         </section>
 
-        {/* Aviso si tiene canalización académica pendiente */}
+        {/* Aviso si tiene canalización pendiente */}
         {pendingCanalizaciones.length > 0 && (
           <section
-            aria-label="Canalización académica pendiente"
+            aria-label="Canalización pendiente"
             className="flex items-start gap-3 rounded-lg border border-[#B8860B]/30 bg-white p-4 dark:border-[#B8860B]/40 dark:bg-[#1A2618]"
           >
             <AlertCircle className="mt-0.5 size-5 shrink-0 text-[#B8860B]" strokeWidth={1.75} />
             <div className="space-y-1">
               <p className="text-xs font-bold text-[#B8860B]">
-                Canalización de tutoría académica activa
+                {pendingCanalizaciones[0].rol_canalizador === "medico"
+                  ? "Canalización del Servicio Médico Universitario activa"
+                  : "Canalización de tutoría académica activa"}
               </p>
               <p className="text-xs leading-relaxed text-[#1A1A1A] dark:text-[#F5F1E8]">
-                Tu tutor te ha referido al psicólogo. Agenda tu cita seleccionando el horario
-                disponible.
+                {pendingCanalizaciones[0].rol_canalizador === "medico"
+                  ? "El médico universitario te ha referido al psicólogo. Agenda tu cita con Psicología seleccionando el horario disponible."
+                  : "Tu tutor te ha referido al psicólogo. Agenda tu cita seleccionando el horario disponible."}
               </p>
               <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
                 Motivo:{" "}
@@ -285,6 +305,8 @@ export function CitasPage() {
         {step === "calendario" && (
           <CalendarioCitas
             fechaPrevia={selectedFecha}
+            tipoProfesional={tipoProfesional}
+            onChangeTipoProfesional={handleChangeTipoProfesional}
             onSelectSlot={handleSelectSlot}
             hasActiveAppointment={hasActiveAppointment}
             onGoToMisCitas={() => setStep("estado")}
@@ -297,6 +319,7 @@ export function CitasPage() {
             fechaCita={selectedFecha}
             horaCita={selectedHora}
             psicologoAsignado={assignedPsicologo}
+            tipoProfesional={tipoProfesional}
             onSubmit={handleConfirmSolicitud}
             onCancel={() => setStep("calendario")}
             isSubmitting={isSubmitting}

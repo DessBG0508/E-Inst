@@ -22,6 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DEMO_MODE } from "@/lib/mock-data";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   getStoredAppointments,
   completeAppointment,
@@ -31,7 +33,9 @@ import type { Appointment, AppointmentStatus } from "@/lib/types";
 import { ListaSolicitudes } from "./ListaSolicitudes";
 import { DetalleCita } from "./DetalleCita";
 import { getSolicitudesPsicologo, actualizarEstadoCitaPsicologo } from "../agenda/agenda-service";
-import type { SolicitudCita, EstadoCita } from "../agenda/types";
+import type { SolicitudCita } from "../agenda/types";
+
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
 
 interface PsychologistAgendaProps {
   appointments?: Appointment[];
@@ -73,7 +77,7 @@ export function PsychologistAgenda({
   onAppointmentsChange,
 }: PsychologistAgendaProps) {
   const [internalAppointments, setInternalAppointments] = useState<Appointment[]>(() =>
-    getStoredAppointments(),
+    USE_LIVE_SUPABASE ? [] : getStoredAppointments(),
   );
 
   const appointments = externalAppointments || internalAppointments;
@@ -104,26 +108,6 @@ export function PsychologistAgenda({
     });
   }, [appointments, filter]);
 
-  const handleConfirmComplete = () => {
-    if (!completingApt) return;
-    const result = completeAppointment(completingApt.id);
-    setInternalAppointments(result.appointments);
-    setCompletingApt(null);
-    setFilter("past");
-    onAppointmentsChange?.();
-    toast.success("Sesión completada y registrada en bitácora");
-  };
-
-  const handleConfirmCancel = () => {
-    if (!cancellingApt) return;
-    const updated = cancelAppointment(cancellingApt.id);
-    setInternalAppointments(updated);
-    setCancellingApt(null);
-    setFilter("past");
-    onAppointmentsChange?.();
-    toast.success("Cita cancelada");
-  };
-
   // Estados para PB-009 Solicitudes de Citas Presenciales
   const [activeTab, setActiveTab] = useState<"pb009" | "clasica">("pb009");
   const [solicitudes, setSolicitudes] = useState<SolicitudCita[]>([]);
@@ -136,6 +120,10 @@ export function PsychologistAgenda({
     try {
       const data = await getSolicitudesPsicologo();
       setSolicitudes(data);
+    } catch {
+      if (USE_LIVE_SUPABASE) {
+        toast.error("No se pudieron cargar las solicitudes de cita.");
+      }
     } finally {
       setIsLoadingSolicitudes(false);
     }
@@ -145,19 +133,81 @@ export function PsychologistAgenda({
     fetchSolicitudes();
   }, [fetchSolicitudes]);
 
+  const handleConfirmComplete = async () => {
+    if (!completingApt) return;
+    if (USE_LIVE_SUPABASE) {
+      const res = await actualizarEstadoCitaPsicologo(completingApt.id, "completada");
+      if (!res.ok) {
+        toast.error(res.error || "No se pudo completar la cita.");
+        return;
+      }
+      setCompletingApt(null);
+      setFilter("past");
+      await fetchSolicitudes();
+      onAppointmentsChange?.();
+      toast.success("Sesión completada y registrada en bitácora");
+      return;
+    }
+
+    const result = completeAppointment(completingApt.id);
+    setInternalAppointments(result.appointments);
+    setCompletingApt(null);
+    setFilter("past");
+    onAppointmentsChange?.();
+    toast.success("Sesión completada y registrada en bitácora");
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancellingApt) return;
+    if (USE_LIVE_SUPABASE) {
+      const res = await actualizarEstadoCitaPsicologo(
+        cancellingApt.id,
+        "cancelada",
+        "Cancelada desde agenda clínica.",
+      );
+      if (!res.ok) {
+        toast.error(res.error || "No se pudo cancelar la cita.");
+        return;
+      }
+      setCancellingApt(null);
+      setFilter("past");
+      await fetchSolicitudes();
+      onAppointmentsChange?.();
+      toast.success("Cita cancelada");
+      return;
+    }
+
+    const updated = cancelAppointment(cancellingApt.id);
+    setInternalAppointments(updated);
+    setCancellingApt(null);
+    setFilter("past");
+    onAppointmentsChange?.();
+    toast.success("Cita cancelada");
+  };
+
   const handleAceptar = async (id: string) => {
-    await actualizarEstadoCitaPsicologo(id, "confirmada");
+    const res = await actualizarEstadoCitaPsicologo(id, "confirmada");
+    if (!res.ok) {
+      toast.error(res.error || "No se pudo confirmar la cita.");
+      return;
+    }
     toast.success("Cita confirmada exitosamente. Se notificó al estudiante.");
-    fetchSolicitudes();
+    await fetchSolicitudes();
+    onAppointmentsChange?.();
     if (selectedCita?.id === id) {
       setSelectedCita((prev) => (prev ? { ...prev, estado: "confirmada" } : null));
     }
   };
 
   const handleCancelar = async (id: string, motivo: string) => {
-    await actualizarEstadoCitaPsicologo(id, "cancelada", motivo);
+    const res = await actualizarEstadoCitaPsicologo(id, "cancelada", motivo);
+    if (!res.ok) {
+      toast.error(res.error || "No se pudo cancelar la cita.");
+      return;
+    }
     toast.info("Cita cancelada.");
-    fetchSolicitudes();
+    await fetchSolicitudes();
+    onAppointmentsChange?.();
     if (selectedCita?.id === id) {
       setSelectedCita((prev) =>
         prev ? { ...prev, estado: "cancelada", motivo_cancelacion: motivo } : null,
@@ -167,6 +217,10 @@ export function PsychologistAgenda({
 
   const handleCompletar = async (id: string) => {
     const res = await actualizarEstadoCitaPsicologo(id, "completada");
+    if (!res.ok) {
+      toast.error(res.error || "No se pudo completar la cita.");
+      return;
+    }
     if (res.triggerEncuestaAlta) {
       toast.success(
         "Sesión completada. Se activó el trigger PB-021 (Encuesta de Satisfacción por Alta Clínica).",
@@ -174,7 +228,8 @@ export function PsychologistAgenda({
     } else {
       toast.success("Sesión completada y registrada en el expediente clínico.");
     }
-    fetchSolicitudes();
+    await fetchSolicitudes();
+    onAppointmentsChange?.();
     if (selectedCita?.id === id) {
       setSelectedCita((prev) => (prev ? { ...prev, estado: "completada" } : null));
     }
@@ -182,6 +237,10 @@ export function PsychologistAgenda({
 
   const handleNoAsistio = async (id: string) => {
     const res = await actualizarEstadoCitaPsicologo(id, "no_asistio");
+    if (!res.ok) {
+      toast.error(res.error || "No se pudo registrar la inasistencia.");
+      return;
+    }
     if (res.triggerEncuestaAbandono) {
       setTriggerAbandono(true);
       toast.warning(
@@ -190,7 +249,8 @@ export function PsychologistAgenda({
     } else {
       toast.info("Inasistencia registrada.");
     }
-    fetchSolicitudes();
+    await fetchSolicitudes();
+    onAppointmentsChange?.();
     if (selectedCita?.id === id) {
       setSelectedCita((prev) => (prev ? { ...prev, estado: "no_asistio" } : null));
     }

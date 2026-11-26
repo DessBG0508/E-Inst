@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { sanitizeText } from "@/lib/security";
@@ -139,6 +139,15 @@ export function RegistroPage() {
       {/* Lado derecho: Formulario de registro sobre crema institucional */}
       <main className="flex items-center justify-center bg-[#F5F1E8] px-4 py-10 sm:px-8 lg:px-12 dark:bg-[#0F1A12]">
         <div className="w-full max-w-md rounded-lg border border-[#E5DFD3] bg-white p-8 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+          <div className="pb-4">
+            <Link
+              to="/login"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 -ml-2 text-xs font-semibold text-[#1F4D2C] transition-colors hover:bg-[#F5F1E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:text-[#8FC9B5] dark:hover:bg-[#0F1A12]"
+            >
+              <ArrowLeft className="size-4" strokeWidth={1.75} />
+              <span>Volver a iniciar sesión</span>
+            </Link>
+          </div>
           <div className="space-y-1.5 pb-6">
             <h1 className="font-sans text-2xl font-bold tracking-tight text-[#1F4D2C] dark:text-[#8FC9B5]">
               Crear cuenta

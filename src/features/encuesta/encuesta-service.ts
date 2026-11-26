@@ -3,13 +3,15 @@
  * Equilibra TESH - Sistema de Calidad y Acompañamiento
  */
 
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { DEMO_MODE } from "@/lib/mock-data";
 import { sha256 } from "@/lib/blockchain-audit";
 import type { RespuestaEncuesta, MetricasEncuesta, TriggerEncuestaTipo } from "./types";
 import { enviarNotificacionEncuestaResend } from "./resend-service";
 import type { User } from "@/lib/types";
 import { getStoredUserFolio } from "@/lib/screening-storage";
 
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
 const LOCAL_STORAGE_KEY = "equilibra_respuestas_encuesta_pb021";
 
 /**
@@ -163,31 +165,44 @@ export async function getRespuestasEncuesta(filtros?: {
   trigger_tipo?: string;
   search?: string;
 }): Promise<RespuestaEncuesta[]> {
-  try {
-    let query = supabase
-      .from("respuestas_encuesta")
-      .select("*")
-      .order("created_at", { ascending: false });
+  let query = supabase
+    .from("respuestas_encuesta")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-    if (filtros?.trigger_tipo && filtros.trigger_tipo !== "todos") {
-      query = query.eq("trigger_tipo", filtros.trigger_tipo);
-    }
+  if (filtros?.trigger_tipo && filtros.trigger_tipo !== "todos") {
+    query = query.eq("trigger_tipo", filtros.trigger_tipo);
+  }
 
-    const { data, error } = await query;
-    if (!error && data && data.length > 0) {
-      let filtered = data as RespuestaEncuesta[];
-      if (filtros?.search) {
-        const s = filtros.search.toLowerCase();
-        filtered = filtered.filter(
-          (r) =>
-            r.folio.toLowerCase().includes(s) ||
-            (r.q9_comentarios && r.q9_comentarios.toLowerCase().includes(s)),
-        );
-      }
-      return filtered;
+  const { data, error } = await query;
+
+  if (USE_LIVE_SUPABASE) {
+    if (error) {
+      throw new Error(error.message);
     }
-  } catch {
-    // Continuar con almacenamiento local
+    let filtered = (data || []) as RespuestaEncuesta[];
+    if (filtros?.search) {
+      const s = filtros.search.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.folio.toLowerCase().includes(s) ||
+          (r.q9_comentarios && r.q9_comentarios.toLowerCase().includes(s)),
+      );
+    }
+    return filtered;
+  }
+
+  if (!error && data && data.length > 0) {
+    let filtered = data as RespuestaEncuesta[];
+    if (filtros?.search) {
+      const s = filtros.search.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.folio.toLowerCase().includes(s) ||
+          (r.q9_comentarios && r.q9_comentarios.toLowerCase().includes(s)),
+      );
+    }
+    return filtered;
   }
 
   let local = getLocalRespuestas();
@@ -224,9 +239,9 @@ export async function guardarRespuestaEncuesta(
       created_at: ahora,
     };
 
-    // Intentar persistir en Supabase
-    try {
-      await supabase.from("respuestas_encuesta").insert({
+    const { data, error } = await supabase
+      .from("respuestas_encuesta")
+      .insert({
         folio: nuevaRespuesta.folio,
         user_id: nuevaRespuesta.user_id || null,
         trigger_tipo: nuevaRespuesta.trigger_tipo,
@@ -245,14 +260,23 @@ export async function guardarRespuestaEncuesta(
         q10a_facilidad_eli: nuevaRespuesta.q10a_facilidad_eli,
         q10b_util_eli: nuevaRespuesta.q10b_util_eli,
         hash_auditoria: hash,
-      });
-    } catch {
-      // Ignorar error de red y guardar en local
+      })
+      .select("id")
+      .single();
+
+    if (USE_LIVE_SUPABASE && error) {
+      return { ok: false, error: error.message };
     }
 
-    const localList = getLocalRespuestas();
-    const updated = [nuevaRespuesta, ...localList.filter((r) => r.folio !== payload.folio)];
-    saveLocalRespuestas(updated);
+    if (data?.id) {
+      nuevaRespuesta.id = String(data.id);
+    }
+
+    if (!USE_LIVE_SUPABASE) {
+      const localList = getLocalRespuestas();
+      const updated = [nuevaRespuesta, ...localList.filter((r) => r.folio !== payload.folio)];
+      saveLocalRespuestas(updated);
+    }
 
     return { ok: true, id: nuevaRespuesta.id, hash };
   } catch (err) {
@@ -456,7 +480,12 @@ export async function validarFolioUsuario(
   }
 
   // Roles administrativos o psicólogos tienen acceso de supervisión y auditoría
-  if (user.role === "psicologo" || user.role === "jefatura" || user.role === "coordinador") {
+  if (
+    user.role === "psicologo" ||
+    user.role === "directivo" ||
+    user.role === "jefatura" ||
+    user.role === "coordinador"
+  ) {
     return { valido: true };
   }
 
@@ -484,28 +513,30 @@ export async function validarFolioUsuario(
     return { valido: true };
   }
 
-  // 3. Verificar contra solicitudes de citas locales (localStorage v2 y v1)
-  for (const storageKey of ["equilibra_solicitudes_cita_v2", "equilibra_solicitudes_cita_v1"]) {
-    try {
-      const rawCitas = localStorage.getItem(storageKey);
-      if (rawCitas) {
-        const citas = JSON.parse(rawCitas);
-        if (Array.isArray(citas)) {
-          const match = citas.some((c) => {
-            const isUser =
-              c.user_id === user.id ||
-              (c.email && c.email.toLowerCase() === user.email.toLowerCase()) ||
-              (c.matricula && c.matricula === user.matricula);
-            const hasFolio =
-              (c.folio && c.folio.trim().toUpperCase() === cleanFolio) ||
-              (c.folio_tamizaje && c.folio_tamizaje.trim().toUpperCase() === cleanFolio);
-            return isUser && hasFolio;
-          });
-          if (match) return { valido: true };
+  // 3. En modo demo local únicamente, verificar solicitudes en localStorage
+  if (!USE_LIVE_SUPABASE) {
+    for (const storageKey of ["equilibra_solicitudes_cita_v2", "equilibra_solicitudes_cita_v1"]) {
+      try {
+        const rawCitas = localStorage.getItem(storageKey);
+        if (rawCitas) {
+          const citas = JSON.parse(rawCitas);
+          if (Array.isArray(citas)) {
+            const match = citas.some((c) => {
+              const isUser =
+                c.user_id === user.id ||
+                (c.email && c.email.toLowerCase() === user.email.toLowerCase()) ||
+                (c.matricula && c.matricula === user.matricula);
+              const hasFolio =
+                (c.folio && c.folio.trim().toUpperCase() === cleanFolio) ||
+                (c.folio_tamizaje && c.folio_tamizaje.trim().toUpperCase() === cleanFolio);
+              return isUser && hasFolio;
+            });
+            if (match) return { valido: true };
+          }
         }
+      } catch {
+        // Continuar con siguiente verificación
       }
-    } catch {
-      // Continuar con siguiente verificación
     }
   }
 
@@ -538,31 +569,40 @@ export async function validarFolioUsuario(
     // Continuar si falla la conexión
   }
 
-  // 5. Verificar en Supabase tamizajes
+  // 5. Verificar en Supabase pacientes y respuestas_tamizaje
   try {
-    const { data: tamizDb } = await supabase
-      .from("tamizajes")
-      .select("id, folio, user_id")
-      .eq("folio", cleanFolio)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const [{ data: pacDb }, { data: tamizDb }] = await Promise.all([
+      supabase
+        .from("pacientes")
+        .select("id, folio, user_id")
+        .eq("folio", cleanFolio)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("respuestas_tamizaje")
+        .select("id, folio, user_id")
+        .eq("folio", cleanFolio)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ]);
 
-    if (tamizDb) return { valido: true };
+    if (pacDb || tamizDb) return { valido: true };
   } catch {
     // Continuar si falla
   }
 
-  // 6. Cuentas de demostración estudiantil (Dess Bautista / demo-user-student)
-  // con folios institucionales de prueba (TESH-2026-0842, EQ-9374, EQ-1234, TESH-2026-0915)
-  const isDemoStudent =
-    user.id === "demo-student-dess" ||
-    user.email === "dess@tesh.mx" ||
-    user.id === "demo-user-student" ||
-    user.id === "demo-student-01";
+  // 6. Cuentas demo locales únicamente cuando USE_LIVE_SUPABASE es false
+  if (!USE_LIVE_SUPABASE) {
+    const isDemoStudent =
+      user.id === "demo-student-dess" ||
+      user.email === "dess@tesh.mx" ||
+      user.id === "demo-user-student" ||
+      user.id === "demo-student-01";
 
-  const foliosDemoValidos = ["TESH-2026-0842", "EQ-9374", "EQ-1234", "TESH-2026-0915"];
-  if (isDemoStudent && foliosDemoValidos.includes(cleanFolio)) {
-    return { valido: true };
+    const foliosDemoValidos = ["TESH-2026-0842", "EQ-9374", "EQ-1234", "TESH-2026-0915"];
+    if (isDemoStudent && foliosDemoValidos.includes(cleanFolio)) {
+      return { valido: true };
+    }
   }
 
   return {

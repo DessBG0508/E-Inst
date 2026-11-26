@@ -3,12 +3,18 @@ import { Calendar, Clock, Info, Loader2, MapPin, UserCheck } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MOTIVO_MAX_LENGTH, formatFechaLegible, type PsicologoDisponible } from "./types";
+import {
+  MOTIVO_MAX_LENGTH,
+  formatFechaLegible,
+  type PsicologoDisponible,
+  type TipoProfesional,
+} from "./types";
 
 interface FormularioSolicitudProps {
   fechaCita: string;
   horaCita: string;
   psicologoAsignado: PsicologoDisponible;
+  tipoProfesional?: TipoProfesional;
   onSubmit: (motivo: string) => Promise<void> | void;
   onCancel: () => void;
   isSubmitting?: boolean;
@@ -18,11 +24,13 @@ export function FormularioSolicitud({
   fechaCita,
   horaCita,
   psicologoAsignado,
+  tipoProfesional = "psicologo",
   onSubmit,
   onCancel,
   isSubmitting = false,
 }: FormularioSolicitudProps) {
   const [motivo, setMotivo] = useState("");
+  const esMedico = tipoProfesional === "medico" || psicologoAsignado.especialidad === "medico";
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,7 +49,7 @@ export function FormularioSolicitud({
               id="solicitud-heading"
               className="text-xl font-bold tracking-tight text-[#1A1A1A] dark:text-[#F5F1E8]"
             >
-              Confirmar solicitud de cita
+              {esMedico ? "Confirmar cita con Servicio Médico" : "Confirmar solicitud de cita"}
             </h2>
             <p className="mt-1 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
               Revisa los datos asignados antes de registrar tu espacio presencial.
@@ -54,7 +62,7 @@ export function FormularioSolicitud({
           </span>
         </div>
 
-        {/* Resumen: Fecha + Hora + Psicólogo asignado automáticamente */}
+        {/* Resumen: Fecha + Hora + Especialista asignado automáticamente */}
         <div className="grid grid-cols-1 gap-4 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-4 sm:grid-cols-3 dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
           <div className="space-y-1">
             <span className="flex items-center gap-1.5 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
@@ -79,7 +87,7 @@ export function FormularioSolicitud({
           <div className="space-y-1">
             <span className="flex items-center gap-1.5 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
               <UserCheck className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
-              Psicólogo asignado
+              {esMedico ? "Médico asignado" : "Psicólogo asignado"}
             </span>
             <p className="text-sm font-semibold text-[#1F4D2C] dark:text-[#8FC9B5]">
               {psicologoAsignado.nombre}
@@ -97,7 +105,7 @@ export function FormularioSolicitud({
               htmlFor="motivo-cita-textarea"
               className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]"
             >
-              Motivo de consulta (opcional)
+              {esMedico ? "Motivo de consulta médica (opcional)" : "Motivo de consulta (opcional)"}
             </Label>
             <span className="text-xs font-medium text-[#6B6B6B] tabular-nums dark:text-[#A6B5A3]">
               {motivo.length}/{MOTIVO_MAX_LENGTH}
@@ -109,7 +117,11 @@ export function FormularioSolicitud({
             maxLength={MOTIVO_MAX_LENGTH}
             value={motivo}
             onChange={(e) => setMotivo(e.target.value.slice(0, MOTIVO_MAX_LENGTH))}
-            placeholder="Describe brevemente el motivo o tema que deseas tratar en tu sesión presencial..."
+            placeholder={
+              esMedico
+                ? "Describe tus síntomas físicos o motivo de valoración médica (ej. insomnio, dolor de cabeza, fatiga, malestar estomacal)..."
+                : "Describe brevemente el motivo o tema que deseas tratar en tu sesión presencial..."
+            }
             className="resize-none rounded-lg border-[#E5DFD3] bg-white text-sm text-[#1A1A1A] focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
           />
         </div>

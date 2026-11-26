@@ -18,11 +18,15 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { DEMO_MODE } from "@/lib/mock-data";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { NotasVozModal } from "./notas-voz-modal";
 import { ExpedienteClinico } from "./ExpedienteClinico";
 import { ContactPatientDialog } from "./contact-patient-dialog";
 import { getPsychologistCases, updateCaseStatus } from "@/lib/psychologist-store";
 import type { CaseSummary, RiskLevel } from "@/lib/types";
+
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -261,6 +265,16 @@ export function SemaforoPacientes() {
         .select("*")
         .order("ultimo_nivel");
 
+      if (USE_LIVE_SUPABASE) {
+        if (error) {
+          toast.error("No se pudo cargar el semáforo de pacientes desde Supabase.");
+          setPacientes([]);
+          return;
+        }
+        setPacientes((data as PacienteParaPsicologo[]) || []);
+        return;
+      }
+
       if (error || !Array.isArray(data) || data.length === 0) {
         const mockCases = getPsychologistCases();
         setPacientes(mockCases.map(mockCaseToPaciente));
@@ -269,8 +283,13 @@ export function SemaforoPacientes() {
 
       setPacientes((data as PacienteParaPsicologo[]) || []);
     } catch {
-      const mockCases = getPsychologistCases();
-      setPacientes(mockCases.map(mockCaseToPaciente));
+      if (USE_LIVE_SUPABASE) {
+        toast.error("Error de conexión al consultar el semáforo de pacientes.");
+        setPacientes([]);
+      } else {
+        const mockCases = getPsychologistCases();
+        setPacientes(mockCases.map(mockCaseToPaciente));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -363,19 +382,30 @@ export function SemaforoPacientes() {
       setIsLiberando(true);
       let rpcSucceeded = false;
 
-      try {
+      if (USE_LIVE_SUPABASE) {
         const { data, error } = await supabase.rpc("liberar_paciente", {
           p_folio: pacienteALiberar.folio,
         });
-        if (!error && data === true) {
-          rpcSucceeded = true;
+        if (error || data === false) {
+          toast.error(error?.message || "No se pudo liberar. Verifica permisos clínicos.");
+          return;
         }
-      } catch {
-        // Fallback local si no hay sesión RPC o caso demo
-      }
+        rpcSucceeded = true;
+      } else {
+        try {
+          const { data, error } = await supabase.rpc("liberar_paciente", {
+            p_folio: pacienteALiberar.folio,
+          });
+          if (!error && data === true) {
+            rpcSucceeded = true;
+          }
+        } catch {
+          // Fallback local en DEMO_MODE
+        }
 
-      if (!rpcSucceeded && pacienteALiberar.caseId) {
-        updateCaseStatus(pacienteALiberar.caseId, "atendido");
+        if (!rpcSucceeded && pacienteALiberar.caseId) {
+          updateCaseStatus(pacienteALiberar.caseId, "atendido");
+        }
       }
 
       setPacientes((prev) =>
@@ -577,7 +607,12 @@ export function SemaforoPacientes() {
         {!isLoading && pacientesFiltrados.length === 0 && (
           <div className="rounded-lg border border-dashed border-[#E5DFD3] bg-[#F5F1E8]/40 p-10 text-center space-y-3 dark:border-[#2D3F2A] dark:bg-[#0F1A12]/50">
             <p className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
-              No hay pacientes que coincidan con los filtros aplicados
+              {pacientes.length === 0 &&
+              !searchTerm &&
+              nivelFilter === "todos" &&
+              carreraFilter === "todas"
+                ? "No hay pacientes registrados en el semáforo"
+                : "No hay pacientes que coincidan con los filtros aplicados"}
             </p>
             {(searchTerm || nivelFilter !== "todos" || carreraFilter !== "todas") && (
               <Button

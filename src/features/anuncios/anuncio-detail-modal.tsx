@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  ArrowLeft,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -75,13 +76,27 @@ export function AnuncioDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-lg border border-[#E5DFD3] bg-white p-0 text-[#1A1A1A] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8]">
-        {/* Flyer arriba: 200px, ancho completo */}
-        <AnuncioFlyerPreview
-          imagenUrl={anuncio.imagen_url}
-          titulo={cleanTitle}
-          tipo={anuncio.tipo}
-          className="h-[200px] w-full rounded-t-lg"
-        />
+        {/* Botón Volver visible arriba a la izquierda */}
+        <div className="relative">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="absolute top-3 left-3 z-10 h-9 cursor-pointer gap-1.5 rounded-lg border-[#E5DFD3] bg-white/95 px-3 text-xs font-semibold text-[#1F4D2C] shadow-sm hover:bg-white dark:border-[#2D3F2A] dark:bg-[#1A2618]/95 dark:text-[#8FC9B5]"
+          >
+            <ArrowLeft className="size-4" strokeWidth={1.75} />
+            <span>Volver</span>
+          </Button>
+
+          {/* Flyer arriba: 200px, ancho completo */}
+          <AnuncioFlyerPreview
+            imagenUrl={anuncio.imagen_url}
+            titulo={cleanTitle}
+            tipo={anuncio.tipo}
+            className="h-[200px] w-full rounded-t-lg"
+          />
+        </div>
 
         <div className="space-y-5 p-6">
           <DialogHeader className="border-b border-[#E5DFD3] p-0 pb-4 text-left dark:border-[#2D3F2A]">

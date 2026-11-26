@@ -438,7 +438,6 @@ button:not(:disabled):active,
   header,
   header.screen-only-header,
   [role="navigation"],
-  .bottom-nav,
   #persistent-sos-button,
   [data-sonner-toaster],
   button:not(.print-include) {

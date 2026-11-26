@@ -3,7 +3,6 @@ import { brandConfig } from "@/config/brand-config";
 
 export function InstitutionalAuthBrandPanel() {
   const [logoFailed, setLogoFailed] = useState(false);
-  const [eliFailed, setEliFailed] = useState(false);
 
   return (
     <aside className="flex flex-col items-center justify-between bg-[#1F4D2C] px-8 py-10 text-center text-[#F5F1E8] lg:min-h-screen lg:px-12 lg:py-14">
@@ -14,30 +13,14 @@ export function InstitutionalAuthBrandPanel() {
           <img
             src={brandConfig.logoUrl}
             alt="Logotipo Tecnológico de Estudios Superiores de Huixquilucan"
-            height={120}
+            height={144}
             decoding="async"
             onError={() => setLogoFailed(true)}
-            className="h-[120px] w-auto object-contain brightness-0 invert opacity-95"
+            className="h-36 w-auto object-contain brightness-0 invert opacity-95"
           />
         ) : (
-          <div className="flex h-[120px] items-center justify-center">
+          <div className="flex h-36 items-center justify-center">
             <span className="text-3xl font-bold tracking-tight text-[#F5F1E8]">TESH</span>
-          </div>
-        )}
-
-        {!eliFailed && brandConfig.eliAvatarUrl ? (
-          <img
-            src={brandConfig.eliAvatarUrl}
-            alt="Mascota Eli de Equilibra TESH"
-            width={200}
-            height={200}
-            decoding="async"
-            onError={() => setEliFailed(true)}
-            className="size-[200px] object-contain drop-shadow-[0_12px_22px_rgba(0,0,0,0.28)]"
-          />
-        ) : (
-          <div className="flex size-[200px] items-center justify-center rounded-lg border border-[#F5F1E8]/20 text-sm font-semibold text-[#F5F1E8]">
-            Eli · Equilibra TESH
           </div>
         )}
 

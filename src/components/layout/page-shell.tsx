@@ -6,18 +6,17 @@ import { useAuth } from "@/lib/auth-context";
 import { AuroraBackground } from "@/components/effects/aurora-background";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "./app-header";
-import { BottomNav } from "./bottom-nav";
 
 interface PageShellProps {
   children: ReactNode;
   showAppHeader?: boolean;
-  showBottomNav?: boolean;
+  showFallbackLogout?: boolean;
 }
 
 export function PageShell({
   children,
   showAppHeader = true,
-  showBottomNav = true,
+  showFallbackLogout = true,
 }: PageShellProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -30,10 +29,13 @@ export function PageShell({
 
   return (
     <AuroraBackground>
-      <div className="relative mx-auto min-h-screen w-full max-w-6xl px-4 pb-40 sm:px-7 sm:pb-44 lg:px-10 lg:pb-40">
-        {showAppHeader ? (
-          <AppHeader />
-        ) : user ? (
+      {showAppHeader && <AppHeader />}
+      <div
+        className={`relative mx-auto min-h-screen w-full max-w-6xl px-4 pb-16 sm:px-7 lg:px-10 ${
+          showAppHeader ? "pt-6 sm:pt-8" : ""
+        }`}
+      >
+        {!showAppHeader && showFallbackLogout && user ? (
           <div className="flex justify-end pt-4 pb-1">
             <Button
               variant="outline"
@@ -49,7 +51,6 @@ export function PageShell({
         ) : null}
         {children}
       </div>
-      {showBottomNav && <BottomNav />}
     </AuroraBackground>
   );
 }

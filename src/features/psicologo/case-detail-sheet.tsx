@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import {
+  ArrowLeft,
   CalendarPlus,
   PhoneCall,
   ShieldAlert,
@@ -149,6 +150,18 @@ export function CaseDetailSheet({
         className="w-full sm:max-w-xl overflow-y-auto border-border bg-card p-6 sm:p-8"
       >
         <SheetHeader className="text-left pb-4 border-b border-border/60">
+          <div className="pb-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="h-9 cursor-pointer gap-1.5 rounded-lg border-[#E5DFD3] bg-[#F5F1E8] px-3 text-xs font-semibold text-[#1F4D2C] hover:bg-[#E0F0E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]"
+            >
+              <ArrowLeft className="size-4" strokeWidth={1.75} />
+              <span>Volver</span>
+            </Button>
+          </div>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-teal">

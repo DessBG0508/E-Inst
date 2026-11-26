@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/lib/auth-context";
+import { rutaPorRol } from "@/lib/roles";
 import {
   POLYGON_AMOY_CONFIG,
   fetchUltimosBloques,
@@ -355,7 +356,7 @@ export function AuditoriaPage() {
   const breadcrumbs: InstitutionalBreadcrumbItem[] = [
     {
       label: "Panel institucional",
-      onClick: () => navigate({ to: "/directivo" }),
+      onClick: () => navigate({ to: user ? rutaPorRol(user.role) : "/directivo" }),
     },
     {
       label: "Auditoría blockchain",
@@ -387,7 +388,7 @@ export function AuditoriaPage() {
             </span>
           }
           breadcrumbs={breadcrumbs}
-          onHomeClick={() => navigate({ to: "/directivo" })}
+          onHomeClick={() => navigate({ to: user ? rutaPorRol(user.role) : "/directivo" })}
           showCrisisButton={false}
           showSidebarToggle={true}
           isSidebarOpen={isMobileSidebarOpen}

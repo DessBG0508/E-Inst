@@ -6,12 +6,14 @@ import {
   InstitutionalHeader,
   type InstitutionalBreadcrumbItem,
 } from "@/components/layout/institutional-header";
+import { StudentTopBar } from "@/components/layout/student-top-bar";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { AjustesModal } from "@/components/settings/ajustes-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
+import { rutaPorRol } from "@/lib/roles";
 import { AnuncioDetailModal } from "./anuncio-detail-modal";
 import { AnuncioFlyerPreview } from "./anuncio-flyer-preview";
 import {
@@ -143,23 +145,23 @@ export function AnunciosPage({ initialAnuncioId }: AnunciosPageProps) {
     }
   };
 
+  const isStudentView = !user || user.role === "estudiante";
+  const staffHomeRoute = user ? rutaPorRol(user.role) : "/";
+
   const breadcrumbs: InstitutionalBreadcrumbItem[] = [
-    { label: "Bienestar Estudiantil", href: "/" },
+    { label: "Inicio", href: staffHomeRoute },
     { label: "Anuncios y Talleres" },
   ];
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F5F1E8] font-sans text-[#1A1A1A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
-      <InstitutionalHeader
-        moduleTitle="Anuncios y Talleres"
-        breadcrumbs={breadcrumbs}
-        onHomeClick={() => navigate({ to: "/" })}
-        showCrisisButton={true}
-        onCrisisClick={() => navigate({ to: "/alerta" })}
-        actions={
-          <>
+      {isStudentView ? (
+        <StudentTopBar
+          title="Anuncios y Talleres"
+          backTo="/"
+          rightActions={
             <AjustesModal
-              rol={user?.role || "estudiante"}
+              rol="estudiante"
               trigger={
                 <button
                   type="button"
@@ -171,10 +173,36 @@ export function AnunciosPage({ initialAnuncioId }: AnunciosPageProps) {
                 </button>
               }
             />
-            <ThemeToggle className="size-9 rounded-lg border border-white/20 bg-white/10 text-white shadow-none hover:border-white/30 hover:bg-white/15 [&_svg]:size-[18px] [&_svg]:text-white" />
-          </>
-        }
-      />
+          }
+        />
+      ) : (
+        <InstitutionalHeader
+          moduleTitle="Anuncios y Talleres"
+          breadcrumbs={breadcrumbs}
+          onHomeClick={() => navigate({ to: staffHomeRoute })}
+          backFallbackRoute={staffHomeRoute}
+          showCrisisButton={user?.role === "psicologo"}
+          onCrisisClick={() => navigate({ to: "/alerta" })}
+          actions={
+            <>
+              <AjustesModal
+                rol={user?.role || "estudiante"}
+                trigger={
+                  <button
+                    type="button"
+                    aria-label="Abrir configuración y ajustes"
+                    title="Configuración y ajustes"
+                    className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    <Settings className="size-[18px]" strokeWidth={1.75} />
+                  </button>
+                }
+              />
+              <ThemeToggle className="size-9 rounded-lg border border-white/20 bg-white/10 text-white shadow-none hover:border-white/30 hover:bg-white/15 [&_svg]:size-[18px] [&_svg]:text-white" />
+            </>
+          }
+        />
+      )}
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 border-b border-[#E5DFD3] pb-5 sm:flex-row sm:items-end sm:justify-between dark:border-[#2D3F2A]">

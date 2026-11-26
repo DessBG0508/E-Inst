@@ -1,6 +1,9 @@
+import { parseSupabaseError } from "@/lib/api-client";
+import { DEMO_MODE } from "@/lib/mock-data";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { AnuncioFormInput, AnuncioInscripcion, AnuncioItem } from "./types";
 
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
 const ANUNCIOS_STORAGE_KEY = "equilibra_anuncios_v1";
 const INSCRIPCIONES_STORAGE_KEY = "equilibra_anuncios_inscripciones_v1";
 
@@ -172,27 +175,25 @@ export async function fetchAnuncios(options?: {
 }): Promise<AnuncioItem[]> {
   const includeInactive = options?.includeInactive ?? false;
 
-  if (isSupabaseConfigured) {
-    try {
-      let query = supabase
-        .from("anuncios")
-        .select("*")
-        .order("fecha_evento", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false });
+  if (USE_LIVE_SUPABASE) {
+    let query = supabase
+      .from("anuncios")
+      .select("*")
+      .order("fecha_evento", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false });
 
-      if (!includeInactive) {
-        query = query.eq("activo", true);
-      }
-
-      const { data, error } = await query;
-      if (!error && Array.isArray(data) && data.length > 0) {
-        const mapped = data.map((row) => mapRowToAnuncio(row as Record<string, unknown>));
-        saveLocalAnuncios(mapped);
-        return mapped;
-      }
-    } catch {
-      // Fallback a almacenamiento local
+    if (!includeInactive) {
+      query = query.eq("activo", true);
     }
+
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`No se pudieron cargar los anuncios: ${parseSupabaseError(error)}`);
+    }
+
+    return Array.isArray(data)
+      ? data.map((row) => mapRowToAnuncio(row as Record<string, unknown>))
+      : [];
   }
 
   const local = getLocalAnuncios();
@@ -222,19 +223,12 @@ export async function createAnuncio(
     creado_por: creadoPor || null,
   };
 
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase.from("anuncios").insert(payload).select("*").single();
-
-      if (!error && data) {
-        const created = mapRowToAnuncio(data as Record<string, unknown>);
-        const current = getLocalAnuncios();
-        saveLocalAnuncios([created, ...current.filter((a) => a.id !== created.id)]);
-        return created;
-      }
-    } catch {
-      // Fallback local
+  if (USE_LIVE_SUPABASE) {
+    const { data, error } = await supabase.from("anuncios").insert(payload).select("*").single();
+    if (error || !data) {
+      throw new Error(`No se pudo crear el anuncio: ${parseSupabaseError(error)}`);
     }
+    return mapRowToAnuncio(data as Record<string, unknown>);
   }
 
   const createdLocal: AnuncioItem = {
@@ -269,24 +263,18 @@ export async function updateAnuncio(id: string, input: AnuncioFormInput): Promis
     updated_at: now,
   };
 
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase
-        .from("anuncios")
-        .update(payload)
-        .eq("id", id)
-        .select("*")
-        .single();
+  if (USE_LIVE_SUPABASE) {
+    const { data, error } = await supabase
+      .from("anuncios")
+      .update(payload)
+      .eq("id", id)
+      .select("*")
+      .single();
 
-      if (!error && data) {
-        const updated = mapRowToAnuncio(data as Record<string, unknown>);
-        const current = getLocalAnuncios();
-        saveLocalAnuncios(current.map((a) => (a.id === id ? updated : a)));
-        return updated;
-      }
-    } catch {
-      // Fallback local
+    if (error || !data) {
+      throw new Error(`No se pudo actualizar el anuncio: ${parseSupabaseError(error)}`);
     }
+    return mapRowToAnuncio(data as Record<string, unknown>);
   }
 
   const current = getLocalAnuncios();
@@ -308,20 +296,15 @@ export async function updateAnuncio(id: string, input: AnuncioFormInput): Promis
 }
 
 export async function toggleAnuncioActivo(id: string, activo: boolean): Promise<void> {
-  if (isSupabaseConfigured) {
-    try {
-      const { error } = await supabase
-        .from("anuncios")
-        .update({ activo, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (!error) {
-        const current = getLocalAnuncios();
-        saveLocalAnuncios(current.map((a) => (a.id === id ? { ...a, activo } : a)));
-        return;
-      }
-    } catch {
-      // Fallback local
+  if (USE_LIVE_SUPABASE) {
+    const { error } = await supabase
+      .from("anuncios")
+      .update({ activo, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      throw new Error(`No se pudo cambiar el estado del anuncio: ${parseSupabaseError(error)}`);
     }
+    return;
   }
 
   const current = getLocalAnuncios();
@@ -329,17 +312,12 @@ export async function toggleAnuncioActivo(id: string, activo: boolean): Promise<
 }
 
 export async function deleteAnuncio(id: string): Promise<void> {
-  if (isSupabaseConfigured) {
-    try {
-      const { error } = await supabase.from("anuncios").delete().eq("id", id);
-      if (!error) {
-        const current = getLocalAnuncios();
-        saveLocalAnuncios(current.filter((a) => a.id !== id));
-        return;
-      }
-    } catch {
-      // Fallback local
+  if (USE_LIVE_SUPABASE) {
+    const { error } = await supabase.from("anuncios").delete().eq("id", id);
+    if (error) {
+      throw new Error(`No se pudo eliminar el anuncio: ${parseSupabaseError(error)}`);
     }
+    return;
   }
 
   const current = getLocalAnuncios();
@@ -349,19 +327,18 @@ export async function deleteAnuncio(id: string): Promise<void> {
 export async function fetchMisInscripciones(estudianteId?: string): Promise<string[]> {
   if (!estudianteId) return [];
 
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase
-        .from("anuncios_inscripciones")
-        .select("anuncio_id")
-        .eq("estudiante_id", estudianteId);
+  if (USE_LIVE_SUPABASE) {
+    const { data, error } = await supabase
+      .from("anuncios_inscripciones")
+      .select("anuncio_id")
+      .eq("estudiante_id", estudianteId);
 
-      if (!error && Array.isArray(data)) {
-        return data.map((row: { anuncio_id: string }) => String(row.anuncio_id));
-      }
-    } catch {
-      // Fallback local
+    if (error) {
+      throw new Error(`No se pudieron consultar tus inscripciones: ${parseSupabaseError(error)}`);
     }
+    return Array.isArray(data)
+      ? data.map((row: { anuncio_id: string }) => String(row.anuncio_id))
+      : [];
   }
 
   return getLocalInscripciones()
@@ -377,30 +354,31 @@ export async function inscribirseAnuncio(
     throw new Error("Inicia sesión para inscribirte en este anuncio.");
   }
 
-  if (isSupabaseConfigured) {
-    try {
-      const { error } = await supabase.from("anuncios_inscripciones").insert({
-        anuncio_id: anuncioId,
-        estudiante_id: estudianteId,
-      });
+  if (USE_LIVE_SUPABASE) {
+    const { error } = await supabase.from("anuncios_inscripciones").insert({
+      anuncio_id: anuncioId,
+      estudiante_id: estudianteId,
+    });
 
-      if (error) {
-        if (error.message?.toLowerCase().includes("cupo")) {
-          throw new Error("Cupo lleno para este anuncio o taller.");
-        }
-      } else {
-        const { data: updatedRow } = await supabase
-          .from("anuncios")
-          .select("inscritos")
-          .eq("id", anuncioId)
-          .single();
-        return { inscritos: Number(updatedRow?.inscritos ?? 0) };
+    if (error) {
+      if (error.message?.toLowerCase().includes("cupo")) {
+        throw new Error("Cupo lleno para este anuncio o taller.");
       }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes("Cupo lleno")) {
-        throw err;
+      if (error.code === "23505") {
+        throw new Error("Ya estás inscrito en este anuncio.");
       }
+      throw new Error(`No se pudo completar la inscripción: ${parseSupabaseError(error)}`);
     }
+
+    const { data: updatedRow, error: readErr } = await supabase
+      .from("anuncios")
+      .select("inscritos")
+      .eq("id", anuncioId)
+      .single();
+    if (readErr) {
+      throw new Error(`Inscripción registrada, pero no se pudo leer el cupo: ${readErr.message}`);
+    }
+    return { inscritos: Number(updatedRow?.inscritos ?? 0) };
   }
 
   const anuncios = getLocalAnuncios();
@@ -443,25 +421,23 @@ export async function cancelarInscripcionAnuncio(
     throw new Error("Inicia sesión para gestionar tu inscripción.");
   }
 
-  if (isSupabaseConfigured) {
-    try {
-      const { error } = await supabase
-        .from("anuncios_inscripciones")
-        .delete()
-        .eq("anuncio_id", anuncioId)
-        .eq("estudiante_id", estudianteId);
+  if (USE_LIVE_SUPABASE) {
+    const { error } = await supabase
+      .from("anuncios_inscripciones")
+      .delete()
+      .eq("anuncio_id", anuncioId)
+      .eq("estudiante_id", estudianteId);
 
-      if (!error) {
-        const { data: updatedRow } = await supabase
-          .from("anuncios")
-          .select("inscritos")
-          .eq("id", anuncioId)
-          .single();
-        return { inscritos: Number(updatedRow?.inscritos ?? 0) };
-      }
-    } catch {
-      // Fallback local
+    if (error) {
+      throw new Error(`No se pudo cancelar tu inscripción: ${parseSupabaseError(error)}`);
     }
+
+    const { data: updatedRow } = await supabase
+      .from("anuncios")
+      .select("inscritos")
+      .eq("id", anuncioId)
+      .maybeSingle();
+    return { inscritos: Number(updatedRow?.inscritos ?? 0) };
   }
 
   const inscripciones = getLocalInscripciones();

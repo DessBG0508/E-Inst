@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import type { MoodCheckIn, MoodId } from "./types";
 import { saveCheckIn } from "./api-client";
+import { DEMO_MODE } from "./mock-data";
 import { mapCheckInRiskRD02 } from "./metric-rules";
+import { isSupabaseConfigured, supabase } from "./supabase";
 
 export const MOOD_STORAGE_KEY = "equilibra_mood_checkins_v1";
 export const DEFAULT_MOCK_MOOD_DISPLAY = 3.4;
 export const DEFAULT_MOCK_MOOD_PROGRESS = 76;
+
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Reglas de mapeo (la escala interna 1-5 ya definida se mantiene intacta:
@@ -51,7 +56,18 @@ export function getTodayDateStr(): string {
   return `${y}-${m}-${d}`;
 }
 
+function toLocalDateStr(isoStr?: string | null): string {
+  if (!isoStr) return getTodayDateStr();
+  const parsed = new Date(isoStr);
+  if (Number.isNaN(parsed.getTime())) return isoStr.slice(0, 10);
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function getStoredMoodCheckIns(): MoodCheckIn[] {
+  if (USE_LIVE_SUPABASE) return [];
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(MOOD_STORAGE_KEY);
@@ -95,6 +111,16 @@ export interface MoodStatsResult {
 export function calculateMoodStats(records: MoodCheckIn[]): MoodStatsResult {
   const last7 = records.filter((r) => isWithinLast7Days(r.date));
   if (last7.length === 0) {
+    if (USE_LIVE_SUPABASE) {
+      return {
+        hasRecords: false,
+        promedioInterno: null,
+        valorMostrado: 0,
+        displayValue: "0.0",
+        progress: 0,
+        totalRecordsInWindow: 0,
+      };
+    }
     return {
       hasRecords: false,
       promedioInterno: null,
@@ -131,11 +157,13 @@ export function getTodayMoodCheckIn(): MoodCheckIn | null {
 
 /**
  * Guarda o actualiza el registro MoodCheckIn del día actual.
- * Regla 5: Un registro por día (se actualiza el existente, no se duplica).
+ * En modo en vivo sincroniza directamente con `checkins` en Supabase (salvo `skipCloudSync`).
  */
-export function saveMoodCheckInToday(moodIdOrScore: MoodId | number): MoodCheckIn {
+export function saveMoodCheckInToday(
+  moodIdOrScore: MoodId | number,
+  options?: { skipCloudSync?: boolean; userId?: string },
+): MoodCheckIn {
   const todayStr = getTodayDateStr();
-  const records = getStoredMoodCheckIns();
 
   let moodId: MoodId;
   let internalValue: 1 | 2 | 3 | 4 | 5;
@@ -148,7 +176,6 @@ export function saveMoodCheckInToday(moodIdOrScore: MoodId | number): MoodCheckI
     internalValue = MOOD_TO_INTERNAL_VALUE[moodId] || 3;
   }
 
-  const existingIndex = records.findIndex((r) => r.date === todayStr);
   const newRecord: MoodCheckIn = {
     date: todayStr,
     value: internalValue,
@@ -156,6 +183,45 @@ export function saveMoodCheckInToday(moodIdOrScore: MoodId | number): MoodCheckI
     createdAt: new Date().toISOString(),
   };
 
+  if (USE_LIVE_SUPABASE) {
+    if (!options?.skipCloudSync) {
+      const explicitUid =
+        options?.userId && UUID_REGEX.test(options.userId) ? options.userId : undefined;
+      saveCheckIn(
+        {
+          id: crypto.randomUUID(),
+          studentId: explicitUid || "",
+          academicLoad: internalValue,
+          emotions: [moodId],
+          intensity: Math.min(10, Math.max(1, internalValue * 2)),
+          createdAt: newRecord.createdAt || new Date().toISOString(),
+          riskLevel: mapCheckInRiskRD02(internalValue),
+        },
+        explicitUid,
+        { silentNotice: true },
+      )
+        .then(() => {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("equilibra-mood-update", {
+                detail: { record: newRecord },
+              }),
+            );
+          }
+        })
+        .catch(() => {});
+    } else if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("equilibra-mood-update", {
+          detail: { record: newRecord },
+        }),
+      );
+    }
+    return newRecord;
+  }
+
+  const records = getStoredMoodCheckIns();
+  const existingIndex = records.findIndex((r) => r.date === todayStr);
   if (existingIndex >= 0) {
     records[existingIndex] = newRecord;
   } else {
@@ -175,46 +241,104 @@ export function saveMoodCheckInToday(moodIdOrScore: MoodId | number): MoodCheckI
     }
   }
 
-  // Notificar al triaje / saveCheckIn en mock sin alterar lógica
-  try {
-    saveCheckIn(
-      {
-        id: `mood-${todayStr}`,
-        studentId: "demo-student-dess",
-        academicLoad: internalValue,
-        emotions: [moodId],
-        createdAt: new Date().toISOString(),
-        riskLevel: mapCheckInRiskRD02(internalValue),
-      },
-      undefined,
-      { silentNotice: true },
-    ).catch(() => {});
-  } catch {
-    // Demo fallback
+  if (!options?.skipCloudSync) {
+    try {
+      saveCheckIn(
+        {
+          id: `mood-${todayStr}`,
+          studentId: "demo-student-dess",
+          academicLoad: internalValue,
+          emotions: [moodId],
+          createdAt: new Date().toISOString(),
+          riskLevel: mapCheckInRiskRD02(internalValue),
+        },
+        undefined,
+        { silentNotice: true },
+      ).catch(() => {});
+    } catch {
+      // Demo fallback
+    }
   }
 
   return newRecord;
+}
+
+async function fetchLiveMoodRecords(): Promise<MoodCheckIn[]> {
+  const { data: authData } = await supabase.auth.getUser();
+  const uid = authData?.user?.id;
+  if (!uid || !UUID_REGEX.test(uid)) {
+    return [];
+  }
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data, error } = await supabase
+    .from("checkins")
+    .select("id, escala, emociones, creado_en")
+    .eq("user_id", uid)
+    .gte("creado_en", sevenDaysAgo.toISOString())
+    .order("creado_en", { ascending: false });
+
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  return data.map((row) => {
+    const rawScale = typeof row.escala === "number" ? row.escala : 3;
+    const clampedScale = Math.max(1, Math.min(5, Math.round(rawScale))) as 1 | 2 | 3 | 4 | 5;
+    const moodId = INTERNAL_VALUE_TO_MOOD[clampedScale] || "regular";
+    return {
+      date: toLocalDateStr(row.creado_en ? String(row.creado_en) : null),
+      value: clampedScale,
+      moodId,
+      createdAt: row.creado_en ? String(row.creado_en) : undefined,
+    };
+  });
 }
 
 /**
  * Hook reactivo para consultar y actualizar el estado y métricas del ánimo
  */
 export function useMoodStats() {
-  const [records, setRecords] = useState<MoodCheckIn[]>(getStoredMoodCheckIns);
+  const [records, setRecords] = useState<MoodCheckIn[]>(() =>
+    USE_LIVE_SUPABASE ? [] : getStoredMoodCheckIns(),
+  );
 
   useEffect(() => {
-    setRecords(getStoredMoodCheckIns());
+    let active = true;
+
+    const loadRecords = async () => {
+      if (USE_LIVE_SUPABASE) {
+        const live = await fetchLiveMoodRecords();
+        if (active) setRecords(live);
+      } else if (active) {
+        setRecords(getStoredMoodCheckIns());
+      }
+    };
+
+    void loadRecords();
 
     const handleUpdate = () => {
-      setRecords(getStoredMoodCheckIns());
+      void loadRecords();
     };
 
     window.addEventListener("equilibra-mood-update", handleUpdate);
     window.addEventListener("storage", handleUpdate);
 
+    let authSubscription: { unsubscribe: () => void } | null = null;
+    if (USE_LIVE_SUPABASE) {
+      const { data } = supabase.auth.onAuthStateChange(() => {
+        void loadRecords();
+      });
+      authSubscription = data.subscription;
+    }
+
     return () => {
+      active = false;
       window.removeEventListener("equilibra-mood-update", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
+      authSubscription?.unsubscribe();
     };
   }, []);
 

@@ -4,7 +4,7 @@ import {
   ArrowRight,
   FileSpreadsheet,
   GraduationCap,
-  Grid3X3,
+  Info,
   Settings,
   ShieldCheck,
   UserCheck,
@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { DIRECTIVO_MOCK_RECORDS, TESH_CAREERS, getDirectivoKPIs } from "@/lib/directivo-data";
 import {
-  getAllStudentsForDirectivo,
+  getAllStudentsForJefatura,
   getAllTutorGroupAssignments,
   getCanalizaciones,
   getTutorProfiles,
@@ -38,7 +38,6 @@ import {
 } from "@/features/encuesta/encuesta-service";
 import { DirectivoSidebar, type DirectivoNavSection } from "./directivo-sidebar";
 import { DirectivoResumenEjecutivo } from "./directivo-resumen-ejecutivo";
-import { TutoresAsignacionPanel } from "./tutores-asignacion-panel";
 import { DirectivoCanalizacionesView } from "./directivo-canalizaciones-view";
 
 const SECTION_LABELS: Record<DirectivoNavSection, string> = {
@@ -46,7 +45,6 @@ const SECTION_LABELS: Record<DirectivoNavSection, string> = {
   estudiantes: "Estudiantes",
   tutores: "Tutores",
   canalizaciones: "Canalizaciones",
-  asignaciones: "Asignar tutores",
   reportes: "Reportes",
 };
 
@@ -67,7 +65,7 @@ export function DirectivoDashboard() {
     async function loadDirectoryCounts() {
       try {
         const [st, tut, asg, can] = await Promise.all([
-          getAllStudentsForDirectivo(),
+          getAllStudentsForJefatura(),
           getTutorProfiles(),
           getAllTutorGroupAssignments(),
           getCanalizaciones(),
@@ -191,6 +189,18 @@ export function DirectivoDashboard() {
         moduleTitle={`Panel directivo — ${SECTION_LABELS[activeSection]}`}
         breadcrumbs={breadcrumbs}
         onHomeClick={() => setActiveSection("resumen")}
+        onBackClick={() => {
+          if (activeSection !== "resumen") {
+            setActiveSection("resumen");
+            return;
+          }
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+          navigate({ to: "/" });
+        }}
+        backFallbackRoute="/"
         showCrisisButton={false}
         showSidebarToggle={true}
         isSidebarOpen={isMobileSidebarOpen}
@@ -227,29 +237,33 @@ export function DirectivoDashboard() {
         />
 
         <div className="min-w-0 flex-1 lg:pl-64">
-          <main className="mx-auto w-full max-w-7xl p-4 pb-16 sm:p-6 lg:p-8">
+          <main className="mx-auto w-full max-w-7xl space-y-6 p-4 pb-16 sm:p-6 lg:p-8">
+            <div
+              role="note"
+              className="flex items-start gap-2.5 rounded-lg border border-[#E5DFD3] bg-white px-4 py-3 text-xs text-[#6B6B6B] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#A6B5A3]"
+            >
+              <Info
+                className="mt-0.5 size-4 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]"
+                strokeWidth={1.75}
+              />
+              <span>
+                Vista ejecutiva de solo lectura. Para gestión operativa de tutores, contactar a
+                Jefatura de Carrera.
+              </span>
+            </div>
+
             {activeSection === "resumen" && <DirectivoResumenEjecutivo />}
 
             {activeSection === "estudiantes" && (
               <div className="space-y-6">
-                <div className="flex flex-col gap-3 border-b border-[#E5DFD3] pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#2D3F2A]">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1A1A1A] dark:text-[#F5F1E8]">
-                      Matrícula estudiantil agregada por programa
-                    </h2>
-                    <p className="mt-0.5 text-xs sm:text-sm font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
-                      Distribución académica anónima sin exposición de expedientes clínicos ni
-                      puntajes individuales.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={() => setActiveSection("asignaciones")}
-                    className="h-9 rounded-lg bg-[#1F4D2C] text-xs font-semibold text-white hover:bg-[#4A7C59]"
-                  >
-                    <Grid3X3 className="mr-1.5 size-4" />
-                    Gestionar recursamiento y grupos
-                  </Button>
+                <div className="border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]">
+                  <h2 className="text-xl font-bold tracking-tight text-[#1A1A1A] sm:text-2xl dark:text-[#F5F1E8]">
+                    Matrícula estudiantil agregada por programa
+                  </h2>
+                  <p className="mt-0.5 text-xs font-medium text-[#6B6B6B] sm:text-sm dark:text-[#A6B5A3]">
+                    Distribución académica anónima (solo lectura) sin exposición de expedientes
+                    clínicos ni puntajes individuales.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -342,24 +356,14 @@ export function DirectivoDashboard() {
 
             {activeSection === "tutores" && (
               <div className="space-y-6">
-                <div className="flex flex-col gap-3 border-b border-[#E5DFD3] pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#2D3F2A]">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1A1A1A] dark:text-[#F5F1E8]">
-                      Directorio institucional de tutores
-                    </h2>
-                    <p className="mt-0.5 text-xs sm:text-sm font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
-                      Cobertura docente de tutorías académicas y volumen administrativo de
-                      canalizaciones.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={() => setActiveSection("asignaciones")}
-                    className="h-9 rounded-lg bg-[#1F4D2C] text-xs font-semibold text-white hover:bg-[#4A7C59]"
-                  >
-                    Ir a matriz de asignaciones
-                    <ArrowRight className="ml-1.5 size-3.5" />
-                  </Button>
+                <div className="border-b border-[#E5DFD3] pb-4 dark:border-[#2D3F2A]">
+                  <h2 className="text-xl font-bold tracking-tight text-[#1A1A1A] sm:text-2xl dark:text-[#F5F1E8]">
+                    Resumen de cobertura docente de tutorías
+                  </h2>
+                  <p className="mt-0.5 text-xs font-medium text-[#6B6B6B] sm:text-sm dark:text-[#A6B5A3]">
+                    Consulta estadística de tutores activos y volumen administrativo de
+                    canalizaciones (solo lectura).
+                  </p>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border border-[#E5DFD3] bg-white dark:border-[#2D3F2A] dark:bg-[#1A2618]">
@@ -413,8 +417,6 @@ export function DirectivoDashboard() {
             )}
 
             {activeSection === "canalizaciones" && <DirectivoCanalizacionesView />}
-
-            {activeSection === "asignaciones" && <TutoresAsignacionPanel />}
 
             {activeSection === "reportes" && (
               <div className="space-y-6">

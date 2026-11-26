@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AlertaRouteImport } from './routes/alerta'
+import { Route as AnunciosRouteImport } from './routes/anuncios'
 import { Route as AuditoriaRouteImport } from './routes/auditoria'
 import { Route as AvisoPrivacidadRouteImport } from './routes/aviso-privacidad'
 import { Route as ChatRouteImport } from './routes/chat'
@@ -19,7 +20,9 @@ import { Route as CitasRouteImport } from './routes/citas'
 import { Route as DirectivoRouteImport } from './routes/directivo'
 import { Route as EncuestaRouteImport } from './routes/encuesta'
 import { Route as ExpedientesRouteImport } from './routes/expedientes'
+import { Route as JefaturaRouteImport } from './routes/jefatura'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as MedicoRouteImport } from './routes/medico'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PsicologoRouteImport } from './routes/psicologo'
 import { Route as RecuperarRouteImport } from './routes/recuperar'
@@ -27,7 +30,7 @@ import { Route as RecursosRouteImport } from './routes/recursos'
 import { Route as RegistroRouteImport } from './routes/registro'
 import { Route as ResetRouteImport } from './routes/reset'
 import { Route as TutorRouteImport } from './routes/tutor'
-import { Route as TutorRouteImport } from './routes/tutor'
+import { Route as PsicologoRecursosRouteImport } from './routes/psicologo_.recursos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -37,6 +40,11 @@ const IndexRoute = IndexRouteImport.update({
 const AlertaRoute = AlertaRouteImport.update({
   id: '/alerta',
   path: '/alerta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnunciosRoute = AnunciosRouteImport.update({
+  id: '/anuncios',
+  path: '/anuncios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuditoriaRoute = AuditoriaRouteImport.update({
@@ -79,9 +87,19 @@ const ExpedientesRoute = ExpedientesRouteImport.update({
   path: '/expedientes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JefaturaRoute = JefaturaRouteImport.update({
+  id: '/jefatura',
+  path: '/jefatura',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MedicoRoute = MedicoRouteImport.update({
+  id: '/medico',
+  path: '/medico',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PerfilRoute = PerfilRouteImport.update({
@@ -119,15 +137,16 @@ const TutorRoute = TutorRouteImport.update({
   path: '/tutor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TutorRoute = TutorRouteImport.update({
-  id: '/tutor',
-  path: '/tutor',
+const PsicologoRecursosRoute = PsicologoRecursosRouteImport.update({
+  id: '/psicologo_/recursos',
+  path: '/psicologo/recursos',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerta': typeof AlertaRoute
+  '/anuncios': typeof AnunciosRoute
   '/auditoria': typeof AuditoriaRoute
   '/aviso-privacidad': typeof AvisoPrivacidadRoute
   '/chat': typeof ChatRoute
@@ -136,7 +155,9 @@ export interface FileRoutesByFullPath {
   '/directivo': typeof DirectivoRoute
   '/encuesta': typeof EncuestaRoute
   '/expedientes': typeof ExpedientesRoute
+  '/jefatura': typeof JefaturaRoute
   '/login': typeof LoginRoute
+  '/medico': typeof MedicoRoute
   '/perfil': typeof PerfilRoute
   '/psicologo': typeof PsicologoRoute
   '/recuperar': typeof RecuperarRoute
@@ -144,10 +165,12 @@ export interface FileRoutesByFullPath {
   '/registro': typeof RegistroRoute
   '/reset': typeof ResetRoute
   '/tutor': typeof TutorRoute
+  '/psicologo/recursos': typeof PsicologoRecursosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerta': typeof AlertaRoute
+  '/anuncios': typeof AnunciosRoute
   '/auditoria': typeof AuditoriaRoute
   '/aviso-privacidad': typeof AvisoPrivacidadRoute
   '/chat': typeof ChatRoute
@@ -156,7 +179,9 @@ export interface FileRoutesByTo {
   '/directivo': typeof DirectivoRoute
   '/encuesta': typeof EncuestaRoute
   '/expedientes': typeof ExpedientesRoute
+  '/jefatura': typeof JefaturaRoute
   '/login': typeof LoginRoute
+  '/medico': typeof MedicoRoute
   '/perfil': typeof PerfilRoute
   '/psicologo': typeof PsicologoRoute
   '/recuperar': typeof RecuperarRoute
@@ -164,11 +189,13 @@ export interface FileRoutesByTo {
   '/registro': typeof RegistroRoute
   '/reset': typeof ResetRoute
   '/tutor': typeof TutorRoute
+  '/psicologo/recursos': typeof PsicologoRecursosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/alerta': typeof AlertaRoute
+  '/anuncios': typeof AnunciosRoute
   '/auditoria': typeof AuditoriaRoute
   '/aviso-privacidad': typeof AvisoPrivacidadRoute
   '/chat': typeof ChatRoute
@@ -177,7 +204,9 @@ export interface FileRoutesById {
   '/directivo': typeof DirectivoRoute
   '/encuesta': typeof EncuestaRoute
   '/expedientes': typeof ExpedientesRoute
+  '/jefatura': typeof JefaturaRoute
   '/login': typeof LoginRoute
+  '/medico': typeof MedicoRoute
   '/perfil': typeof PerfilRoute
   '/psicologo': typeof PsicologoRoute
   '/recuperar': typeof RecuperarRoute
@@ -185,12 +214,14 @@ export interface FileRoutesById {
   '/registro': typeof RegistroRoute
   '/reset': typeof ResetRoute
   '/tutor': typeof TutorRoute
+  '/psicologo_/recursos': typeof PsicologoRecursosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/alerta'
+    | '/anuncios'
     | '/auditoria'
     | '/aviso-privacidad'
     | '/chat'
@@ -199,7 +230,9 @@ export interface FileRouteTypes {
     | '/directivo'
     | '/encuesta'
     | '/expedientes'
+    | '/jefatura'
     | '/login'
+    | '/medico'
     | '/perfil'
     | '/psicologo'
     | '/recuperar'
@@ -207,10 +240,12 @@ export interface FileRouteTypes {
     | '/registro'
     | '/reset'
     | '/tutor'
+    | '/psicologo/recursos'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/alerta'
+    | '/anuncios'
     | '/auditoria'
     | '/aviso-privacidad'
     | '/chat'
@@ -219,7 +254,9 @@ export interface FileRouteTypes {
     | '/directivo'
     | '/encuesta'
     | '/expedientes'
+    | '/jefatura'
     | '/login'
+    | '/medico'
     | '/perfil'
     | '/psicologo'
     | '/recuperar'
@@ -227,10 +264,12 @@ export interface FileRouteTypes {
     | '/registro'
     | '/reset'
     | '/tutor'
+    | '/psicologo/recursos'
   id:
     | '__root__'
     | '/'
     | '/alerta'
+    | '/anuncios'
     | '/auditoria'
     | '/aviso-privacidad'
     | '/chat'
@@ -239,7 +278,9 @@ export interface FileRouteTypes {
     | '/directivo'
     | '/encuesta'
     | '/expedientes'
+    | '/jefatura'
     | '/login'
+    | '/medico'
     | '/perfil'
     | '/psicologo'
     | '/recuperar'
@@ -247,11 +288,13 @@ export interface FileRouteTypes {
     | '/registro'
     | '/reset'
     | '/tutor'
+    | '/psicologo_/recursos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlertaRoute: typeof AlertaRoute
+  AnunciosRoute: typeof AnunciosRoute
   AuditoriaRoute: typeof AuditoriaRoute
   AvisoPrivacidadRoute: typeof AvisoPrivacidadRoute
   ChatRoute: typeof ChatRoute
@@ -260,7 +303,9 @@ export interface RootRouteChildren {
   DirectivoRoute: typeof DirectivoRoute
   EncuestaRoute: typeof EncuestaRoute
   ExpedientesRoute: typeof ExpedientesRoute
+  JefaturaRoute: typeof JefaturaRoute
   LoginRoute: typeof LoginRoute
+  MedicoRoute: typeof MedicoRoute
   PerfilRoute: typeof PerfilRoute
   PsicologoRoute: typeof PsicologoRoute
   RecuperarRoute: typeof RecuperarRoute
@@ -268,6 +313,7 @@ export interface RootRouteChildren {
   RegistroRoute: typeof RegistroRoute
   ResetRoute: typeof ResetRoute
   TutorRoute: typeof TutorRoute
+  PsicologoRecursosRoute: typeof PsicologoRecursosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -284,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/alerta'
       fullPath: '/alerta'
       preLoaderRoute: typeof AlertaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/anuncios': {
+      id: '/anuncios'
+      path: '/anuncios'
+      fullPath: '/anuncios'
+      preLoaderRoute: typeof AnunciosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auditoria': {
@@ -342,11 +395,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExpedientesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/jefatura': {
+      id: '/jefatura'
+      path: '/jefatura'
+      fullPath: '/jefatura'
+      preLoaderRoute: typeof JefaturaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/medico': {
+      id: '/medico'
+      path: '/medico'
+      fullPath: '/medico'
+      preLoaderRoute: typeof MedicoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/perfil': {
@@ -398,12 +465,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TutorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/psicologo_/recursos': {
+      id: '/psicologo_/recursos'
+      path: '/psicologo/recursos'
+      fullPath: '/psicologo/recursos'
+      preLoaderRoute: typeof PsicologoRecursosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlertaRoute: AlertaRoute,
+  AnunciosRoute: AnunciosRoute,
   AuditoriaRoute: AuditoriaRoute,
   AvisoPrivacidadRoute: AvisoPrivacidadRoute,
   ChatRoute: ChatRoute,
@@ -412,7 +487,9 @@ const rootRouteChildren: RootRouteChildren = {
   DirectivoRoute: DirectivoRoute,
   EncuestaRoute: EncuestaRoute,
   ExpedientesRoute: ExpedientesRoute,
+  JefaturaRoute: JefaturaRoute,
   LoginRoute: LoginRoute,
+  MedicoRoute: MedicoRoute,
   PerfilRoute: PerfilRoute,
   PsicologoRoute: PsicologoRoute,
   RecuperarRoute: RecuperarRoute,
@@ -420,6 +497,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegistroRoute: RegistroRoute,
   ResetRoute: ResetRoute,
   TutorRoute: TutorRoute,
+  PsicologoRecursosRoute: PsicologoRecursosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { es } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Loader2, MapPin } from "lucide-react";
+import { Brain, Calendar as CalendarIcon, Clock, Loader2, MapPin, Stethoscope } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
   HORARIOS_CONFIGURADOS,
@@ -8,17 +8,20 @@ import {
   formatFechaLegible,
   isDiaFestivo,
   isDiaInhabilitado,
-  type PsicologoDisponible,
+  type ProfesionalDisponible,
+  type TipoProfesional,
 } from "./types";
 import {
   getCitasOcupadasPorFecha,
-  getPsicologoDisponible,
+  getProfesionalDisponible,
   normalizarHoraSlot,
 } from "./agenda-service";
 
 interface CalendarioCitasProps {
   fechaPrevia?: string;
-  onSelectSlot: (fecha: string, hora: string, psicologo: PsicologoDisponible) => void;
+  tipoProfesional: TipoProfesional;
+  onChangeTipoProfesional: (tipo: TipoProfesional) => void;
+  onSelectSlot: (fecha: string, hora: string, profesional: ProfesionalDisponible) => void;
   hasActiveAppointment?: boolean;
   onGoToMisCitas?: () => void;
 }
@@ -43,6 +46,8 @@ function parseIsoToLocalDate(iso?: string): Date | undefined {
 
 export function CalendarioCitas({
   fechaPrevia,
+  tipoProfesional,
+  onChangeTipoProfesional,
   onSelectSlot,
   hasActiveAppointment = false,
   onGoToMisCitas,
@@ -65,7 +70,7 @@ export function CalendarioCitas({
     setIsLoadingSlots(true);
     setSlotError(null);
 
-    getCitasOcupadasPorFecha(selectedDateStr)
+    getCitasOcupadasPorFecha(selectedDateStr, undefined, tipoProfesional)
       .then((ocupadas) => {
         if (active) setHorasOcupadas(ocupadas);
       })
@@ -79,7 +84,7 @@ export function CalendarioCitas({
     return () => {
       active = false;
     };
-  }, [selectedDateStr]);
+  }, [selectedDateStr, tipoProfesional]);
 
   const matutinoSlots = useMemo(
     () => HORARIOS_CONFIGURADOS.filter((s) => s.turno === "matutino"),
@@ -92,8 +97,10 @@ export function CalendarioCitas({
 
   const handlePickSlot = async (hora: string) => {
     if (hasActiveAppointment) {
+      const nombreArea =
+        tipoProfesional === "medico" ? "Médico universitario" : "Psicólogo clínico";
       setSlotError(
-        "Ya tienes una cita activa. Cancela o completa tu cita actual antes de agendar otra.",
+        `Ya tienes una cita activa con ${nombreArea}. Cancela o completa tu cita actual antes de agendar otra.`,
       );
       return;
     }
@@ -101,23 +108,82 @@ export function CalendarioCitas({
     setSlotError(null);
     setResolvingHora(hora);
     try {
-      const psicologo = await getPsicologoDisponible(selectedDateStr, hora);
-      if (!psicologo) {
+      const profesional = await getProfesionalDisponible(selectedDateStr, hora, tipoProfesional);
+      if (!profesional) {
         setSlotError("Este horario ya fue ocupado. Por favor selecciona otro disponible.");
-        const refreshed = await getCitasOcupadasPorFecha(selectedDateStr);
+        const refreshed = await getCitasOcupadasPorFecha(
+          selectedDateStr,
+          undefined,
+          tipoProfesional,
+        );
         setHorasOcupadas(refreshed);
         return;
       }
-      onSelectSlot(selectedDateStr, hora, psicologo);
+      onSelectSlot(selectedDateStr, hora, profesional);
     } finally {
       setResolvingHora(null);
     }
   };
 
   const festivoInfo = isDiaFestivo(selectedDateStr);
+  const esMedico = tipoProfesional === "medico";
 
   return (
     <div className="space-y-6">
+      {/* Selector de tipo de profesional: Psicólogo vs Médico universitario */}
+      <section
+        aria-label="Selección de profesional de atención"
+        className="rounded-lg border border-[#E5DFD3] bg-white p-4 sm:p-5 dark:border-[#2D3F2A] dark:bg-[#1A2618]"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold text-[#1A1A1A] dark:text-[#F5F1E8]">
+              ¿Con qué profesional deseas agendar?
+            </p>
+            <p className="mt-0.5 text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
+              El Servicio Médico atiende síntomas físicos y el área de Psicología brinda apoyo
+              emocional.
+            </p>
+          </div>
+
+          <div
+            role="tablist"
+            aria-label="Tipo de profesional"
+            className="grid grid-cols-2 gap-2 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-1 dark:border-[#2D3F2A] dark:bg-[#0F1A12]"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tipoProfesional === "psicologo"}
+              onClick={() => onChangeTipoProfesional("psicologo")}
+              className={`inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-3.5 text-xs font-semibold transition-colors ${
+                tipoProfesional === "psicologo"
+                  ? "bg-[#1F4D2C] text-white"
+                  : "text-[#6B6B6B] hover:text-[#1F4D2C] dark:text-[#A6B5A3] dark:hover:text-[#8FC9B5]"
+              }`}
+            >
+              <Brain className="size-4 shrink-0" />
+              <span>Psicólogo</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tipoProfesional === "medico"}
+              onClick={() => onChangeTipoProfesional("medico")}
+              className={`inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-3.5 text-xs font-semibold transition-colors ${
+                tipoProfesional === "medico"
+                  ? "bg-[#1F4D2C] text-white"
+                  : "text-[#6B6B6B] hover:text-[#1F4D2C] dark:text-[#A6B5A3] dark:hover:text-[#8FC9B5]"
+              }`}
+            >
+              <Stethoscope className="size-4 shrink-0" />
+              <span>Médico universitario</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Badge superior fijo: Solo presencial (NO editable) */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
@@ -130,15 +196,19 @@ export function CalendarioCitas({
         </div>
 
         <p className="text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
-          Atención de lunes a viernes · Psicólogo asignado automáticamente
+          Atención de lunes a viernes ·{" "}
+          {esMedico
+            ? "Médico universitario asignado automáticamente"
+            : "Psicólogo asignado automáticamente"}
         </p>
       </div>
 
       {hasActiveAppointment && (
         <div className="flex flex-col justify-between gap-3 rounded-lg border border-[#B8860B]/40 bg-[#FBE6D5]/50 p-4 sm:flex-row sm:items-center dark:border-[#B8860B]/40 dark:bg-[#1A2618]">
           <p className="text-xs font-medium text-[#1A1A1A] dark:text-[#F5F1E8]">
-            Ya tienes una solicitud o cita activa registrada. Solo puedes tener 1 cita activa a la
-            vez.
+            Ya tienes una solicitud o cita activa con{" "}
+            {esMedico ? "Médico universitario" : "Psicólogo"}. Solo puedes tener 1 cita activa por
+            especialidad a la vez.
           </p>
           {onGoToMisCitas && (
             <button

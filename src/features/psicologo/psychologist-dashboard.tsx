@@ -55,9 +55,14 @@ import { SemaforoPacientes } from "./semaforo-pacientes";
 import { ExpedienteClinico } from "./ExpedienteClinico";
 import { ResultadosEncuesta } from "./ResultadosEncuesta";
 import { CanalizacionesPanel } from "./canalizaciones-panel";
+import { GestionCattellDual } from "./cattell/gestion-cattell-dual";
 import { getCanalizaciones } from "@/features/tutor/tutor-service";
 import { AjustesModal } from "@/components/settings/ajustes-modal";
 import { useAuth } from "@/lib/auth-context";
+import { DEMO_MODE } from "@/lib/mock-data";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { getSolicitudesPsicologo } from "@/features/agenda/agenda-service";
+import type { SolicitudCita } from "@/features/agenda/types";
 import {
   getPsychologistCases,
   getStoredAppointments,
@@ -65,6 +70,8 @@ import {
 } from "@/lib/psychologist-store";
 import { supabase } from "@/integrations/supabase/client";
 import type { CaseSummary, RiskLevel, CaseStatus, Appointment } from "@/lib/types";
+
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
 
 const riskStyles: Record<
   RiskLevel,
@@ -155,6 +162,7 @@ const SECTION_META: Record<PsychologistNavSection, { title: string; breadcrumb: 
   bitacora: { title: "Bitácora Clínica", breadcrumb: "Bitácora" },
   encuestas: { title: "Encuestas de Satisfacción", breadcrumb: "Encuestas" },
   canalizaciones: { title: "Canalizaciones de Tutores", breadcrumb: "Canalizaciones" },
+  dual: { title: "Educación Dual — Cattell (16PF)", breadcrumb: "Educación Dual" },
   recursos: {
     title: "Recursos y Videos",
     breadcrumb: "Recursos y Videos",
@@ -194,13 +202,13 @@ export function PsychologistDashboard({
   const [crisisDialogCase, setCrisisDialogCase] = useState<CaseSummary | null>(null);
 
   const refreshCases = async () => {
-    const localCases = getPsychologistCases();
+    const localCases = USE_LIVE_SUPABASE ? [] : getPsychologistCases();
     try {
       const { data: viewData, error: viewError } = await supabase
         .from("para_psicologo")
         .select("*");
 
-      if (!viewError && Array.isArray(viewData) && viewData.length > 0) {
+      if (!viewError && Array.isArray(viewData) && (USE_LIVE_SUPABASE || viewData.length > 0)) {
         const viewCases: CaseSummary[] = viewData.map((p) => {
           const dateStr = p.ultimo_tamizaje
             ? new Date(p.ultimo_tamizaje).toLocaleDateString("es-MX", {
@@ -214,7 +222,7 @@ export function PsychologistDashboard({
           return {
             id: p.folio || `case-${p.iniciales}`,
             initials: p.iniciales || "E.A.",
-            studentName: `Estudiante ${p.iniciales || ""}`.trim(),
+            studentName: p.nombre || `Estudiante ${p.iniciales || ""}`.trim(),
             matricula: p.folio || "TESH",
             career: p.carrera || "TESH Huixquilucan",
             semester: p.semestre ? `${p.semestre}º Semestre` : "Semestre no especificado",
@@ -231,9 +239,20 @@ export function PsychologistDashboard({
           };
         });
 
+        if (USE_LIVE_SUPABASE) {
+          setCases(viewCases);
+          return;
+        }
+
         const existingIds = new Set(viewCases.map((c) => c.id));
         const merged = [...viewCases, ...localCases.filter((c) => !existingIds.has(c.id))];
         setCases(merged);
+        return;
+      }
+
+      if (USE_LIVE_SUPABASE && viewError) {
+        toast.error("No se pudieron cargar los casos clínicos desde la base de datos.");
+        setCases([]);
         return;
       }
 
@@ -251,7 +270,7 @@ export function PsychologistDashboard({
         error = fallback.error;
       }
 
-      if (!error && Array.isArray(dbPatients) && dbPatients.length > 0) {
+      if (!error && Array.isArray(dbPatients) && (USE_LIVE_SUPABASE || dbPatients.length > 0)) {
         const dbCases: CaseSummary[] = dbPatients.map((p) => {
           const dateStr = p.fecha_registro
             ? new Date(p.fecha_registro).toLocaleDateString("es-MX", {
@@ -281,19 +300,57 @@ export function PsychologistDashboard({
           };
         });
 
+        if (USE_LIVE_SUPABASE) {
+          setCases(dbCases);
+          return;
+        }
+
         const existingIds = new Set(dbCases.map((c) => c.id));
         const merged = [...dbCases, ...localCases.filter((c) => !existingIds.has(c.id))];
         setCases(merged);
         return;
       }
+
+      if (USE_LIVE_SUPABASE && error) {
+        toast.error("No se pudieron consultar los pacientes en Supabase.");
+      }
     } catch (err) {
       console.warn("Aviso al consultar pacientes en Supabase:", err);
+      if (USE_LIVE_SUPABASE) {
+        toast.error("Error de conexión al consultar los casos clínicos.");
+      }
     }
-    setCases(localCases);
+    setCases(USE_LIVE_SUPABASE ? [] : localCases);
   };
 
   const handleLiberarPaciente = async (caseId: string) => {
     try {
+      if (USE_LIVE_SUPABASE) {
+        if (caseId.startsWith("EQ-")) {
+          const { error } = await supabase.rpc("liberar_paciente", { p_folio: caseId });
+          if (error) {
+            toast.error(`No se pudo liberar el tamizaje: ${error.message}`);
+            return;
+          }
+        } else {
+          const { error } = await supabase
+            .from("pacientes")
+            .update({ bloqueado: false })
+            .eq("id", caseId);
+          if (error) {
+            toast.error(`No se pudo liberar el tamizaje: ${error.message}`);
+            return;
+          }
+        }
+
+        setCases((prev) =>
+          prev.map((c) => (c.id === caseId ? { ...c, status: "atendido", bloqueado: false } : c)),
+        );
+        toast.success("Caso atendido: tamizaje liberado.");
+        await refreshCases();
+        return;
+      }
+
       await supabase.from("pacientes").update({ bloqueado: false }).eq("id", caseId);
 
       setCases((prev) =>
@@ -303,12 +360,58 @@ export function PsychologistDashboard({
       updateCaseStatus(caseId, "atendido");
       toast.success("Caso atendido: tamizaje liberado.");
     } catch {
-      toast.success("Caso atendido: tamizaje liberado.");
+      if (USE_LIVE_SUPABASE) {
+        toast.error("No se pudo liberar el tamizaje. Verifica permisos clínicos.");
+      } else {
+        toast.success("Caso atendido: tamizaje liberado.");
+      }
     }
   };
 
-  const refreshAppointments = () => {
-    setAppointments(getStoredAppointments());
+  const refreshAppointments = async () => {
+    if (!USE_LIVE_SUPABASE) {
+      setAppointments(getStoredAppointments());
+      return;
+    }
+
+    try {
+      const solicitudes: SolicitudCita[] = await getSolicitudesPsicologo();
+      const mapped: Appointment[] = solicitudes.map((s) => {
+        const status: Appointment["status"] =
+          s.estado === "completada"
+            ? "realizada"
+            : s.estado === "cancelada" || s.estado === "no_asistio"
+              ? "cancelada"
+              : s.estado === "confirmada"
+                ? "confirmada"
+                : "pendiente";
+
+        return {
+          id: s.id,
+          date: s.fecha_cita,
+          timeSlot: s.hora_cita,
+          modality: s.modalidad || "presencial",
+          psychologistName: s.nombre_psicologo || "Dra. Marta Gómez",
+          locationOrLink:
+            s.modalidad === "en-linea"
+              ? "Sesión en línea institucional"
+              : "Consultorio 3, Edificio de Bienestar Integral TESH",
+          status,
+          notes: s.motivo || undefined,
+          createdAt: s.fecha_solicitud || new Date().toISOString(),
+          studentName:
+            s.nombre_estudiante ||
+            (s.iniciales_estudiante ? `Estudiante ${s.iniciales_estudiante}` : s.folio),
+          caseId: s.user_id,
+          folioTamizaje: s.folio_tamizaje || s.folio,
+          folio_tamizaje: s.folio_tamizaje || s.folio,
+        };
+      });
+      setAppointments(mapped);
+    } catch {
+      toast.error("No se pudieron cargar las citas desde la base de datos.");
+      setAppointments([]);
+    }
   };
 
   useEffect(() => {
@@ -449,6 +552,22 @@ export function PsychologistDashboard({
           setActiveSection("resumen");
           setSelectedCaseForDetail(null);
         }}
+        onBackClick={() => {
+          if (selectedCaseForDetail) {
+            setSelectedCaseForDetail(null);
+            return;
+          }
+          if (activeSection !== "resumen") {
+            setActiveSection("resumen");
+            return;
+          }
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+          navigate({ to: "/" });
+        }}
+        backFallbackRoute="/"
         showCrisisButton={true}
         onCrisisClick={handleOpenCrisisProtocol}
         showSidebarToggle={true}
@@ -995,6 +1114,9 @@ export function PsychologistDashboard({
                     onPendingCountChange={(count) => setPendingCanalizacionesCount(count)}
                   />
                 )}
+
+                {/* SECCIÓN 2C: EDUCACIÓN DUAL (CATTELL 16PF) */}
+                {activeSection === "dual" && <GestionCattellDual />}
 
                 {/* SECCIÓN 3: EXPEDIENTES */}
                 {activeSection === "expedientes" && <ExpedientesPage embedded={true} />}

@@ -8,6 +8,7 @@ import {
   UserPlus,
   Library,
   Megaphone,
+  Award,
 } from "lucide-react";
 import {
   InstitutionalSidebar,
@@ -22,6 +23,7 @@ export type PsychologistNavSection =
   | "bitacora"
   | "encuestas"
   | "canalizaciones"
+  | "dual"
   | "recursos"
   | "anuncios";
 
@@ -87,6 +89,11 @@ export function PsychologistSidebar({
       icon: UserPlus,
       badge: pendingCanalizacionesCount > 0 ? pendingCanalizacionesCount : null,
       badgeClassName: "bg-[#B8860B] text-white",
+    },
+    {
+      id: "dual",
+      label: "Educación Dual",
+      icon: Award,
     },
     {
       id: "recursos",

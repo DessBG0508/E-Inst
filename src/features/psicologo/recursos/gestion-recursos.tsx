@@ -102,11 +102,25 @@ export function GestionRecursos() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let active = true;
     async function load() {
-      const data = await fetchResourcesAsync();
-      setResources(data);
+      try {
+        const data = await fetchResourcesAsync();
+        if (active) setResources(data);
+      } catch (err) {
+        if (active) {
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "No se pudo cargar el catálogo de recursos desde la base de datos.",
+          );
+        }
+      }
     }
     load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const openCreateDialog = () => {
@@ -271,6 +285,13 @@ export function GestionRecursos() {
     };
 
     const { resource: saved, syncedToDb, dbError } = await saveResourceWithStatus(payload);
+    if (!syncedToDb && dbError) {
+      toast.error("No se pudo guardar el recurso en la base de datos.", {
+        description: dbError,
+      });
+      return;
+    }
+
     setResources((prev) => {
       const idx = prev.findIndex((r) => r.id === saved.id);
       if (idx >= 0) {
@@ -289,36 +310,46 @@ export function GestionRecursos() {
           : "Nuevo recurso publicado y guardado en la base de datos",
       );
     } else {
-      toast.warning(
+      toast.info(
         editingResource
-          ? "Recurso actualizado localmente (sin sincronizar a Supabase)"
-          : "Recurso guardado localmente en este navegador",
-        {
-          description: dbError
-            ? `Detalle BD: ${dbError}`
-            : "Ejecuta supabase/schema_recursos.sql para habilitar la tabla 'recursos'.",
-        },
+          ? "Recurso actualizado en modo demostración"
+          : "Nuevo recurso publicado en modo demostración",
       );
     }
   };
 
   const handleDelete = async (id: string) => {
-    await deleteResource(id);
-    setResources((prev) => prev.filter((r) => r.id !== id));
-    setDeleteConfirmId(null);
-    toast.success("Recurso eliminado del catálogo");
+    try {
+      await deleteResource(id);
+      setResources((prev) => prev.filter((r) => r.id !== id));
+      setDeleteConfirmId(null);
+      toast.success("Recurso eliminado del catálogo");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo eliminar el recurso.");
+    }
   };
 
   const handleToggle = async (id: string) => {
-    const newState = await toggleResourceActive(id);
-    setResources((prev) => prev.map((r) => (r.id === id ? { ...r, active: newState } : r)));
-    toast.info(newState ? "Recurso visible para estudiantes" : "Recurso ocultado para estudiantes");
+    const currentItem = resources.find((r) => r.id === id);
+    try {
+      const newState = await toggleResourceActive(id, currentItem?.active !== false);
+      setResources((prev) => prev.map((r) => (r.id === id ? { ...r, active: newState } : r)));
+      toast.info(
+        newState ? "Recurso visible para estudiantes" : "Recurso ocultado para estudiantes",
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo actualizar la visibilidad.");
+    }
   };
 
-  const handleResetDefaults = () => {
-    const def = resetResourcesToDefault();
-    setResources(def);
-    toast.success("Catálogo restaurado a los recursos oficiales TESH");
+  const handleResetDefaults = async () => {
+    try {
+      const def = await resetResourcesToDefault();
+      setResources(def);
+      toast.success("Catálogo restaurado a los recursos oficiales TESH");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo restaurar el catálogo oficial.");
+    }
   };
 
   const filteredResources = useMemo(() => {

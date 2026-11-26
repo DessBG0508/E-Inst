@@ -2,7 +2,7 @@ import { Copy, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { ScreeningState } from "@/lib/eli-screening";
+import type { ScreeningNivel, ScreeningState } from "@/lib/eli-screening";
 
 interface ScreeningProgressCardProps {
   screeningState: ScreeningState;
@@ -22,6 +22,37 @@ const STEP_LABELS: Record<ScreeningState["step"], string> = {
   completed: "Tamizaje finalizado",
 };
 
+const SEMAFORO_META: Record<
+  ScreeningNivel,
+  {
+    label: string;
+    detail: string;
+    containerClass: string;
+    badgeClass: string;
+  }
+> = {
+  verde: {
+    label: "Semáforo Verde",
+    detail: "Sin alerta clínica grave",
+    containerClass: "border-[#1F4D2C]/25 bg-[#E0F0E8]/70 dark:border-[#2D3F2A] dark:bg-[#14291A]",
+    badgeClass: "bg-[#1F4D2C] text-white",
+  },
+  amarillo: {
+    label: "Semáforo Amarillo",
+    detail: "Seguimiento recomendado",
+    containerClass:
+      "border-[#B8860B]/35 bg-[#FEF3C7]/80 dark:border-[#B8860B]/40 dark:bg-[#2A220E]",
+    badgeClass: "bg-[#B8860B] text-white",
+  },
+  rojo: {
+    label: "Semáforo Rojo",
+    detail: "Atención prioritaria",
+    containerClass:
+      "border-[#C8102E]/35 bg-[#FEE2E2]/80 dark:border-[#C8102E]/40 dark:bg-[#2B1216]",
+    badgeClass: "bg-[#C8102E] text-white",
+  },
+};
+
 export function ScreeningProgressCard({ screeningState, storedFolio }: ScreeningProgressCardProps) {
   const gad7Completed = Math.min(7, screeningState.gad7Items?.length || 0);
   const phq9Completed = Math.min(9, screeningState.phq9Items?.length || 0);
@@ -29,6 +60,10 @@ export function ScreeningProgressCard({ screeningState, storedFolio }: Screening
   const phq9Percent = Math.round((phq9Completed / 9) * 100);
 
   const activeFolio = screeningState.folio || storedFolio || null;
+  const activeNivel = screeningState.nivel;
+  const semaforo = activeNivel ? SEMAFORO_META[activeNivel] : null;
+  const gad7Total = (screeningState.gad7Items || []).reduce((acc, v) => acc + v, 0);
+  const phq9Total = (screeningState.phq9Items || []).reduce((acc, v) => acc + v, 0);
 
   const handleCopyFolio = () => {
     if (!activeFolio) return;
@@ -116,6 +151,49 @@ export function ScreeningProgressCard({ screeningState, storedFolio }: Screening
           </div>
         </div>
       </div>
+
+      {/* Semáforo clínico cuando ya existe resultado */}
+      {semaforo && activeNivel && (
+        <div className={`mt-4 rounded-lg border p-3 ${semaforo.containerClass}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div
+              className="flex items-center gap-2"
+              aria-label={`Semaforización: ${semaforo.label}`}
+            >
+              <div className="flex items-center gap-1 rounded-full bg-white/80 px-2 py-1 dark:bg-[#0F1A12]/80">
+                <span
+                  className={`size-2.5 rounded-full bg-[#1F4D2C] ${
+                    activeNivel === "verde" ? "ring-2 ring-[#1F4D2C]/40" : "opacity-25"
+                  }`}
+                />
+                <span
+                  className={`size-2.5 rounded-full bg-[#B8860B] ${
+                    activeNivel === "amarillo" ? "ring-2 ring-[#B8860B]/40" : "opacity-25"
+                  }`}
+                />
+                <span
+                  className={`size-2.5 rounded-full bg-[#C8102E] ${
+                    activeNivel === "rojo" ? "ring-2 ring-[#C8102E]/40" : "opacity-25"
+                  }`}
+                />
+              </div>
+              <Badge
+                className={`rounded-md border-0 px-2 py-0.5 text-[11px] font-bold ${semaforo.badgeClass}`}
+              >
+                {semaforo.label}
+              </Badge>
+            </div>
+          </div>
+          <p className="mt-1.5 text-xs font-medium text-[#1A1A1A] dark:text-[#F5F1E8]">
+            {semaforo.detail}
+          </p>
+          {screeningState.step === "completed" && (
+            <p className="mt-1 font-mono text-[11px] text-[#6B6B6B] tabular-nums dark:text-[#A6B5A3]">
+              GAD-7: {gad7Total}/21 · PHQ-9: {phq9Total}/27
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Folio generado */}
       <div className="mt-4 border-t border-[#E5DFD3] pt-3.5 dark:border-[#2D3F2A]">

@@ -23,14 +23,19 @@ import {
   TESH_CAREERS,
   getDirectivoKPIs,
   getSemesterChartData,
+  type SemesterBarData,
   type TeshCareer,
 } from "@/lib/directivo-data";
+import { DEMO_MODE } from "@/lib/mock-data";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { getSolicitudesPsicologo } from "@/features/agenda/agenda-service";
 import {
   calcularMetricasEncuesta,
   getRespuestasEncuesta,
 } from "@/features/encuesta/encuesta-service";
 import { supabase } from "@/integrations/supabase/client";
+
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
 
 const SEMAFORO_COLORS = {
   rojo: "#C8102E",
@@ -45,21 +50,56 @@ interface CitaRateMetrics {
   tasaNoAsistio: number;
 }
 
+interface AnonymousSemaforoRow {
+  ultimo_nivel: string | null;
+  carrera: string | null;
+  semestre: string | number | null;
+}
+
+function normalizeTeshCareer(raw?: string | null): TeshCareer | null {
+  const clean = (raw || "").trim().toLowerCase();
+  if (!clean) return null;
+  if (clean.includes("sistemas")) return "Ing. en Sistemas Computacionales";
+  if (clean.includes("industrial")) return "Ing. Industrial";
+  if (clean.includes("civil")) return "Ing. Civil";
+  if (clean.includes("mecatr")) return "Ing. Mecatrónica";
+  if (clean.includes("admin")) return "Lic. en Administración";
+  if (clean.includes("biolog")) return "Lic. en Biología";
+  if (clean.includes("gastronom")) return "Lic. en Gastronomía";
+  return null;
+}
+
+function parseSemesterNumber(raw?: string | number | null): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return raw >= 1 && raw <= 9 ? Math.trunc(raw) : null;
+  }
+  if (typeof raw === "string") {
+    const match = raw.match(/\d+/);
+    if (match) {
+      const n = parseInt(match[0], 10);
+      return n >= 1 && n <= 9 ? n : null;
+    }
+  }
+  return null;
+}
+
 export function DirectivoResumenEjecutivo() {
   const [isMounted, setIsMounted] = useState(false);
   const [selectedCareer, setSelectedCareer] = useState<TeshCareer | "all">("all");
-  const [totalTamizadosDb, setTotalTamizadosDb] = useState<number | null>(null);
-  const [citasMetrics, setCitasMetrics] = useState<CitaRateMetrics>({
-    completadas: 78,
-    noAsistio: 22,
-    tasaCompletadas: 78,
-    tasaNoAsistio: 22,
-  });
-  const [pb021Metrics, setPb021Metrics] = useState({
-    promedio: 4.4,
-    totalRespondidas: 5,
-    tasaRespuesta: 100,
-  });
+  const [totalTamizadosDb, setTotalTamizadosDb] = useState<number | null>(
+    USE_LIVE_SUPABASE ? 0 : null,
+  );
+  const [liveSemaforoRows, setLiveSemaforoRows] = useState<AnonymousSemaforoRow[]>([]);
+  const [citasMetrics, setCitasMetrics] = useState<CitaRateMetrics>(
+    USE_LIVE_SUPABASE
+      ? { completadas: 0, noAsistio: 0, tasaCompletadas: 0, tasaNoAsistio: 0 }
+      : { completadas: 78, noAsistio: 22, tasaCompletadas: 78, tasaNoAsistio: 22 },
+  );
+  const [pb021Metrics, setPb021Metrics] = useState(
+    USE_LIVE_SUPABASE
+      ? { promedio: 0, totalRespondidas: 0, tasaRespuesta: 0 }
+      : { promedio: 4.4, totalRespondidas: 5, tasaRespuesta: 100 },
+  );
 
   useEffect(() => {
     setIsMounted(true);
@@ -74,11 +114,27 @@ export function DirectivoResumenEjecutivo() {
         const { count, error } = await supabase
           .from("respuestas_tamizaje")
           .select("id", { count: "exact", head: true });
-        if (active && !error && typeof count === "number" && count > 0) {
-          setTotalTamizadosDb(count);
+        if (active && !error && typeof count === "number") {
+          if (USE_LIVE_SUPABASE || count > 0) {
+            setTotalTamizadosDb(count);
+          }
         }
       } catch {
-        // Mantiene baseline agregado local
+        // Sin cambio en demo; en vivo permanece en 0
+      }
+
+      // 1b. Distribución anónima de semáforo por carrera y semestre (sin datos personales)
+      if (USE_LIVE_SUPABASE) {
+        try {
+          const { data, error } = await supabase
+            .from("para_psicologo")
+            .select("ultimo_nivel, carrera, semestre");
+          if (active && !error && Array.isArray(data)) {
+            setLiveSemaforoRows(data as AnonymousSemaforoRow[]);
+          }
+        } catch {
+          if (active) setLiveSemaforoRows([]);
+        }
       }
 
       // 2. Tasa agregada de citas completadas vs no_asistio
@@ -88,9 +144,9 @@ export function DirectivoResumenEjecutivo() {
         const noAsistioCount = citas.filter((c) => c.estado === "no_asistio").length;
         const baseTotal = completadasCount + noAsistioCount;
 
-        if (active && baseTotal > 0) {
-          const pctComp = Math.round((completadasCount / baseTotal) * 100);
-          const pctNo = Math.max(0, 100 - pctComp);
+        if (active && (USE_LIVE_SUPABASE || baseTotal > 0)) {
+          const pctComp = baseTotal > 0 ? Math.round((completadasCount / baseTotal) * 100) : 0;
+          const pctNo = baseTotal > 0 ? Math.max(0, 100 - pctComp) : 0;
           setCitasMetrics({
             completadas: completadasCount,
             noAsistio: noAsistioCount,
@@ -99,14 +155,14 @@ export function DirectivoResumenEjecutivo() {
           });
         }
       } catch {
-        // Mantiene baseline agregado
+        // Sin cambio en demo; en vivo permanece en 0
       }
 
       // 3. Promedio de satisfacción PB-021
       try {
         const respuestas = await getRespuestasEncuesta();
         const calc = calcularMetricasEncuesta(respuestas);
-        if (active && calc.totalRespondidas > 0) {
+        if (active && (USE_LIVE_SUPABASE || calc.totalRespondidas > 0)) {
           setPb021Metrics({
             promedio: calc.promedioGeneral,
             totalRespondidas: calc.totalRespondidas,
@@ -114,7 +170,7 @@ export function DirectivoResumenEjecutivo() {
           });
         }
       } catch {
-        // Mantiene baseline agregado
+        // Sin cambio en demo; en vivo permanece en 0
       }
     }
 
@@ -124,15 +180,103 @@ export function DirectivoResumenEjecutivo() {
     };
   }, []);
 
-  const kpis = useMemo(() => getDirectivoKPIs(selectedCareer), [selectedCareer]);
-  const semesterData = useMemo(() => getSemesterChartData(selectedCareer), [selectedCareer]);
+  const filteredLiveRows = useMemo(() => {
+    if (!USE_LIVE_SUPABASE) return [];
+    if (selectedCareer === "all") return liveSemaforoRows;
+    return liveSemaforoRows.filter((r) => normalizeTeshCareer(r.carrera) === selectedCareer);
+  }, [liveSemaforoRows, selectedCareer]);
+
+  const kpis = useMemo(() => {
+    if (!USE_LIVE_SUPABASE) {
+      return getDirectivoKPIs(selectedCareer);
+    }
+
+    const total = filteredLiveRows.length;
+    if (total === 0) {
+      return {
+        avgAnimo: 0,
+        avgSueno: 0,
+        avgEstres: 0,
+        avgEnergia: 0,
+        pctVerde: 0,
+        pctAmarillo: 0,
+        pctRojo: 0,
+        weeklyTrendPercent: 0,
+        totalSamples: 0,
+      };
+    }
+
+    const countVerde = filteredLiveRows.filter(
+      (r) => (r.ultimo_nivel || "").toLowerCase() === "verde",
+    ).length;
+    const countAmarillo = filteredLiveRows.filter(
+      (r) => (r.ultimo_nivel || "").toLowerCase() === "amarillo",
+    ).length;
+
+    const pctVerde = Math.round((countVerde / total) * 100);
+    const pctAmarillo = Math.round((countAmarillo / total) * 100);
+    const pctRojo = Math.max(0, 100 - pctVerde - pctAmarillo);
+
+    return {
+      avgAnimo: 0,
+      avgSueno: 0,
+      avgEstres: 0,
+      avgEnergia: 0,
+      pctVerde,
+      pctAmarillo,
+      pctRojo,
+      weeklyTrendPercent: 0,
+      totalSamples: total,
+    };
+  }, [selectedCareer, filteredLiveRows]);
+
+  const semesterData = useMemo<SemesterBarData[]>(() => {
+    if (!USE_LIVE_SUPABASE) {
+      return getSemesterChartData(selectedCareer);
+    }
+
+    const semesters: SemesterBarData[] = [];
+    for (let s = 1; s <= 9; s++) {
+      const semRows = filteredLiveRows.filter((r) => parseSemesterNumber(r.semestre) === s);
+      if (semRows.length > 0) {
+        const avgScore =
+          semRows.reduce((acc, r) => {
+            const nivel = (r.ultimo_nivel || "").toLowerCase();
+            if (nivel === "rojo") return acc + 1.5;
+            if (nivel === "amarillo") return acc + 3.0;
+            return acc + 4.5;
+          }, 0) / semRows.length;
+        semesters.push({
+          semesterLabel: `${s}º`,
+          semesterNum: s,
+          bienestarScore: Math.round(avgScore * 10) / 10,
+          hasData: true,
+        });
+      } else {
+        semesters.push({
+          semesterLabel: `${s}º`,
+          semesterNum: s,
+          bienestarScore: 0,
+          hasData: false,
+        });
+      }
+    }
+    return semesters;
+  }, [selectedCareer, filteredLiveRows]);
 
   const totalTamizadosDisplay = useMemo(() => {
+    if (USE_LIVE_SUPABASE) {
+      if (selectedCareer === "all") {
+        return Math.max(totalTamizadosDb ?? 0, liveSemaforoRows.length);
+      }
+      return kpis.totalSamples;
+    }
+
     if (selectedCareer === "all" && totalTamizadosDb !== null) {
       return totalTamizadosDb;
     }
     return kpis.totalSamples;
-  }, [selectedCareer, totalTamizadosDb, kpis.totalSamples]);
+  }, [selectedCareer, totalTamizadosDb, kpis.totalSamples, liveSemaforoRows.length]);
 
   const semaforoDonutData = useMemo(
     () => [
@@ -162,6 +306,30 @@ export function DirectivoResumenEjecutivo() {
   );
 
   const careerBreakdown = useMemo(() => {
+    if (USE_LIVE_SUPABASE) {
+      return TESH_CAREERS.map((career) => {
+        const records = liveSemaforoRows.filter((r) => normalizeTeshCareer(r.carrera) === career);
+        const total = records.length;
+        const verde = records.filter(
+          (r) => (r.ultimo_nivel || "").toLowerCase() === "verde",
+        ).length;
+        const amarillo = records.filter(
+          (r) => (r.ultimo_nivel || "").toLowerCase() === "amarillo",
+        ).length;
+        const pctVerde = total > 0 ? Math.round((verde / total) * 100) : 0;
+        const pctAmarillo = total > 0 ? Math.round((amarillo / total) * 100) : 0;
+        const pctRojo = total > 0 ? Math.max(0, 100 - pctVerde - pctAmarillo) : 0;
+
+        return {
+          career,
+          total,
+          pctVerde,
+          pctAmarillo,
+          pctRojo,
+        };
+      });
+    }
+
     return TESH_CAREERS.map((career) => {
       const records = DIRECTIVO_MOCK_RECORDS.filter((r) => r.career === career);
       const total = records.length;
@@ -179,7 +347,7 @@ export function DirectivoResumenEjecutivo() {
         pctRojo,
       };
     });
-  }, []);
+  }, [liveSemaforoRows]);
 
   return (
     <div className="space-y-6">
@@ -452,11 +620,13 @@ export function DirectivoResumenEjecutivo() {
                   <Bar dataKey="bienestarScore" radius={[4, 4, 0, 0]} maxBarSize={32}>
                     {semesterData.map((entry) => {
                       const fill =
-                        entry.bienestarScore >= 3.8
-                          ? "#1F4D2C"
-                          : entry.bienestarScore >= 3.2
-                            ? "#4A7C59"
-                            : "#B8860B";
+                        entry.bienestarScore === 0
+                          ? "#E5DFD3"
+                          : entry.bienestarScore >= 3.8
+                            ? "#1F4D2C"
+                            : entry.bienestarScore >= 3.2
+                              ? "#4A7C59"
+                              : "#B8860B";
                       return <Cell key={entry.semesterLabel} fill={fill} />;
                     })}
                   </Bar>

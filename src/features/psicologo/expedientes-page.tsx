@@ -891,9 +891,5 @@ export function ExpedientesPage({ embedded = false }: ExpedientesPageProps = {})
     return <div className="space-y-6">{content}</div>;
   }
 
-  return (
-    <PageShell showAppHeader={false} showBottomNav={false}>
-      {content}
-    </PageShell>
-  );
+  return <PageShell showAppHeader={false}>{content}</PageShell>;
 }

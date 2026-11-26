@@ -38,7 +38,8 @@ import { useTheme } from "@/lib/theme";
 import { BRAND } from "@/lib/branding";
 import { cn } from "@/lib/utils";
 
-export type RoleType = "psicologo" | "directivo" | "estudiante" | "jefatura" | "coordinador";
+export type RoleType =
+  "psicologo" | "medico" | "directivo" | "estudiante" | "jefatura" | "coordinador" | "tutor";
 
 export interface AjustesModalProps {
   rol?: RoleType;
@@ -165,9 +166,11 @@ export function AjustesModal({
   const roleLabelMap: Record<string, string> = {
     estudiante: "Estudiante",
     psicologo: "Psicólogo / Terapeuta",
+    medico: "Médico Universitario",
     jefatura: "Jefatura de Carrera",
     coordinador: "Coordinador Directivo",
     directivo: "Directivo Institucional",
+    tutor: "Tutor Académico",
   };
 
   return (

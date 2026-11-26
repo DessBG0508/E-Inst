@@ -1,3 +1,4 @@
+import { DEMO_MODE } from "@/lib/mock-data";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { saveCheckIn } from "@/lib/api-client";
 import { mapCheckInRiskRD02 } from "@/lib/metric-rules";
@@ -16,6 +17,8 @@ export interface CheckInHistoryEntry {
 }
 
 const HISTORY_STORAGE_KEY = "equilibra_checkin_history_v2";
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const SCALE_TO_EMOTION: Record<number, { id: CheckInEmotionId; label: string }> = {
   1: { id: "bien", label: "Bien" },
@@ -46,6 +49,7 @@ function getStorageKey(userId?: string): string {
 }
 
 export function getLocalCheckInHistory(userId?: string): CheckInHistoryEntry[] {
+  if (USE_LIVE_SUPABASE) return [];
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(getStorageKey(userId));
@@ -59,6 +63,7 @@ export function getLocalCheckInHistory(userId?: string): CheckInHistoryEntry[] {
 }
 
 function saveLocalCheckInHistory(entries: CheckInHistoryEntry[], userId?: string): void {
+  if (USE_LIVE_SUPABASE) return;
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(getStorageKey(userId), JSON.stringify(entries.slice(0, 20)));
@@ -68,67 +73,72 @@ function saveLocalCheckInHistory(entries: CheckInHistoryEntry[], userId?: string
 }
 
 export async function fetchRecentCheckInHistory(userId?: string): Promise<CheckInHistoryEntry[]> {
-  const local = getLocalCheckInHistory(userId);
-
-  if (!isSupabaseConfigured || !userId) {
-    return local.slice(0, 7);
+  if (!USE_LIVE_SUPABASE) {
+    return getLocalCheckInHistory(userId).slice(0, 7);
   }
 
-  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!UUID_REGEX.test(userId)) {
-    return local.slice(0, 7);
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("checkins")
-      .select("id, escala, emociones, creado_en")
-      .eq("user_id", userId)
-      .order("creado_en", { ascending: false })
-      .limit(7);
-
-    if (error || !Array.isArray(data) || data.length === 0) {
-      return local.slice(0, 7);
+  let activeUserId = userId && UUID_REGEX.test(userId) ? userId : undefined;
+  if (!activeUserId) {
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData?.user?.id && UUID_REGEX.test(authData.user.id)) {
+      activeUserId = authData.user.id;
     }
-
-    const mapped: CheckInHistoryEntry[] = data.map((row) => {
-      const escala = typeof row.escala === "number" ? row.escala : 3;
-      const fallbackMeta = SCALE_TO_EMOTION[escala] || { id: "neutral", label: "Neutral" };
-      const tags = Array.isArray(row.emociones) ? row.emociones.map(String) : [];
-
-      const intensityTag = tags.find((t) => t.startsWith("intensidad:"));
-      const parsedIntensity = intensityTag
-        ? Math.min(10, Math.max(1, Number.parseInt(intensityTag.split(":")[1] || "5", 10) || 5))
-        : Math.min(10, Math.max(1, escala * 2));
-
-      const noteTag = tags.find((t) => t.startsWith("nota:"));
-      const parsedNote = noteTag ? noteTag.slice(5).trim() : undefined;
-
-      const labelTag = tags.find((t) => !t.startsWith("intensidad:") && !t.startsWith("nota:"));
-      const matchedEntry = Object.entries(SCALE_TO_EMOTION).find(
-        ([, val]) => val.label.toLowerCase() === (labelTag || "").toLowerCase(),
-      );
-
-      return {
-        id: String(row.id || crypto.randomUUID()),
-        emotionId: matchedEntry ? matchedEntry[1].id : fallbackMeta.id,
-        emotionLabel: matchedEntry ? matchedEntry[1].label : fallbackMeta.label,
-        intensity: parsedIntensity,
-        note: parsedNote,
-        createdAt: String(row.creado_en || new Date().toISOString()),
-      };
-    });
-
-    // Fusionar entradas locales más recientes que aún no hayan sincronizado
-    const dbIds = new Set(mapped.map((m) => m.id));
-    const combined = [...mapped, ...local.filter((item) => !dbIds.has(item.id))]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 7);
-
-    return combined;
-  } catch {
-    return local.slice(0, 7);
   }
+
+  if (!activeUserId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("checkins")
+    .select("id, escala, emociones, intensidad, nota, creado_en")
+    .eq("user_id", activeUserId)
+    .order("creado_en", { ascending: false })
+    .limit(7);
+
+  if (error) {
+    throw new Error(`No se pudo consultar tu historial de check-ins: ${error.message}`);
+  }
+
+  if (!Array.isArray(data) || data.length === 0) {
+    return [];
+  }
+
+  return data.map((row) => {
+    const escala = typeof row.escala === "number" ? row.escala : 3;
+    const fallbackMeta = SCALE_TO_EMOTION[escala] || { id: "neutral", label: "Neutral" };
+    const tags = Array.isArray(row.emociones) ? row.emociones.map(String) : [];
+
+    const intensityTag = tags.find((t) => t.startsWith("intensidad:"));
+    const parsedIntensityFromTag = intensityTag
+      ? Math.min(10, Math.max(1, Number.parseInt(intensityTag.split(":")[1] || "5", 10) || 5))
+      : Math.min(10, Math.max(1, escala * 2));
+    const parsedIntensity =
+      typeof row.intensidad === "number"
+        ? Math.min(10, Math.max(1, row.intensidad))
+        : parsedIntensityFromTag;
+
+    const noteTag = tags.find((t) => t.startsWith("nota:"));
+    const parsedNoteFromTag = noteTag ? noteTag.slice(5).trim() : undefined;
+    const parsedNote =
+      typeof row.nota === "string" && row.nota.trim().length > 0
+        ? row.nota.trim()
+        : parsedNoteFromTag;
+
+    const labelTag = tags.find((t) => !t.startsWith("intensidad:") && !t.startsWith("nota:"));
+    const matchedEntry = Object.entries(SCALE_TO_EMOTION).find(
+      ([, val]) => val.label.toLowerCase() === (labelTag || "").toLowerCase(),
+    );
+
+    return {
+      id: String(row.id || crypto.randomUUID()),
+      emotionId: matchedEntry ? matchedEntry[1].id : fallbackMeta.id,
+      emotionLabel: matchedEntry ? matchedEntry[1].label : fallbackMeta.label,
+      intensity: parsedIntensity,
+      note: parsedNote || undefined,
+      createdAt: String(row.creado_en || new Date().toISOString()),
+    };
+  });
 }
 
 export async function submitEmotionalCheckIn(params: {
@@ -150,17 +160,22 @@ export async function submitEmotionalCheckIn(params: {
 
   const checkInPayload: CheckIn = {
     id: crypto.randomUUID(),
-    studentId: userId || "demo-student-dess",
+    studentId: userId || (USE_LIVE_SUPABASE ? "" : "demo-student-dess"),
     academicLoad: escala,
     emotions: tags,
+    intensity,
+    note: trimmedNote || undefined,
     createdAt,
     riskLevel: mapCheckInRiskRD02(escala),
   };
 
   const saved = await saveCheckIn(checkInPayload, userId, { silentNotice: true });
 
-  // Sincronizar también con el registro diario de ánimo
-  saveMoodCheckInToday(EMOTION_TO_MOOD_STORE[emotionId]);
+  // Sincronizar estado reactivo del ánimo sin duplicar inserción en Supabase
+  saveMoodCheckInToday(EMOTION_TO_MOOD_STORE[emotionId], {
+    skipCloudSync: true,
+    userId,
+  });
 
   const entry: CheckInHistoryEntry = {
     id: saved.id || checkInPayload.id,
@@ -171,8 +186,10 @@ export async function submitEmotionalCheckIn(params: {
     createdAt: saved.createdAt || createdAt,
   };
 
-  const prev = getLocalCheckInHistory(userId);
-  saveLocalCheckInHistory([entry, ...prev.filter((item) => item.id !== entry.id)], userId);
+  if (!USE_LIVE_SUPABASE) {
+    const prev = getLocalCheckInHistory(userId);
+    saveLocalCheckInHistory([entry, ...prev.filter((item) => item.id !== entry.id)], userId);
+  }
 
   return entry;
 }

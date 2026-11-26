@@ -6,7 +6,9 @@ export type EstadoCita = "pendiente" | "confirmada" | "cancelada" | "completada"
 
 export type ModalidadCita = "presencial";
 
-export type CanceladoPor = "estudiante" | "psicologo" | "sistema";
+export type TipoProfesional = "psicologo" | "medico";
+
+export type CanceladoPor = "estudiante" | "psicologo" | "medico" | "sistema";
 
 export type AgendaBadgeType = "AUTO" | "ESTUDIANTE" | "PSICÓLOGO" | "MIXTO";
 
@@ -16,9 +18,11 @@ export interface SolicitudCita {
   user_id: string;
   psicologo_id?: string | null;
   nombre_psicologo?: string;
+  tipo_profesional?: TipoProfesional;
   iniciales_estudiante?: string;
   carrera_estudiante?: string;
   semestre_estudiante?: string;
+  grupo_estudiante?: string;
   nivel_tamizaje?: "rojo" | "amarillo" | "verde";
   puntaje_phq9?: number;
   puntaje_gad7?: number;
@@ -49,7 +53,10 @@ export interface PsicologoDisponible {
   id: string;
   nombre: string;
   consultorio: string;
+  especialidad?: TipoProfesional;
 }
+
+export type ProfesionalDisponible = PsicologoDisponible;
 
 /**
  * Slots L-V en 2 turnos:

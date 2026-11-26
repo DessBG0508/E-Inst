@@ -444,6 +444,18 @@ export function TutorDashboard() {
         moduleTitle={SECTION_META[activeSection].title}
         breadcrumbs={breadcrumbs}
         onHomeClick={() => setActiveSection("grupos")}
+        onBackClick={() => {
+          if (activeSection !== "grupos") {
+            setActiveSection("grupos");
+            return;
+          }
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+          navigate({ to: "/" });
+        }}
+        backFallbackRoute="/"
         showCrisisButton={false}
         roleLabel="Tutor de Grupo"
         showSidebarToggle={true}
@@ -555,8 +567,7 @@ export function TutorDashboard() {
                           No tienes grupos asignados en el periodo {selectedPeriodo}
                         </p>
                         <p className="text-xs text-[#6B6B6B] dark:text-[#A6B5A3]">
-                          Selecciona otro periodo o solicita tu asignación al departamento
-                          Directivo.
+                          Selecciona otro periodo o solicita tu asignación a Jefatura de Carrera.
                         </p>
                       </div>
                     ) : (

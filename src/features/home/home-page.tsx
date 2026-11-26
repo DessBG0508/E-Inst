@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { motion, useReducedMotion } from "motion/react";
 import {
   AlertCircle,
+  Award,
   BatteryMedium,
   BedDouble,
   Brain,
@@ -19,7 +20,7 @@ import { MoodIllustration } from "@/components/ui/mood-illustration";
 import { LiquidButton } from "@/components/effects/liquid-button";
 import { TiltCard } from "@/components/effects/tilt-card";
 import { PageShell } from "@/components/layout/page-shell";
-import { EquilibraBrand } from "@/components/ui/equilibra-brand";
+import { brandConfig } from "@/config/brand-config";
 import { WellbeingStatsGrid } from "@/features/bienestar/wellbeing-stats-grid";
 import { AnunciosHeroCarousel } from "@/features/anuncios/anuncios-hero-carousel";
 import { moods } from "@/lib/mock-data";
@@ -32,6 +33,8 @@ import {
   getStudentPendingCanalizaciones,
   type CanalizacionRecord,
 } from "@/features/tutor/tutor-service";
+import { fetchMiEvaluacionCattell } from "@/features/cattell/cattell-service";
+import type { EvaluacionCattellRecord } from "@/features/cattell/cattell-types";
 
 const staggerContainer = {
   hidden: { opacity: 0 },
@@ -79,7 +82,11 @@ export function HomePage() {
     return today ? today.moodId : "regular";
   });
   const [isBreathingModalOpen, setIsBreathingModalOpen] = useState(false);
+  const [eliImgFailed, setEliImgFailed] = useState(false);
   const [pendingCanalizaciones, setPendingCanalizaciones] = useState<CanalizacionRecord[]>([]);
+  const [pendingDualCattell, setPendingDualCattell] = useState<EvaluacionCattellRecord | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
@@ -89,10 +96,19 @@ export function HomePage() {
         if (active) setPendingCanalizaciones(list);
       })
       .catch(() => {});
+
+    if (user.role === "estudiante") {
+      fetchMiEvaluacionCattell(user.id)
+        .then((res) => {
+          if (active) setPendingDualCattell(res.data);
+        })
+        .catch(() => {});
+    }
+
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
 
   // Sincronía inversa: si se edita desde el panel de métricas o cambia hoy, actualizar el emocionómetro
   useEffect(() => {
@@ -130,9 +146,15 @@ export function HomePage() {
                   <AlertCircle className="size-5" strokeWidth={1.75} />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-bold text-[#B8860B]">Aviso del Área de Tutorías</p>
+                  <p className="text-xs font-bold text-[#B8860B]">
+                    {pendingCanalizaciones[0].rol_canalizador === "medico"
+                      ? "Aviso del Servicio Médico Universitario"
+                      : "Aviso del Área de Tutorías"}
+                  </p>
                   <p className="text-sm font-medium leading-relaxed text-[#1A1A1A] dark:text-[#F5F1E8]">
-                    Tienes una canalización pendiente del área de tutorías. Motivo:{" "}
+                    {pendingCanalizaciones[0].rol_canalizador === "medico"
+                      ? "Tienes una canalización pendiente del Servicio Médico universitario. Motivo: "
+                      : "Tienes una canalización pendiente del área de tutorías. Motivo: "}
                     <span className="font-semibold">{pendingCanalizaciones[0].motivo}</span>.
                     Prioridad:{" "}
                     <span className="font-bold capitalize text-[#B8860B]">
@@ -145,10 +167,56 @@ export function HomePage() {
 
               <Button
                 type="button"
-                onClick={() => navigate({ to: "/citas" })}
+                onClick={() => navigate({ to: "/citas", search: { tipo: "psicologo" } })}
                 className="h-10 shrink-0 rounded-lg bg-[#1F4D2C] px-5 text-xs font-semibold text-white hover:bg-[#4A7C59] sm:text-sm"
               >
                 Agendar cita
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {pendingDualCattell && pendingDualCattell.estado !== "completado" && (
+          <section
+            aria-label="Evaluación Programa Educación Dual pendiente"
+            className="mb-6 rounded-lg border border-[#1F4D2C]/30 bg-white p-4 dark:border-[#8FC9B5]/35 dark:bg-[#1A2618]"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]">
+                  <Award className="size-5" strokeWidth={1.75} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                    {pendingDualCattell.convocatoria_nombre || "Programa Educación Dual"}
+                    {pendingDualCattell.convocatoria_periodo
+                      ? ` · ${pendingDualCattell.convocatoria_periodo}`
+                      : ""}
+                  </p>
+                  <p className="text-sm font-medium leading-relaxed text-[#1A1A1A] dark:text-[#F5F1E8]">
+                    Fuiste seleccionado/a para presentar el cuestionario psicométrico{" "}
+                    <span className="font-semibold">Cattell (16PF)</span> como parte del proceso de
+                    Educación Dual.
+                    {pendingDualCattell.estado === "en_progreso"
+                      ? ` Llevas ${pendingDualCattell.reactivos_respondidos} de ${pendingDualCattell.total_reactivos} reactivos.`
+                      : " Tiempo estimado: 12 minutos."}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={() =>
+                  navigate({
+                    to: "/cattell",
+                    search: { token: pendingDualCattell.token_acceso },
+                  })
+                }
+                className="h-10 shrink-0 rounded-lg bg-[#1F4D2C] px-5 text-xs font-semibold text-white hover:bg-[#4A7C59] sm:text-sm"
+              >
+                {pendingDualCattell.estado === "en_progreso"
+                  ? "Continuar prueba 16PF"
+                  : "Responder prueba 16PF"}
               </Button>
             </div>
           </section>
@@ -181,9 +249,21 @@ export function HomePage() {
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
-                  {/* Logotipo oficial de Equilibra TESH */}
-                  <div className="relative grid size-11 shrink-0 place-items-center rounded-xl bg-[#F5F1E8] dark:bg-[#1A2618]">
-                    <EquilibraBrand showText={false} size="sm" />
+                  {/* Mascota oficial Eli (conejo robot) */}
+                  <div className="relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-full border border-[#6857E4]/25 bg-white shadow-soft dark:border-[#6857E4]/40 dark:bg-[#1A2618]">
+                    {!eliImgFailed && brandConfig.eliAvatarUrl ? (
+                      <img
+                        src={brandConfig.eliAvatarUrl}
+                        alt={`Mascota ${BRAND.assistant} de Equilibra TESH`}
+                        width={56}
+                        height={56}
+                        decoding="async"
+                        onError={() => setEliImgFailed(true)}
+                        className="size-full object-contain p-0.5"
+                      />
+                    ) : (
+                      <span className="text-xs font-bold text-[#6857E4]">{BRAND.assistant}</span>
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">

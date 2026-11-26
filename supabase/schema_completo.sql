@@ -32,23 +32,24 @@
 --      y validación estricta de sesiones en Edge Functions y RLS.
 --
 -- ==============================================================================
--- ⚠️ AVISO CRÍTICO SOBRE `ALTER TYPE app_role ADD VALUE 'tutor'` ⚠️
+-- ⚠️ AVISO CRÍTICO SOBRE `ALTER TYPE app_role ADD VALUE 'tutor' / 'medico'` ⚠️
 -- ==============================================================================
 -- Si estás actualizando una base de datos EXISTENTE donde el tipo `public.app_role`
--- ya fue creado anteriormente SIN el valor `'tutor'`:
+-- ya fue creado anteriormente SIN los valores `'tutor'` o `'medico'`:
 --   PostgreSQL PROHÍBE usar un valor recién agregado con `ALTER TYPE ... ADD VALUE`
 --   en la MISMA transacción donde otras sentencias lo referencian (error 55P04).
 --
 -- POR ELLO, SI `app_role` YA EXISTE EN TU PROYECTO:
---   1) Ejecuta ÚNICAMENTE esta línea primero (en su propia transacción) y espera "Success":
+--   1) Ejecuta primero el archivo independiente `supabase/schema_medico_paso1_enum.sql`
+--      (o `ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'tutor';` / `'medico'`)
+--      en su propia transacción y espera "Success".
 --
---      ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'tutor';
---
---   2) Después de confirmar ese COMMIT, ejecuta el resto de este script completo.
+--   2) Después de confirmar ese COMMIT, ejecuta `supabase/schema_medico_paso2_rls.sql`
+--      o el resto de este script completo.
 --
 -- Si tu proyecto Supabase es NUEVO (limpio), puedes ejecutar todo este archivo
 -- directamente de arriba hacia abajo; el bloque Paso 1 creará `app_role` con todos
--- los valores incluyendo `'tutor'` en una sola operación segura.
+-- los valores incluyendo `'tutor'` y `'medico'` en una sola operación segura.
 -- ==============================================================================
 
 
@@ -67,6 +68,7 @@ BEGIN
     CREATE TYPE public.app_role AS ENUM (
       'estudiante',
       'psicologo',
+      'medico',
       'jefatura',
       'coordinador',
       'directivo',
@@ -110,6 +112,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS name TEXT,
+  ADD COLUMN IF NOT EXISTS matricula TEXT,
+  ADD COLUMN IF NOT EXISTS carrera TEXT,
+  ADD COLUMN IF NOT EXISTS semestre TEXT,
+  ADD COLUMN IF NOT EXISTS grupo TEXT,
+  ADD COLUMN IF NOT EXISTS rol public.app_role NOT NULL DEFAULT 'estudiante',
+  ADD COLUMN IF NOT EXISTS role public.app_role NOT NULL DEFAULT 'estudiante',
+  ADD COLUMN IF NOT EXISTS modo_acompanamiento BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS aviso_privacidad_aceptado BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS aviso_privacidad_version TEXT,
+  ADD COLUMN IF NOT EXISTS aviso_privacidad_fecha TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
 CREATE INDEX IF NOT EXISTS idx_profiles_rol ON public.profiles(rol);
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
@@ -164,7 +181,7 @@ BEGIN
       NEW.rol := NEW.role;
     END IF;
 
-    -- Impedir que usuarios no directivos cambien su propio rol desde el cliente
+    -- Impedir que usuarios no directivos o jefatura cambien roles desde el cliente
     IF (NEW.rol IS DISTINCT FROM OLD.rol OR NEW.role IS DISTINCT FROM OLD.role)
        AND auth.uid() IS NOT NULL THEN
       SELECT COALESCE(rol::text, role::text, 'estudiante')
@@ -172,7 +189,7 @@ BEGIN
         FROM public.profiles
         WHERE id = auth.uid();
 
-      IF v_caller_role NOT IN ('directivo', 'jefatura', 'coordinador') THEN
+      IF v_caller_role NOT IN ('directivo', 'coordinador') THEN
         NEW.rol := OLD.rol;
         NEW.role := OLD.role;
       END IF;
@@ -257,10 +274,26 @@ CREATE POLICY "Psicólogo y directivo ven perfiles"
   USING (public.current_user_role() IN ('psicologo', 'directivo', 'jefatura', 'coordinador'));
 
 DROP POLICY IF EXISTS "Autenticados consultan directorio de psicólogos y tutores" ON public.profiles;
-CREATE POLICY "Autenticados consultan directorio de psicólogos y tutores"
+DROP POLICY IF EXISTS "Autenticados consultan directorio de psicólogos, médicos y tutores" ON public.profiles;
+CREATE POLICY "Autenticados consultan directorio de psicólogos, médicos y tutores"
   ON public.profiles FOR SELECT
   TO authenticated
-  USING (rol IN ('psicologo'::public.app_role, 'tutor'::public.app_role));
+  USING (
+    rol IN (
+      'psicologo'::public.app_role,
+      'medico'::public.app_role,
+      'tutor'::public.app_role
+    )
+  );
+
+DROP POLICY IF EXISTS "Médico ve perfil académico básico de estudiantes" ON public.profiles;
+CREATE POLICY "Médico ve perfil académico básico de estudiantes"
+  ON public.profiles FOR SELECT
+  TO authenticated
+  USING (
+    public.current_user_role() = 'medico'
+    AND rol = 'estudiante'::public.app_role
+  );
 
 DROP POLICY IF EXISTS "Usuarios actualizan su propio perfil" ON public.profiles;
 CREATE POLICY "Usuarios actualizan su propio perfil"
@@ -270,11 +303,18 @@ CREATE POLICY "Usuarios actualizan su propio perfil"
   WITH CHECK (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Directivos actualizan adscripción académica de estudiantes" ON public.profiles;
-CREATE POLICY "Directivos actualizan adscripción académica de estudiantes"
+DROP POLICY IF EXISTS "Jefatura actualiza adscripción académica de estudiantes" ON public.profiles;
+CREATE POLICY "Jefatura actualiza adscripción académica de estudiantes"
   ON public.profiles FOR UPDATE
   TO authenticated
-  USING (public.current_user_role() IN ('directivo', 'jefatura', 'coordinador'))
-  WITH CHECK (public.current_user_role() IN ('directivo', 'jefatura', 'coordinador'));
+  USING (
+    public.current_user_role() IN ('jefatura', 'coordinador')
+    AND rol = 'estudiante'::public.app_role
+  )
+  WITH CHECK (
+    public.current_user_role() IN ('jefatura', 'coordinador')
+    AND rol = 'estudiante'::public.app_role
+  );
 
 
 -- ==============================================================================
@@ -309,6 +349,13 @@ CREATE TABLE IF NOT EXISTS public.checkins (
   riesgo public.nivel_riesgo NOT NULL DEFAULT 'verde',
   creado_en TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.checkins
+  ADD COLUMN IF NOT EXISTS emociones TEXT[] NOT NULL DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS intensidad INTEGER,
+  ADD COLUMN IF NOT EXISTS nota TEXT,
+  ADD COLUMN IF NOT EXISTS riesgo public.nivel_riesgo NOT NULL DEFAULT 'verde',
+  ADD COLUMN IF NOT EXISTS creado_en TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
 CREATE INDEX IF NOT EXISTS idx_checkins_user_fecha ON public.checkins(user_id, creado_en DESC);
 CREATE INDEX IF NOT EXISTS idx_checkins_riesgo ON public.checkins(riesgo);
@@ -485,6 +532,19 @@ CREATE TABLE IF NOT EXISTS public.pacientes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+ALTER TABLE public.pacientes
+  ADD COLUMN IF NOT EXISTS id UUID DEFAULT gen_random_uuid(),
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS iniciales TEXT NOT NULL DEFAULT 'N/A',
+  ADD COLUMN IF NOT EXISTS edad INTEGER,
+  ADD COLUMN IF NOT EXISTS sexo TEXT,
+  ADD COLUMN IF NOT EXISTS semestre TEXT,
+  ADD COLUMN IF NOT EXISTS carrera TEXT,
+  ADD COLUMN IF NOT EXISTS grupo TEXT,
+  ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS fecha_registro TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
+
 CREATE INDEX IF NOT EXISTS idx_pacientes_user_id ON public.pacientes(user_id);
 CREATE INDEX IF NOT EXISTS idx_pacientes_folio ON public.pacientes(folio);
 CREATE INDEX IF NOT EXISTS idx_pacientes_bloqueado ON public.pacientes(bloqueado);
@@ -536,6 +596,18 @@ CREATE TABLE IF NOT EXISTS public.respuestas_tamizaje (
   respuestas JSONB NOT NULL DEFAULT '{}'::jsonb,
   creado_en TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.respuestas_tamizaje
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS instrumento TEXT NOT NULL DEFAULT 'GAD-7',
+  ADD COLUMN IF NOT EXISTS total INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS gad7_total INTEGER,
+  ADD COLUMN IF NOT EXISTS phq9_total INTEGER,
+  ADD COLUMN IF NOT EXISTS nivel public.nivel_riesgo NOT NULL DEFAULT 'verde',
+  ADD COLUMN IF NOT EXISTS item9 INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS alerta BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS respuestas JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS creado_en TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
 CREATE INDEX IF NOT EXISTS idx_respuestas_tamizaje_folio ON public.respuestas_tamizaje(folio);
 CREATE INDEX IF NOT EXISTS idx_respuestas_tamizaje_user ON public.respuestas_tamizaje(user_id);
@@ -600,6 +672,15 @@ CREATE TABLE IF NOT EXISTS public.alertas (
   atendida_en TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.alertas
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL DEFAULT auth.uid(),
+  ADD COLUMN IF NOT EXISTS folio TEXT,
+  ADD COLUMN IF NOT EXISTS mensaje TEXT NOT NULL DEFAULT 'Alerta prioritaria registrada',
+  ADD COLUMN IF NOT EXISTS atendida BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS atendida_por UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS atendida_en TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
 
 CREATE INDEX IF NOT EXISTS idx_alertas_folio ON public.alertas(folio);
 CREATE INDEX IF NOT EXISTS idx_alertas_atendida ON public.alertas(atendida);
@@ -767,6 +848,9 @@ CREATE TABLE IF NOT EXISTS public.solicitudes_cita (
   email TEXT,
   matricula TEXT,
   psicologo_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  tipo_profesional TEXT NOT NULL DEFAULT 'psicologo' CHECK (
+    tipo_profesional IN ('psicologo', 'medico')
+  ),
   fecha_solicitud TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   fecha_cita DATE NOT NULL,
   hora_cita TIME NOT NULL,
@@ -776,15 +860,30 @@ CREATE TABLE IF NOT EXISTS public.solicitudes_cita (
   ),
   motivo TEXT CHECK (motivo IS NULL OR char_length(motivo) <= 280),
   cancelado_por TEXT CHECK (
-    cancelado_por IS NULL OR cancelado_por IN ('estudiante', 'psicologo', 'sistema')
+    cancelado_por IS NULL OR cancelado_por IN ('estudiante', 'psicologo', 'medico', 'sistema')
   ),
   motivo_cancelacion TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+ALTER TABLE public.solicitudes_cita
+  ADD COLUMN IF NOT EXISTS folio_tamizaje TEXT,
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS matricula TEXT,
+  ADD COLUMN IF NOT EXISTS psicologo_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS tipo_profesional TEXT NOT NULL DEFAULT 'psicologo',
+  ADD COLUMN IF NOT EXISTS modalidad TEXT NOT NULL DEFAULT 'presencial',
+  ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'pendiente',
+  ADD COLUMN IF NOT EXISTS motivo TEXT,
+  ADD COLUMN IF NOT EXISTS cancelado_por TEXT,
+  ADD COLUMN IF NOT EXISTS motivo_cancelacion TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
+
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_user_id ON public.solicitudes_cita(user_id);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_psicologo ON public.solicitudes_cita(psicologo_id);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_tipo_profesional ON public.solicitudes_cita(tipo_profesional);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_folio ON public.solicitudes_cita(folio);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_fecha_hora ON public.solicitudes_cita(fecha_cita, hora_cita);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_cita_estado ON public.solicitudes_cita(estado);
@@ -845,17 +944,55 @@ CREATE POLICY "Estudiante puede cancelar con +2h de anticipacion"
   );
 
 DROP POLICY IF EXISTS "Psicólogo y directivo ven solicitudes de pacientes" ON public.solicitudes_cita;
-CREATE POLICY "Psicólogo y directivo ven solicitudes de pacientes"
+DROP POLICY IF EXISTS "Psicólogo ve solicitudes psicológicas" ON public.solicitudes_cita;
+CREATE POLICY "Psicólogo ve solicitudes psicológicas"
   ON public.solicitudes_cita FOR SELECT
   TO authenticated
-  USING (public.current_user_role() IN ('psicologo', 'directivo', 'jefatura', 'coordinador'));
+  USING (
+    public.current_user_role() = 'psicologo'
+    AND tipo_profesional = 'psicologo'
+  );
+
+DROP POLICY IF EXISTS "Directivo y jefatura ven solicitudes" ON public.solicitudes_cita;
+CREATE POLICY "Directivo y jefatura ven solicitudes"
+  ON public.solicitudes_cita FOR SELECT
+  TO authenticated
+  USING (public.current_user_role() IN ('directivo', 'jefatura', 'coordinador'));
+
+DROP POLICY IF EXISTS "Médico ve solicitudes médicas" ON public.solicitudes_cita;
+CREATE POLICY "Médico ve solicitudes médicas"
+  ON public.solicitudes_cita FOR SELECT
+  TO authenticated
+  USING (
+    public.current_user_role() = 'medico'
+    AND tipo_profesional = 'medico'
+  );
 
 DROP POLICY IF EXISTS "Psicólogo gestiona estado de citas" ON public.solicitudes_cita;
 CREATE POLICY "Psicólogo gestiona estado de citas"
   ON public.solicitudes_cita FOR UPDATE
   TO authenticated
-  USING (public.current_user_role() = 'psicologo')
-  WITH CHECK (public.current_user_role() = 'psicologo');
+  USING (
+    public.current_user_role() = 'psicologo'
+    AND tipo_profesional = 'psicologo'
+  )
+  WITH CHECK (
+    public.current_user_role() = 'psicologo'
+    AND tipo_profesional = 'psicologo'
+  );
+
+DROP POLICY IF EXISTS "Médico gestiona estado de citas médicas" ON public.solicitudes_cita;
+CREATE POLICY "Médico gestiona estado de citas médicas"
+  ON public.solicitudes_cita FOR UPDATE
+  TO authenticated
+  USING (
+    public.current_user_role() = 'medico'
+    AND tipo_profesional = 'medico'
+  )
+  WITH CHECK (
+    public.current_user_role() = 'medico'
+    AND tipo_profesional = 'medico'
+  );
 
 
 -- ==============================================================================
@@ -910,6 +1047,69 @@ CREATE POLICY "Psicólogo puede actualizar sus expedientes"
   TO authenticated
   USING (psicologo_id = auth.uid() AND public.current_user_role() = 'psicologo')
   WITH CHECK (psicologo_id = auth.uid() AND public.current_user_role() = 'psicologo');
+
+
+-- ==============================================================================
+-- PASO 7B. EXPEDIENTES MÉDICOS SIMPLIFICADOS (AISLADOS POR LFPDPPP)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.expedientes_medicos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  estudiante_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  medico_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  fecha_consulta DATE NOT NULL DEFAULT CURRENT_DATE,
+  motivo_consulta TEXT NOT NULL,
+  presion_arterial TEXT,
+  frecuencia_cardiaca TEXT,
+  temperatura TEXT,
+  diagnostico_fisico TEXT NOT NULL,
+  indicaciones TEXT NOT NULL DEFAULT '',
+  canalizado_psicologia BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_expedientes_medicos_medico
+  ON public.expedientes_medicos(medico_id, fecha_consulta DESC);
+
+CREATE INDEX IF NOT EXISTS idx_expedientes_medicos_estudiante
+  ON public.expedientes_medicos(estudiante_id, fecha_consulta DESC);
+
+CREATE OR REPLACE FUNCTION public.handle_updated_at_expedientes_medicos()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_expedientes_medicos_updated_at ON public.expedientes_medicos;
+CREATE TRIGGER trigger_expedientes_medicos_updated_at
+  BEFORE UPDATE ON public.expedientes_medicos
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at_expedientes_medicos();
+
+ALTER TABLE public.expedientes_medicos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Médico consulta sus propios expedientes médicos" ON public.expedientes_medicos;
+CREATE POLICY "Médico consulta sus propios expedientes médicos"
+  ON public.expedientes_medicos FOR SELECT
+  TO authenticated
+  USING (medico_id = auth.uid() AND public.current_user_role() = 'medico');
+
+DROP POLICY IF EXISTS "Médico registra expedientes médicos" ON public.expedientes_medicos;
+CREATE POLICY "Médico registra expedientes médicos"
+  ON public.expedientes_medicos FOR INSERT
+  TO authenticated
+  WITH CHECK (medico_id = auth.uid() AND public.current_user_role() = 'medico');
+
+DROP POLICY IF EXISTS "Médico actualiza sus expedientes médicos" ON public.expedientes_medicos;
+CREATE POLICY "Médico actualiza sus expedientes médicos"
+  ON public.expedientes_medicos FOR UPDATE
+  TO authenticated
+  USING (medico_id = auth.uid() AND public.current_user_role() = 'medico')
+  WITH CHECK (medico_id = auth.uid() AND public.current_user_role() = 'medico');
 
 
 -- ==============================================================================
@@ -1159,6 +1359,13 @@ CREATE TABLE IF NOT EXISTS public.notas_voz (
   creado_en TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+ALTER TABLE public.notas_voz
+  ADD COLUMN IF NOT EXISTS folio TEXT,
+  ADD COLUMN IF NOT EXISTS folio_tamizaje TEXT,
+  ADD COLUMN IF NOT EXISTS duracion_seg INTEGER,
+  ADD COLUMN IF NOT EXISTS expira_en TIMESTAMPTZ NOT NULL DEFAULT (timezone('utc'::text, now()) + interval '30 days'),
+  ADD COLUMN IF NOT EXISTS creado_en TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now());
+
 CREATE INDEX IF NOT EXISTS idx_notas_voz_user ON public.notas_voz(user_id);
 CREATE INDEX IF NOT EXISTS idx_notas_voz_folio_tamizaje ON public.notas_voz(folio_tamizaje);
 CREATE INDEX IF NOT EXISTS idx_notas_voz_expira ON public.notas_voz(expira_en);
@@ -1233,6 +1440,21 @@ CREATE TABLE IF NOT EXISTS public.recursos (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+ALTER TABLE public.recursos
+  ADD COLUMN IF NOT EXISTS short_description TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS read_time TEXT NOT NULL DEFAULT '4 min de lectura',
+  ADD COLUMN IF NOT EXISTS icon_name TEXT NOT NULL DEFAULT 'bookOpen',
+  ADD COLUMN IF NOT EXISTS tone TEXT NOT NULL DEFAULT 'teal',
+  ADD COLUMN IF NOT EXISTS content JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS key_takeaway TEXT,
+  ADD COLUMN IF NOT EXISTS video_url TEXT,
+  ADD COLUMN IF NOT EXISTS video_title TEXT,
+  ADD COLUMN IF NOT EXISTS video_orientation TEXT DEFAULT 'auto',
+  ADD COLUMN IF NOT EXISTS thumbnail_url TEXT,
+  ADD COLUMN IF NOT EXISTS format TEXT NOT NULL DEFAULT 'lectura',
+  ADD COLUMN IF NOT EXISTS author TEXT DEFAULT 'Área de Psicología TESH',
+  ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+
 CREATE INDEX IF NOT EXISTS idx_recursos_category ON public.recursos(category);
 CREATE INDEX IF NOT EXISTS idx_recursos_active ON public.recursos(active);
 
@@ -1290,11 +1512,18 @@ CREATE POLICY "Comunidad consulta asignaciones activas de tutores"
   USING (activo = true);
 
 DROP POLICY IF EXISTS "Directivos gestionan asignaciones de tutores" ON public.tutores_grupo;
-CREATE POLICY "Directivos gestionan asignaciones de tutores"
+DROP POLICY IF EXISTS "Jefatura gestiona asignaciones de tutores" ON public.tutores_grupo;
+CREATE POLICY "Jefatura gestiona asignaciones de tutores"
   ON public.tutores_grupo FOR ALL
   TO authenticated
-  USING (public.current_user_role() IN ('directivo', 'jefatura', 'coordinador'))
-  WITH CHECK (public.current_user_role() IN ('directivo', 'jefatura', 'coordinador'));
+  USING (public.current_user_role() IN ('jefatura', 'coordinador'))
+  WITH CHECK (public.current_user_role() IN ('jefatura', 'coordinador'));
+
+DROP POLICY IF EXISTS "Directivo consulta historial de asignaciones de tutores" ON public.tutores_grupo;
+CREATE POLICY "Directivo consulta historial de asignaciones de tutores"
+  ON public.tutores_grupo FOR SELECT
+  TO authenticated
+  USING (public.current_user_role() IN ('directivo', 'psicologo'));
 
 -- Política diferida en `profiles` para que tutores consulten únicamente a estudiantes de sus grupos activos
 DROP POLICY IF EXISTS "Tutores ven estudiantes de sus grupos asignados" ON public.profiles;
@@ -1313,10 +1542,11 @@ CREATE POLICY "Tutores ven estudiantes de sus grupos asignados"
     )
   );
 
--- Canalizaciones (Tutor -> Psicólogo)
+-- Canalizaciones (Tutor / Médico -> Psicólogo)
 CREATE TABLE IF NOT EXISTS public.canalizaciones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tutor_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  rol_canalizador TEXT NOT NULL DEFAULT 'tutor' CHECK (rol_canalizador IN ('tutor', 'medico', 'jefatura')),
   psicologo_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   estudiante_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   folio TEXT,
@@ -1324,7 +1554,7 @@ CREATE TABLE IF NOT EXISTS public.canalizaciones (
   grupo TEXT,
   semestre TEXT,
   motivo TEXT NOT NULL,
-  prioridad TEXT NOT NULL DEFAULT 'normal' CHECK (prioridad IN ('normal', 'alta', 'urgente')),
+  prioridad TEXT NOT NULL DEFAULT 'normal' CHECK (prioridad IN ('baja', 'normal', 'alta', 'urgente')),
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'aceptada', 'rechazada', 'completada')),
   motivo_rechazo TEXT,
   observaciones TEXT,
@@ -1339,18 +1569,20 @@ CREATE INDEX IF NOT EXISTS idx_canalizaciones_estado ON public.canalizaciones(es
 ALTER TABLE public.canalizaciones ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Tutores ven y crean sus canalizaciones" ON public.canalizaciones;
+DROP POLICY IF EXISTS "Tutores ven sus canalizaciones" ON public.canalizaciones;
 CREATE POLICY "Tutores ven sus canalizaciones"
   ON public.canalizaciones FOR SELECT
   TO authenticated
   USING (tutor_id = auth.uid());
 
 DROP POLICY IF EXISTS "Tutores crean canalizaciones" ON public.canalizaciones;
-CREATE POLICY "Tutores crean canalizaciones"
+DROP POLICY IF EXISTS "Tutores y médico crean canalizaciones" ON public.canalizaciones;
+CREATE POLICY "Tutores y médico crean canalizaciones"
   ON public.canalizaciones FOR INSERT
   TO authenticated
   WITH CHECK (
     tutor_id = auth.uid()
-    AND public.current_user_role() IN ('tutor', 'directivo', 'jefatura', 'coordinador')
+    AND public.current_user_role() IN ('tutor', 'medico', 'directivo', 'jefatura', 'coordinador')
   );
 
 DROP POLICY IF EXISTS "Estudiantes ven sus propias canalizaciones" ON public.canalizaciones;
@@ -1360,7 +1592,8 @@ CREATE POLICY "Estudiantes ven sus propias canalizaciones"
   USING (estudiante_id = auth.uid());
 
 DROP POLICY IF EXISTS "Psicólogos y directivos consultan canalizaciones" ON public.canalizaciones;
-CREATE POLICY "Psicólogos y directivos consultan canalizaciones"
+DROP POLICY IF EXISTS "Psicólogos, directivos y jefatura consultan canalizaciones" ON public.canalizaciones;
+CREATE POLICY "Psicólogos, directivos y jefatura consultan canalizaciones"
   ON public.canalizaciones FOR SELECT
   TO authenticated
   USING (public.current_user_role() IN ('psicologo', 'directivo', 'jefatura', 'coordinador'));
@@ -1405,12 +1638,13 @@ CREATE POLICY "Tutores marcan leidas sus alertas"
   WITH CHECK (tutor_id = auth.uid());
 
 DROP POLICY IF EXISTS "Tutores registran alertas al canalizar" ON public.alertas_inasistencia;
-CREATE POLICY "Tutores registran alertas al canalizar"
+DROP POLICY IF EXISTS "Tutores y médico registran alertas al canalizar" ON public.alertas_inasistencia;
+CREATE POLICY "Tutores y médico registran alertas al canalizar"
   ON public.alertas_inasistencia FOR INSERT
   TO authenticated
   WITH CHECK (
     tutor_id = auth.uid()
-    AND public.current_user_role() IN ('tutor', 'directivo', 'jefatura', 'coordinador')
+    AND public.current_user_role() IN ('tutor', 'medico', 'directivo', 'jefatura', 'coordinador')
   );
 
 DROP POLICY IF EXISTS "Estudiantes consultan sus alertas" ON public.alertas_inasistencia;

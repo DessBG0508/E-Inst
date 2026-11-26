@@ -16,11 +16,14 @@ import {
   Copy,
   Ticket,
   Mic,
+  Stethoscope,
+  Brain,
 } from "lucide-react";
-import { InstitutionalHeader } from "@/components/layout/institutional-header";
+import { StudentTopBar } from "@/components/layout/student-top-bar";
 import { VoiceNoteRecorder } from "@/components/chat/voice-note-recorder";
 import {
   resetBackendScreeningState,
+  persistTamizajeToSupabase,
   type EliMessage,
   type TamizajeSubmissionPayload,
 } from "@/lib/api-client";
@@ -31,11 +34,15 @@ import {
   ELI_WELCOME_MESSAGE,
   type ScreeningState,
   type ScreeningNivel,
+  type EliPrefillPatient,
   processEliMessage,
   generateFolio,
   parseLikertOption,
   CRISIS_MESSAGE,
   detectCrisisKeywords,
+  evaluateTriajeFromScreening,
+  computeInitialsFromName,
+  getTodayMexicoDateString,
 } from "@/lib/eli-screening";
 import { sanitizeText } from "@/lib/security";
 import { useAuth } from "@/lib/auth-context";
@@ -98,7 +105,20 @@ function ensureSessionHasWelcome(session: ChatSession): ChatSession {
   return session;
 }
 
-function createFreshSession(): ChatSession {
+function buildPrefillFromUser(
+  user?: { name?: string | null; email?: string | null; semestre?: string | null } | null,
+): EliPrefillPatient | undefined {
+  if (!user) return undefined;
+  const iniciales = computeInitialsFromName(user.name, user.email);
+  const fecha = getTodayMexicoDateString();
+  return {
+    iniciales: iniciales || undefined,
+    fecha,
+    semestre: user.semestre || undefined,
+  };
+}
+
+function createFreshSession(prefill?: EliPrefillPatient): ChatSession {
   const id = `session-${Date.now()}`;
   const initialMsg: EliMessage = {
     id: crypto.randomUUID(),
@@ -114,14 +134,23 @@ function createFreshSession(): ChatSession {
     messages: [initialMsg],
     screeningState: {
       ...INITIAL_SCREENING_STATE,
+      paciente: {
+        ...INITIAL_SCREENING_STATE.paciente,
+        iniciales: prefill?.iniciales || "",
+        fecha: prefill?.fecha || getTodayMexicoDateString(),
+        semestre: prefill?.semestre,
+      },
       step: "waiting_consent",
     },
   };
 }
 
-function loadUserSessions(userIdOrEmail?: string | null): ChatSession[] {
+function loadUserSessions(
+  userIdOrEmail?: string | null,
+  prefill?: EliPrefillPatient,
+): ChatSession[] {
   clearLegacyUnscopedScreeningData();
-  if (typeof window === "undefined" || !userIdOrEmail) return [createFreshSession()];
+  if (typeof window === "undefined" || !userIdOrEmail) return [createFreshSession(prefill)];
 
   try {
     const key = getChatSessionsStorageKey(userIdOrEmail);
@@ -135,18 +164,19 @@ function loadUserSessions(userIdOrEmail?: string | null): ChatSession[] {
   } catch {
     // fallback
   }
-  return [createFreshSession()];
+  return [createFreshSession(prefill)];
 }
 
 export function ChatPage() {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
   const { user } = useAuth();
+  const prefillPatient = buildPrefillFromUser(user);
 
   const [isBlockedByBackend, setIsBlockedByBackend] = useState(false);
 
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
-    return loadUserSessions(user?.id || user?.email);
+    return loadUserSessions(user?.id || user?.email, buildPrefillFromUser(user));
   });
 
   const [activeSessionId, setActiveSessionId] = useState<string>(() => {
@@ -166,7 +196,27 @@ export function ChatPage() {
 
   useEffect(() => {
     const userIdOrEmail = user?.id || user?.email;
-    const loaded = loadUserSessions(userIdOrEmail);
+    const prefill = buildPrefillFromUser(user);
+    const loaded = loadUserSessions(userIdOrEmail, prefill).map((s) => {
+      if (
+        prefill &&
+        (s.screeningState?.step === "waiting_consent" || s.screeningState?.step === "not_started")
+      ) {
+        return {
+          ...s,
+          screeningState: {
+            ...s.screeningState,
+            paciente: {
+              ...s.screeningState.paciente,
+              iniciales: s.screeningState.paciente.iniciales || prefill.iniciales || "",
+              fecha: s.screeningState.paciente.fecha || prefill.fecha || getTodayMexicoDateString(),
+              semestre: s.screeningState.paciente.semestre || prefill.semestre,
+            },
+          },
+        };
+      }
+      return s;
+    });
     setSessions(loaded);
     let activeId = loaded[0]?.id || "default-session";
     if (userIdOrEmail) {
@@ -180,7 +230,7 @@ export function ChatPage() {
       }
     }
     setActiveSessionId(activeId);
-  }, [user?.id, user?.email]);
+  }, [user?.id, user?.email, user?.name, user?.semestre]);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isBreathingOpen, setIsBreathingOpen] = useState(false);
@@ -318,7 +368,7 @@ export function ChatPage() {
             setSessions((prevSessions) => {
               const hasCompleted = prevSessions.some((s) => s.screeningState?.step === "completed");
               if (hasCompleted || prevSessions.length === 0) {
-                const fresh = createFreshSession();
+                const fresh = createFreshSession(buildPrefillFromUser(user));
                 const userIdOrEmail = authUserId || user?.email;
                 if (userIdOrEmail) {
                   removeStoredUserFolio(authUserId, user?.email);
@@ -388,14 +438,25 @@ export function ChatPage() {
           : "verde";
       const existingFolio =
         st.folio || getStoredUserFolio(user?.id, user?.email) || generateFolio();
+      const userTranscript = msgs
+        .filter((m) => m.sender === "user")
+        .map((m) => m.text)
+        .join(" ");
+      const triaje =
+        st.triaje ||
+        evaluateTriajeFromScreening({
+          gad7Items: st.gad7Items,
+          phq9Items,
+          extraText: userTranscript,
+        });
 
       let replyText = "";
       if (nivel === "rojo") {
-        replyText = `${CRISIS_MESSAGE}\n\nRequieres atención prioritaria. Por favor agenda tu cita HOY MISMO en el apartado "Agenda de Citas" de esta plataforma y elige TERAPIA PSICOLÓGICA.\n\nTu folio de tamizaje es: ${existingFolio}\nEscríbelo en el formulario para vincular tus resultados.\n\nGracias. Un profesional revisará tus respuestas.`;
+        replyText = `${CRISIS_MESSAGE}\n\n${triaje.mensaje}\n\nTu folio de tamizaje es: ${existingFolio}\nEscríbelo en el formulario para vincular tus resultados.\n\nGracias. Un profesional revisará tus respuestas.`;
       } else if (nivel === "amarillo") {
-        replyText = `Tus resultados sugieren que sería beneficioso recibir apoyo profesional. Te recomiendo agendar una cita en el apartado "Agenda de Citas" de esta plataforma, eligiendo ORIENTACIÓN o TERAPIA PSICOLÓGICA.\n\nTu folio de tamizaje es: ${existingFolio}\nEscríbelo en el formulario para vincular tus resultados.\n\nGracias. Un profesional revisará tus respuestas.`;
+        replyText = `Gracias por completar tu tamizaje. ${triaje.mensaje}\n\nTu folio de tamizaje es: ${existingFolio}\nEscríbelo en el formulario para vincular tus resultados.\n\nGracias. Un profesional revisará tus respuestas.`;
       } else {
-        replyText = `Tus resultados no muestran señales de alerta en este momento. Si en algún momento lo deseas, puedes agendar una sesión de CONSEJERÍA en el apartado "Agenda de Citas" de esta plataforma.\n\nTu folio de tamizaje es: ${existingFolio} por si deseas vincularlo.\n\nGracias. Un profesional revisará tus respuestas.`;
+        replyText = `Tus resultados no muestran señales de alerta clínica grave en este momento. ${triaje.mensaje}\n\nTu folio de tamizaje es: ${existingFolio} por si deseas vincularlo.\n\nGracias. Un profesional revisará tus respuestas.`;
       }
 
       const eliMsg: EliMessage = {
@@ -403,6 +464,12 @@ export function ChatPage() {
         sender: "eli",
         text: replyText,
         isCrisisProtocol: isCrisis,
+        nivel,
+        scores: {
+          gad7Total,
+          phq9Total,
+          item9: item9Score,
+        },
         crisisData: isCrisis
           ? {
               actionLabel: "Contactar a Línea de la Vida ahora",
@@ -411,6 +478,7 @@ export function ChatPage() {
               helphoneNumber: "800 911 2000",
             }
           : undefined,
+        triaje,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -426,6 +494,7 @@ export function ChatPage() {
         phq9Items,
         folio: existingFolio,
         nivel,
+        triaje,
       };
 
       const updatedSession: ChatSession = {
@@ -470,7 +539,7 @@ export function ChatPage() {
     setPendingSubmissionPayload(null);
     removeStoredUserFolio(user?.id, user?.email);
     clearLegacyUnscopedScreeningData();
-    const freshSession = createFreshSession();
+    const freshSession = createFreshSession(prefillPatient);
     persistSessions([freshSession], freshSession.id);
     setActiveSessionId(freshSession.id);
     setInputText("");
@@ -484,9 +553,8 @@ export function ChatPage() {
     setSubmissionError(null);
 
     try {
-      let finalPayload = pendingSubmissionPayload;
-      if (finalPayload.user_id === undefined) {
-        let currentUserId: string | null = null;
+      let currentUserId = pendingSubmissionPayload.user_id || user?.id || null;
+      if (!currentUserId) {
         try {
           const { data: authData } = await supabase.auth.getUser();
           const UUID_REGEX =
@@ -497,140 +565,111 @@ export function ChatPage() {
         } catch {
           currentUserId = null;
         }
-        finalPayload = { ...finalPayload, user_id: currentUserId };
       }
 
-      let { data, error } = await supabase.functions.invoke("tamizaje", {
-        body: finalPayload,
+      const gad7Items = pendingSubmissionPayload.GAD7 || [];
+      const phq9Items = pendingSubmissionPayload.PHQ9 || [];
+      const gad7Total = gad7Items.reduce((a, b) => a + b, 0);
+      const phq9Total = phq9Items.reduce((a, b) => a + b, 0);
+      const item9Score = phq9Items[8] ?? 0;
+      const isCrisis = item9Score > 0 || phq9Total >= 20 || gad7Total >= 15;
+      const nivel: ScreeningNivel = isCrisis
+        ? "rojo"
+        : phq9Total >= 10 || gad7Total >= 10
+          ? "amarillo"
+          : "verde";
+      const folioToUse =
+        screeningState.folio || getStoredUserFolio(user?.id, user?.email) || generateFolio();
+
+      const persistRes = await persistTamizajeToSupabase({
+        folio: folioToUse,
+        userId: currentUserId,
+        carrera: user?.carrera,
+        grupo: user?.grupo,
+        semestre: user?.semestre,
+        paciente: pendingSubmissionPayload.paciente,
+        GAD7: gad7Items,
+        PHQ9: phq9Items,
+        nivel,
+        alerta: isCrisis,
+        mensajes: messages,
       });
 
-      if (
-        error &&
-        (error.message?.includes("404") ||
-          error.message?.includes("not found") ||
-          error.message?.includes("Failed to send"))
-      ) {
-        const alt = await supabase.functions.invoke("tamizaje", {
-          body: finalPayload,
-        });
-        if (!alt.error) {
-          data = alt.data;
-          error = null;
-        }
-      }
-
-      if (error || data?.status === "error" || !data) {
+      if (!persistRes.ok) {
         setSubmissionError(
-          error?.message ||
-            data?.error ||
-            "Error al conectar con la función de tamizaje en Supabase. Por favor reintenta.",
+          persistRes.error || "Error al guardar el tamizaje en Supabase. Por favor reintenta.",
         );
         return;
       }
 
-      if (data.status === "completado" && data.data) {
-        setPendingSubmissionPayload(null);
-        setSubmissionError(null);
+      setPendingSubmissionPayload(null);
+      setSubmissionError(null);
 
-        const eliTimestamp = new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+      const userIdOrEmail = user?.id || user?.email;
+      if (userIdOrEmail && persistRes.folio) {
+        setStoredUserFolio(userIdOrEmail, persistRes.folio);
+      }
 
-        const isCrisis = Boolean(data.data.alerta || data.data.nivel === "rojo");
+      const updatedState: ScreeningState = {
+        ...screeningState,
+        step: "completed",
+        folio: persistRes.folio,
+        nivel,
+      };
 
-        const eliMsg: EliMessage = {
-          id: crypto.randomUUID(),
-          sender: "eli",
-          text: data.mensaje || "Tamizaje completado. Un profesional revisará tus respuestas.",
-          isCrisisProtocol: isCrisis,
-          crisisData: isCrisis
-            ? {
-                actionLabel: "Contactar a Línea de la Vida ahora",
-                actionRoute: "/alerta",
-                helplineName: "Línea de la Vida",
-                helphoneNumber: "800 911 2000",
-              }
-            : undefined,
-          timestamp: eliTimestamp,
-        };
+      const updatedSessionFinal: ChatSession = {
+        ...activeSession,
+        updatedAt: "Ahora",
+        screeningState: updatedState,
+      };
 
-        const finalMessages = [...messages, eliMsg];
+      const finalSessions = sessions.map((s) =>
+        s.id === activeSession.id ? updatedSessionFinal : s,
+      );
+      persistSessions(finalSessions);
+      if (!DEMO_MODE && persistRes.bloqueado) {
+        setIsBlockedByBackend(true);
+      }
+      toast.success(`Tamizaje ${persistRes.folio} guardado en base de datos`);
 
-        const userIdOrEmail = user?.id || user?.email;
-        if (userIdOrEmail && data.data?.folio) {
-          setStoredUserFolio(userIdOrEmail, data.data.folio);
-        }
-
-        const updatedState: ScreeningState = {
-          ...screeningState,
-          step: "completed",
-          folio: data.data.folio,
-          nivel: data.data.nivel,
-        };
-
-        const updatedSessionFinal: ChatSession = {
-          ...activeSession,
-          updatedAt: "Ahora",
-          messages: finalMessages,
-          preview: eliMsg.text.slice(0, 60),
-          screeningState: updatedState,
-        };
-
-        const finalSessions = sessions.map((s) =>
-          s.id === activeSession.id ? updatedSessionFinal : s,
-        );
-        persistSessions(finalSessions);
-        if (
-          !DEMO_MODE &&
-          (data.data.nivel === "amarillo" || data.data.nivel === "rojo" || data.data.bloqueado)
-        ) {
-          setIsBlockedByBackend(true);
-        }
-        toast.success("Tamizaje registrado correctamente");
-
-        if (data.data.nivel === "rojo" || isCrisis) {
-          (async () => {
-            try {
-              const gad7Items = finalPayload.GAD7 || [];
-              const phq9Items = finalPayload.PHQ9 || [];
-              const gad7Total = gad7Items.reduce((a, b) => a + b, 0);
-              const phq9Total = phq9Items.reduce((a, b) => a + b, 0);
-              const item9Score = phq9Items[8] ?? 0;
-
-              await supabase.functions.invoke("notificar-psicologo-rojo", {
-                body: {
-                  folio: data.data.folio,
-                  paciente: finalPayload.paciente,
-                  gad7_total: gad7Total,
-                  gad7_items: gad7Items,
-                  phq9_total: phq9Total,
-                  phq9_items: phq9Items,
-                  item9_score: item9Score,
-                  estudiante_id: finalPayload.user_id || undefined,
-                  estudiante_email: user?.email || undefined,
-                  estudiante_nombre: user?.name || undefined,
-                  fecha: new Date().toISOString(),
-                },
-              });
-
-              await notificarTutorNivelRojo({
-                estudianteId: finalPayload.user_id || user?.id,
-                folio: data.data.folio,
-                carrera: user?.carrera,
-                grupo: user?.grupo,
-              });
-            } catch (retryAlertErr) {
-              console.warn("[AlertaRojo] Aviso al reintentar alerta al psicólogo:", retryAlertErr);
-            }
-          })();
-        }
+      if (nivel === "rojo" || isCrisis) {
+        (async () => {
+          try {
+            await supabase.functions.invoke("notificar-psicologo-rojo", {
+              body: {
+                folio: persistRes.folio,
+                paciente: pendingSubmissionPayload.paciente,
+                gad7_total: gad7Total,
+                gad7_items: gad7Items,
+                phq9_total: phq9Total,
+                phq9_items: phq9Items,
+                item9_score: item9Score,
+                estudiante_id: currentUserId || undefined,
+                estudiante_email: user?.email || undefined,
+                estudiante_nombre: user?.name || undefined,
+                fecha: new Date().toISOString(),
+              },
+            });
+          } catch {
+            // edge function opcional
+          }
+          try {
+            await notificarTutorNivelRojo({
+              estudianteId: currentUserId || user?.id,
+              folio: persistRes.folio,
+              carrera: user?.carrera,
+              grupo: user?.grupo,
+            });
+          } catch (retryAlertErr) {
+            console.warn("[AlertaRojo] Aviso al reintentar alerta al tutor:", retryAlertErr);
+          }
+        })();
       }
     } catch (err: unknown) {
       const msg =
         err instanceof Error
           ? err.message
-          : "Error al conectar con la función de tamizaje en Supabase.";
+          : "Error al conectar con Supabase para registrar el tamizaje.";
       setSubmissionError(msg);
     } finally {
       setIsTyping(false);
@@ -640,7 +679,7 @@ export function ChatPage() {
   const handleNewConversation = () => {
     setIsBlockedByBackend(false);
     resetBackendScreeningState();
-    const freshSession = createFreshSession();
+    const freshSession = createFreshSession(prefillPatient);
     const updated = [freshSession, ...sessions];
     persistSessions(updated, freshSession.id);
     setActiveSessionId(freshSession.id);
@@ -665,7 +704,7 @@ export function ChatPage() {
   const handleClearAllHistory = () => {
     setIsBlockedByBackend(false);
     resetBackendScreeningState();
-    const freshSession = createFreshSession();
+    const freshSession = createFreshSession(prefillPatient);
     persistSessions([freshSession], freshSession.id);
     setActiveSessionId(freshSession.id);
     setIsHistoryOpen(false);
@@ -821,7 +860,11 @@ export function ChatPage() {
       return;
     }
 
-    const stepResult = processEliMessage(sanitized, screeningState);
+    const userContext = newMessages
+      .filter((m) => m.sender === "user")
+      .map((m) => m.text)
+      .join(" ");
+    const stepResult = processEliMessage(sanitized, screeningState, userContext, prefillPatient);
 
     if (stepResult.isReadyForSubmission && stepResult.submissionPayload) {
       const eliTimestamp = new Date().toLocaleTimeString([], {
@@ -832,6 +875,7 @@ export function ChatPage() {
       const isCrisis = Boolean(stepResult.isCrisis || stepResult.nivel === "rojo");
       const calculatedFolio = stepResult.folio || generateFolio();
       const calculatedNivel = stepResult.nivel || "verde";
+      const calculatedTriaje = stepResult.triaje || stepResult.nextState.triaje;
 
       const eliMsg: EliMessage = {
         id: crypto.randomUUID(),
@@ -840,6 +884,8 @@ export function ChatPage() {
           stepResult.replyText ||
           `Tamizaje completado. Tu folio de tamizaje es: ${calculatedFolio}.\nEscríbelo en el formulario para vincular tus resultados.\n\nGracias. Un profesional revisará tus respuestas.`,
         isCrisisProtocol: isCrisis,
+        nivel: calculatedNivel,
+        scores: stepResult.scores,
         crisisData: isCrisis
           ? {
               actionLabel: "Contactar a Línea de la Vida ahora",
@@ -848,6 +894,7 @@ export function ChatPage() {
               helphoneNumber: "800 911 2000",
             }
           : undefined,
+        triaje: calculatedTriaje,
         timestamp: eliTimestamp,
       };
 
@@ -863,6 +910,7 @@ export function ChatPage() {
         step: "completed",
         folio: calculatedFolio,
         nivel: calculatedNivel,
+        triaje: calculatedTriaje,
       };
 
       const updatedSessionFinal: ChatSession = {
@@ -873,8 +921,10 @@ export function ChatPage() {
         screeningState: updatedState,
       };
 
-      setSessions((prev) => prev.map((s) => (s.id === activeSession.id ? updatedSessionFinal : s)));
-      persistSessions(sessions.map((s) => (s.id === activeSession.id ? updatedSessionFinal : s)));
+      const nextSessionsList = sessions.map((s) =>
+        s.id === activeSession.id ? updatedSessionFinal : s,
+      );
+      persistSessions(nextSessionsList);
       setIsTyping(false);
       toast.success("Tamizaje completado con éxito");
 
@@ -896,61 +946,86 @@ export function ChatPage() {
       };
 
       (async () => {
-        try {
-          const invokePromise = supabase.functions.invoke("tamizaje", {
-            body: payloadWithUser,
-          });
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout")), 6000),
-          );
-          const res = (await Promise.race([invokePromise, timeoutPromise])) as {
-            data?: { data?: { folio?: string } };
-            error?: Error | null;
-          };
+        const persistRes = await persistTamizajeToSupabase({
+          folio: calculatedFolio,
+          userId: currentUserId,
+          carrera: user?.carrera,
+          grupo: user?.grupo,
+          semestre: user?.semestre,
+          paciente: stepResult.submissionPayload!.paciente,
+          GAD7: stepResult.submissionPayload!.GAD7,
+          PHQ9: stepResult.submissionPayload!.PHQ9,
+          nivel: calculatedNivel,
+          alerta: isCrisis,
+          recomendaciones: stepResult.finalJson?.recomendaciones,
+          mensajes: finalMessages,
+        });
 
-          if (res?.data?.data?.folio) {
-            const serverFolio = res.data.data.folio;
+        if (persistRes.ok) {
+          setSubmissionError(null);
+          setPendingSubmissionPayload(null);
+
+          if (persistRes.folio !== calculatedFolio) {
             if (userIdOrEmail) {
-              setStoredUserFolio(userIdOrEmail, serverFolio);
+              setStoredUserFolio(userIdOrEmail, persistRes.folio);
             }
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.id === activeSession.id
+                  ? {
+                      ...s,
+                      screeningState: {
+                        ...s.screeningState,
+                        folio: persistRes.folio,
+                      },
+                    }
+                  : s,
+              ),
+            );
           }
-        } catch {
-          // El tamizaje ya quedó procesado localmente en la sesión del chat
+        } else if (!DEMO_MODE && currentUserId) {
+          setPendingSubmissionPayload(payloadWithUser);
+          setSubmissionError(
+            persistRes.error ||
+              "No fue posible guardar tu tamizaje en Supabase. Haz clic en Reintentar envío.",
+          );
         }
       })();
 
       if (calculatedNivel === "rojo" || isCrisis) {
         (async () => {
+          const gad7Items = stepResult.submissionPayload?.GAD7 || [];
+          const phq9Items = stepResult.submissionPayload?.PHQ9 || [];
+          const gad7Total = gad7Items.reduce((a, b) => a + b, 0);
+          const phq9Total = phq9Items.reduce((a, b) => a + b, 0);
+          const item9Score = phq9Items[8] ?? 0;
+
           try {
-            const gad7Items = stepResult.submissionPayload?.GAD7 || [];
-            const phq9Items = stepResult.submissionPayload?.PHQ9 || [];
-            const gad7Total = gad7Items.reduce((a, b) => a + b, 0);
-            const phq9Total = phq9Items.reduce((a, b) => a + b, 0);
-            const item9Score = phq9Items[8] ?? 0;
-
-            const alertaPayload = {
-              folio: calculatedFolio,
-              paciente: stepResult.submissionPayload?.paciente || {
-                iniciales: "",
-                edad: 0,
-                sexo: "",
-                fecha: new Date().toLocaleDateString("es-MX"),
-              },
-              gad7_total: gad7Total,
-              gad7_items: gad7Items,
-              phq9_total: phq9Total,
-              phq9_items: phq9Items,
-              item9_score: item9Score,
-              estudiante_id: currentUserId || undefined,
-              estudiante_email: user?.email || undefined,
-              estudiante_nombre: user?.name || undefined,
-              fecha: new Date().toISOString(),
-            };
-
             await supabase.functions.invoke("notificar-psicologo-rojo", {
-              body: alertaPayload,
+              body: {
+                folio: calculatedFolio,
+                paciente: stepResult.submissionPayload?.paciente || {
+                  iniciales: "",
+                  edad: 0,
+                  sexo: "",
+                  fecha: getTodayMexicoDateString(),
+                },
+                gad7_total: gad7Total,
+                gad7_items: gad7Items,
+                phq9_total: phq9Total,
+                phq9_items: phq9Items,
+                item9_score: item9Score,
+                estudiante_id: currentUserId || undefined,
+                estudiante_email: user?.email || undefined,
+                estudiante_nombre: user?.name || undefined,
+                fecha: new Date().toISOString(),
+              },
             });
+          } catch {
+            // Edge Function opcional si aún no se despliega
+          }
 
+          try {
             await notificarTutorNivelRojo({
               estudianteId: currentUserId || user?.id,
               folio: calculatedFolio,
@@ -958,7 +1033,7 @@ export function ChatPage() {
               grupo: user?.grupo,
             });
           } catch (alertaErr) {
-            console.warn("[AlertaRojo] Aviso al disparar notificación al psicólogo:", alertaErr);
+            console.warn("[AlertaRojo] Aviso al notificar al tutor:", alertaErr);
           }
         })();
       }
@@ -1033,45 +1108,7 @@ export function ChatPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#F5F1E8] font-sans text-[#1A1A1A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
-      {/* Header Institucional fijo h-16 + Breadcrumbs h-10 */}
-      <InstitutionalHeader
-        moduleTitle="Chat con Eli"
-        breadcrumbs={[
-          { label: "Inicio", onClick: () => navigate({ to: "/" }) },
-          { label: "Chat con Eli" },
-        ]}
-        onHomeClick={() => navigate({ to: "/" })}
-        showCrisisButton={true}
-        onCrisisClick={() => navigate({ to: "/alerta" })}
-        actions={
-          <div className="flex items-center gap-2">
-            {(DEMO_MODE || !isGatedByRisk) && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleResetChat}
-                className="h-9 cursor-pointer gap-1.5 rounded-lg border-white/25 bg-white/10 px-2.5 text-xs font-semibold text-white hover:bg-white/20 hover:text-white"
-                aria-label="Reiniciar tamizaje"
-              >
-                <RotateCcw className="size-3.5" strokeWidth={1.75} />
-                <span className="hidden sm:inline">Reiniciar</span>
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsHistoryOpen(true)}
-              className="h-9 cursor-pointer gap-1.5 rounded-lg border-white/25 bg-white/10 px-2.5 text-xs font-semibold text-white hover:bg-white/20 hover:text-white"
-              aria-label="Historial de tamizajes"
-            >
-              <History className="size-3.5" strokeWidth={1.75} />
-              <span className="hidden sm:inline">Historial</span>
-            </Button>
-          </div>
-        }
-      />
+      <StudentTopBar title="Chat con Eli" backTo="/" showCrisisButton={true} />
 
       {/* Área principal dividida en 2 columnas en desktop (70% chat / 30% panel lateral), stack en móvil */}
       <div
@@ -1082,10 +1119,10 @@ export function ChatPage() {
         {/* COLUMNA CHAT (Izquierda, 70%) — Zona de Bienestar */}
         <section
           aria-label="Conversación de tamizaje con Eli"
-          className="flex min-h-[70dvh] flex-col bg-[#ECE8FA] lg:h-[calc(100dvh-6.5rem)] lg:min-h-0 dark:bg-[#171B29]"
+          className="flex min-h-[70dvh] flex-col bg-[#ECE8FA] lg:h-[calc(100dvh-3.5rem)] lg:min-h-0 dark:bg-[#171B29]"
         >
           {/* Cabecera de conversación */}
-          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[#E5DFD3] bg-white px-4 py-3.5 sm:px-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#E5DFD3] bg-white px-4 py-3.5 sm:px-6 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
             <div className="flex min-w-0 items-center gap-4">
               {renderEliAvatar(80)}
               <div className="min-w-0 space-y-1">
@@ -1101,6 +1138,33 @@ export function ChatPage() {
                   Tu compañero de bienestar · Tamizaje confidencial GAD-7 y PHQ-9
                 </p>
               </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              {(DEMO_MODE || !isGatedByRisk) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetChat}
+                  className="h-9 cursor-pointer gap-1.5 rounded-lg border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1F4D2C] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5] dark:hover:bg-[#1F4D2C]/30"
+                  aria-label="Reiniciar tamizaje"
+                >
+                  <RotateCcw className="size-3.5" strokeWidth={1.75} />
+                  <span className="hidden sm:inline">Reiniciar</span>
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsHistoryOpen(true)}
+                className="h-9 cursor-pointer gap-1.5 rounded-lg border-[#E5DFD3] bg-white px-2.5 text-xs font-semibold text-[#1F4D2C] hover:bg-[#F5F1E8] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5] dark:hover:bg-[#1F4D2C]/30"
+                aria-label="Historial de tamizajes"
+              >
+                <History className="size-3.5" strokeWidth={1.75} />
+                <span className="hidden sm:inline">Historial</span>
+              </Button>
             </div>
           </div>
 
@@ -1197,9 +1261,76 @@ export function ChatPage() {
                         >
                           <p className="whitespace-pre-wrap">{msg.text}</p>
 
-                          {/* Tarjeta de Folio dentro del mensaje de conclusión */}
+                          {/* Tarjeta de Semáforo clínico + Folio dentro del mensaje de conclusión */}
                           {!isUser && (msg.text.includes("folio") || msg.text.includes("EQ-")) && (
-                            <div className="mt-3 rounded-lg border border-[#B8860B]/40 bg-[#F5F1E8] p-3 text-[#1A1A1A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
+                            <div className="mt-3 space-y-2.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] p-3 text-[#1A1A1A] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
+                              {(() => {
+                                const nivelActual: ScreeningNivel =
+                                  msg.nivel || screeningState.nivel || "verde";
+                                const gadTotal =
+                                  msg.scores?.gad7Total ??
+                                  (screeningState.gad7Items || []).reduce((a, b) => a + b, 0);
+                                const phqTotal =
+                                  msg.scores?.phq9Total ??
+                                  (screeningState.phq9Items || []).reduce((a, b) => a + b, 0);
+                                const badgeBg =
+                                  nivelActual === "rojo"
+                                    ? "bg-[#C8102E] text-white"
+                                    : nivelActual === "amarillo"
+                                      ? "bg-[#B8860B] text-white"
+                                      : "bg-[#1F4D2C] text-white";
+                                const nivelTexto =
+                                  nivelActual === "rojo"
+                                    ? "Semáforo Rojo · Prioritario"
+                                    : nivelActual === "amarillo"
+                                      ? "Semáforo Amarillo · Seguimiento"
+                                      : "Semáforo Verde · Sin alerta grave";
+
+                                return (
+                                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E5DFD3] pb-2.5 dark:border-[#2D3F2A]">
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className="flex items-center gap-1 rounded-full border border-[#E5DFD3] bg-white px-2 py-1 dark:border-[#2D3F2A] dark:bg-[#1A2618]"
+                                        aria-label={`Semaforización: ${nivelTexto}`}
+                                      >
+                                        <span
+                                          className={`size-2.5 rounded-full bg-[#1F4D2C] ${
+                                            nivelActual === "verde"
+                                              ? "ring-2 ring-[#1F4D2C]/40"
+                                              : "opacity-25"
+                                          }`}
+                                          title="Verde"
+                                        />
+                                        <span
+                                          className={`size-2.5 rounded-full bg-[#B8860B] ${
+                                            nivelActual === "amarillo"
+                                              ? "ring-2 ring-[#B8860B]/40"
+                                              : "opacity-25"
+                                          }`}
+                                          title="Amarillo"
+                                        />
+                                        <span
+                                          className={`size-2.5 rounded-full bg-[#C8102E] ${
+                                            nivelActual === "rojo"
+                                              ? "ring-2 ring-[#C8102E]/40"
+                                              : "opacity-25"
+                                          }`}
+                                          title="Rojo"
+                                        />
+                                      </div>
+                                      <span
+                                        className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${badgeBg}`}
+                                      >
+                                        {nivelTexto}
+                                      </span>
+                                    </div>
+                                    <span className="font-mono text-[11px] font-semibold text-[#6B6B6B] tabular-nums dark:text-[#A6B5A3]">
+                                      GAD-7: {gadTotal}/21 · PHQ-9: {phqTotal}/27
+                                    </span>
+                                  </div>
+                                );
+                              })()}
+
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex items-center gap-2">
                                   <Ticket
@@ -1290,6 +1421,65 @@ export function ChatPage() {
                             </div>
                           </motion.div>
                         )}
+                        {/* Tarjeta de recomendación de triaje profesional (Médico / Psicólogo / Mixto) */}
+                        {!isUser && msg.triaje && (
+                          <div className="mt-2 w-full rounded-lg border border-[#1F4D2C]/25 bg-white p-4 text-[#1A1A1A] dark:border-[#2D3F2A] dark:bg-[#1A2618] dark:text-[#F5F1E8]">
+                            <div className="flex items-start gap-2.5">
+                              {msg.triaje.tipo === "medico" ? (
+                                <Stethoscope
+                                  className="mt-0.5 size-5 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]"
+                                  strokeWidth={1.75}
+                                />
+                              ) : (
+                                <Brain
+                                  className="mt-0.5 size-5 shrink-0 text-[#7B6FD8]"
+                                  strokeWidth={1.75}
+                                />
+                              )}
+                              <div className="flex-1 space-y-2.5">
+                                <div>
+                                  <p className="text-xs font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                                    {msg.triaje.tipo === "medico"
+                                      ? "Orientación hacia Valoración Médica"
+                                      : msg.triaje.tipo === "mixto"
+                                        ? "Atención Integral Recomendada (Médica + Psicológica)"
+                                        : "Orientación hacia Atención Psicológica"}
+                                  </p>
+                                  <p className="mt-1 text-xs leading-relaxed text-[#1A1A1A] dark:text-[#F5F1E8]">
+                                    {msg.triaje.mensaje}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {msg.triaje.acciones.map((accion) => (
+                                    <Button
+                                      key={accion.tipo}
+                                      type="button"
+                                      size="sm"
+                                      onClick={() =>
+                                        navigate({
+                                          to: "/citas",
+                                          search: { tipo: accion.tipo },
+                                        })
+                                      }
+                                      className={`h-9 cursor-pointer gap-1.5 rounded-lg px-3.5 text-xs font-semibold text-white ${
+                                        accion.tipo === "medico"
+                                          ? "bg-[#1F4D2C] hover:bg-[#4A7C59]"
+                                          : "bg-[#7B6FD8] hover:bg-[#6A5FC9]"
+                                      }`}
+                                    >
+                                      {accion.tipo === "medico" ? (
+                                        <Stethoscope className="size-3.5" strokeWidth={1.75} />
+                                      ) : (
+                                        <Brain className="size-3.5" strokeWidth={1.75} />
+                                      )}
+                                      <span>{accion.label}</span>
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -1325,29 +1515,130 @@ export function ChatPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="mx-auto w-full max-w-lg rounded-lg border border-[#E5DFD3] bg-white p-5 text-center dark:border-[#2D3F2A] dark:bg-[#1A2618]"
                 >
-                  <div className="mx-auto mb-2.5 flex size-11 items-center justify-center rounded-lg bg-[#E0F0E8] text-[#1F4D2C]">
-                    <CheckCircle2 className="size-6" strokeWidth={1.75} />
-                  </div>
-                  <h3 className="text-base font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
-                    Tamizaje finalizado
-                  </h3>
-                  <p className="mt-1 text-xs leading-relaxed text-[#6B6B6B] dark:text-[#A6B5A3]">
-                    {screeningState.nivel === "rojo" &&
-                      "Requieres atención prioritaria. Agenda tu cita hoy mismo en Agenda de Citas seleccionando Terapia Psicológica."}
-                    {screeningState.nivel === "amarillo" &&
-                      "Se sugiere recibir orientación o terapia psicológica. Puedes agendar tu cita con tu folio asignado."}
-                    {screeningState.nivel === "verde" &&
-                      "Tus respuestas no muestran señales de alerta en este momento. Puedes agendar consejería preventiva si lo deseas."}
+                  {(() => {
+                    const nivelFinal: ScreeningNivel = screeningState.nivel || "verde";
+                    const gadTotal = (screeningState.gad7Items || []).reduce((a, b) => a + b, 0);
+                    const phqTotal = (screeningState.phq9Items || []).reduce((a, b) => a + b, 0);
+                    const iconContainerClass =
+                      nivelFinal === "rojo"
+                        ? "bg-[#FEE2E2] text-[#C8102E]"
+                        : nivelFinal === "amarillo"
+                          ? "bg-[#FEF3C7] text-[#B8860B]"
+                          : "bg-[#E0F0E8] text-[#1F4D2C]";
+                    const nivelBadgeClass =
+                      nivelFinal === "rojo"
+                        ? "bg-[#C8102E] text-white"
+                        : nivelFinal === "amarillo"
+                          ? "bg-[#B8860B] text-white"
+                          : "bg-[#1F4D2C] text-white";
+                    const nivelTitulo =
+                      nivelFinal === "rojo"
+                        ? "Semáforo Rojo · Atención prioritaria"
+                        : nivelFinal === "amarillo"
+                          ? "Semáforo Amarillo · Seguimiento recomendado"
+                          : "Semáforo Verde · Sin alerta clínica grave";
+
+                    return (
+                      <>
+                        <div
+                          className={`mx-auto mb-2.5 flex size-11 items-center justify-center rounded-lg ${iconContainerClass}`}
+                        >
+                          <CheckCircle2 className="size-6" strokeWidth={1.75} />
+                        </div>
+                        <h3 className="text-base font-bold text-[#1F4D2C] dark:text-[#8FC9B5]">
+                          Tamizaje finalizado
+                        </h3>
+
+                        {/* Semaforización visual Verde / Amarillo / Rojo */}
+                        <div className="mx-auto mt-3 flex max-w-sm flex-col items-center gap-2 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3.5 py-2.5 dark:border-[#2D3F2A] dark:bg-[#0F1A12]">
+                          <div className="flex flex-wrap items-center justify-center gap-2">
+                            <div className="flex items-center gap-1.5 rounded-full border border-[#E5DFD3] bg-white px-2.5 py-1 dark:border-[#2D3F2A] dark:bg-[#1A2618]">
+                              <span
+                                className={`size-3 rounded-full bg-[#1F4D2C] ${
+                                  nivelFinal === "verde" ? "ring-2 ring-[#1F4D2C]/40" : "opacity-25"
+                                }`}
+                                title="Verde"
+                              />
+                              <span
+                                className={`size-3 rounded-full bg-[#B8860B] ${
+                                  nivelFinal === "amarillo"
+                                    ? "ring-2 ring-[#B8860B]/40"
+                                    : "opacity-25"
+                                }`}
+                                title="Amarillo"
+                              />
+                              <span
+                                className={`size-3 rounded-full bg-[#C8102E] ${
+                                  nivelFinal === "rojo" ? "ring-2 ring-[#C8102E]/40" : "opacity-25"
+                                }`}
+                                title="Rojo"
+                              />
+                            </div>
+                            <span
+                              className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${nivelBadgeClass}`}
+                            >
+                              {nivelTitulo}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-center gap-3 font-mono text-[11px] font-semibold text-[#6B6B6B] tabular-nums dark:text-[#A6B5A3]">
+                            <span>
+                              Folio: {screeningState.folio || storedFolio || "EQ-PENDIENTE"}
+                            </span>
+                            <span>·</span>
+                            <span>GAD-7: {gadTotal}/21</span>
+                            <span>·</span>
+                            <span>PHQ-9: {phqTotal}/27</span>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  <p className="mt-3 text-xs leading-relaxed text-[#6B6B6B] dark:text-[#A6B5A3]">
+                    {screeningState.triaje?.mensaje ||
+                      (screeningState.nivel === "rojo"
+                        ? "Requieres atención prioritaria. Agenda tu cita hoy mismo en Agenda de Citas."
+                        : screeningState.nivel === "amarillo"
+                          ? "Se sugiere recibir atención profesional. Puedes agendar tu cita con tu folio asignado."
+                          : "Tus respuestas no muestran señales de alerta en este momento.")}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2.5">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => navigate({ to: "/citas" })}
-                      className="h-9 cursor-pointer rounded-lg bg-[#1F4D2C] px-4 text-xs font-semibold text-white hover:bg-[#4A7C59]"
-                    >
-                      Ir a Agenda de Citas
-                    </Button>
+                    {screeningState.triaje ? (
+                      screeningState.triaje.acciones.map((accion) => (
+                        <Button
+                          key={accion.tipo}
+                          type="button"
+                          size="sm"
+                          onClick={() =>
+                            navigate({
+                              to: "/citas",
+                              search: { tipo: accion.tipo },
+                            })
+                          }
+                          className={`h-9 cursor-pointer gap-1.5 rounded-lg px-4 text-xs font-semibold text-white ${
+                            accion.tipo === "medico"
+                              ? "bg-[#1F4D2C] hover:bg-[#4A7C59]"
+                              : "bg-[#7B6FD8] hover:bg-[#6A5FC9]"
+                          }`}
+                        >
+                          {accion.tipo === "medico" ? (
+                            <Stethoscope className="size-3.5" strokeWidth={1.75} />
+                          ) : (
+                            <Brain className="size-3.5" strokeWidth={1.75} />
+                          )}
+                          <span>{accion.label}</span>
+                        </Button>
+                      ))
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => navigate({ to: "/citas" })}
+                        className="h-9 cursor-pointer rounded-lg bg-[#1F4D2C] px-4 text-xs font-semibold text-white hover:bg-[#4A7C59]"
+                      >
+                        Ir a Agenda de Citas
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="outline"

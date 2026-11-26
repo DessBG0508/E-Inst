@@ -1,3 +1,4 @@
+import { DEMO_MODE } from "@/lib/mock-data";
 import { psychoResources } from "@/lib/resources-data";
 import type {
   CanonicalResourceCategory,
@@ -5,8 +6,9 @@ import type {
   ResourceCategory,
   VideoOrientation,
 } from "@/lib/types";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
 const STORAGE_KEY = "equilibra_recursos_catalogo_v1";
 const DELETED_SEEDS_KEY = "equilibra_recursos_deleted_seeds_v1";
 
@@ -33,6 +35,28 @@ export function normalizeResourceCategory(category?: string): CanonicalResourceC
     case "Estrés académico":
     case "Estrés":
       return "Estrés académico";
+    default:
+      return "Ansiedad";
+  }
+}
+
+function toDbResourceCategory(
+  category?: string,
+): "Ansiedad" | "Estrés" | "Sueño" | "Ánimo" | "Respiración" {
+  switch (category) {
+    case "Ansiedad":
+      return "Ansiedad";
+    case "Respiración":
+      return "Respiración";
+    case "Sueño":
+      return "Sueño";
+    case "Estrés académico":
+    case "Estrés":
+      return "Estrés";
+    case "Depresión":
+    case "Ánimo":
+    case "Relaciones":
+      return "Ánimo";
     default:
       return "Ansiedad";
   }
@@ -489,9 +513,13 @@ function normalizeAndMergeWithSeeds(items: PsychoResource[]): {
 }
 
 /**
- * Obtiene todos los recursos (desde LocalStorage con fallback a semilla)
+ * Obtiene todos los recursos (solo en DEMO_MODE desde LocalStorage; en modo en vivo retorna [] hasta que fetchResourcesAsync cargue de Supabase)
  */
 export function getStoredResources(): PsychoResource[] {
+  if (USE_LIVE_SUPABASE) {
+    return [];
+  }
+
   try {
     if (typeof localStorage !== "undefined") {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -514,7 +542,6 @@ export function getStoredResources(): PsychoResource[] {
     // fallback
   }
 
-  // Guardar semilla inicial si es la primera vez
   try {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(SEEDED_RESOURCES));
@@ -526,102 +553,54 @@ export function getStoredResources(): PsychoResource[] {
   return SEEDED_RESOURCES;
 }
 
+function mapDbRowToResource(row: Record<string, unknown>): PsychoResource {
+  const rawVideoUrl = row.video_url ? String(row.video_url) : undefined;
+  const repairedVideoUrl =
+    rawVideoUrl && rawVideoUrl.includes("1Dv-LDOGvuc")
+      ? "https://www.youtube.com/watch?v=T38xzsKv3GQ"
+      : rawVideoUrl;
+
+  return {
+    id: String(row.id || crypto.randomUUID()),
+    title: String(row.title || "Recurso"),
+    shortDescription: String(row.short_description || ""),
+    category: normalizeResourceCategory(row.category ? String(row.category) : undefined),
+    readTime: String(row.read_time || "4 min"),
+    iconName: (row.icon_name as PsychoResource["iconName"]) || "bookOpen",
+    tone: (row.tone as PsychoResource["tone"]) || "teal",
+    content: Array.isArray(row.content)
+      ? (row.content as string[])
+      : typeof row.content === "string"
+        ? (row.content as string).split("\n\n")
+        : [],
+    keyTakeaway: row.key_takeaway ? String(row.key_takeaway) : undefined,
+    videoUrl: repairedVideoUrl,
+    videoTitle: row.video_title ? String(row.video_title) : undefined,
+    videoOrientation: (row.video_orientation as VideoOrientation) || "auto",
+    format: (row.format as PsychoResource["format"]) || (repairedVideoUrl ? "video" : "lectura"),
+    author: row.author ? String(row.author) : "Área de Psicología TESH",
+    updatedAt: row.updated_at ? String(row.updated_at).slice(0, 10) : "Hoy",
+    active: row.active !== false,
+  };
+}
+
 /**
- * Carga recursos asíncronamente intentando sincronizar con Supabase,
- * fusionando los recursos semilla nuevos y conservando videos locales de IndexedDB.
+ * Carga recursos asíncronamente desde Supabase (modo en vivo) o LocalStorage (DEMO_MODE)
  */
 export async function fetchResourcesAsync(): Promise<PsychoResource[]> {
-  try {
+  if (USE_LIVE_SUPABASE) {
     const { data, error } = await supabase
       .from("recursos")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      const mapped: PsychoResource[] = data.map((row: Record<string, unknown>) => ({
-        id: String(row.id || crypto.randomUUID()),
-        title: String(row.title || "Recurso"),
-        shortDescription: String(row.short_description || ""),
-        category: (row.category as PsychoResource["category"]) || "Ansiedad",
-        readTime: String(row.read_time || "4 min"),
-        iconName: (row.icon_name as PsychoResource["iconName"]) || "bookOpen",
-        tone: (row.tone as PsychoResource["tone"]) || "teal",
-        content: Array.isArray(row.content)
-          ? (row.content as string[])
-          : typeof row.content === "string"
-            ? (row.content as string).split("\n\n")
-            : [],
-        keyTakeaway: row.key_takeaway ? String(row.key_takeaway) : undefined,
-        videoUrl: row.video_url ? String(row.video_url) : undefined,
-        videoTitle: row.video_title ? String(row.video_title) : undefined,
-        videoOrientation: (row.video_orientation as VideoOrientation) || "auto",
-        format: (row.format as PsychoResource["format"]) || "lectura",
-        author: row.author ? String(row.author) : "Área de Psicología TESH",
-        updatedAt: row.updated_at ? String(row.updated_at).slice(0, 10) : "Hoy",
-        active: row.active !== false,
-      }));
-
-      // Preservar videos locales (indexeddb://) que no puedan vivir en Supabase Storage
-      let mergedBase = mapped;
-      try {
-        if (typeof localStorage !== "undefined") {
-          const localRaw = localStorage.getItem(STORAGE_KEY);
-          if (localRaw) {
-            const localParsed = JSON.parse(localRaw) as PsychoResource[];
-            if (Array.isArray(localParsed)) {
-              const dbIds = new Set(mapped.map((r) => r.id));
-              const localOnlyIndexedDb = localParsed.filter(
-                (r) => !dbIds.has(r.id) && r.videoUrl?.startsWith("indexeddb://"),
-              );
-              if (localOnlyIndexedDb.length > 0) {
-                mergedBase = [...localOnlyIndexedDb, ...mapped];
-              }
-            }
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      const { resources: finalResources, missingSeeds } = normalizeAndMergeWithSeeds(mergedBase);
-
-      // Si hay sesión autorizada y faltaban ejemplos en Supabase, intentar sincronizarlos en segundo plano
-      if (missingSeeds.length > 0) {
-        void supabase.from("recursos").upsert(
-          missingSeeds.map((r) => ({
-            id: r.id,
-            title: r.title,
-            short_description: r.shortDescription,
-            category: r.category,
-            read_time: r.readTime,
-            icon_name: r.iconName,
-            tone: r.tone,
-            content: r.content,
-            key_takeaway: r.keyTakeaway,
-            video_url: r.videoUrl,
-            video_title: r.videoTitle,
-            video_orientation: r.videoOrientation || "auto",
-            format: r.format || "lectura",
-            author: r.author || "Área de Psicología TESH",
-            active: r.active !== false,
-            updated_at: new Date().toISOString(),
-          })),
-        );
-      }
-
-      // Cachear localmente la lista fusionada completa
-      try {
-        if (typeof localStorage !== "undefined") {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(finalResources));
-        }
-      } catch {
-        // ignore
-      }
-
-      return finalResources;
+    if (error) {
+      throw new Error(`No se pudieron cargar los recursos desde Supabase: ${error.message}`);
     }
-  } catch {
-    // Si no existe la tabla o hay error de red, usar almacenamiento local
+
+    return Array.isArray(data)
+      ? data.map((row) => mapDbRowToResource(row as Record<string, unknown>))
+      : [];
   }
 
   return getStoredResources();
@@ -639,7 +618,6 @@ export interface SaveResourceResult {
 export async function saveResourceWithStatus(
   resource: Partial<PsychoResource> & { title: string },
 ): Promise<SaveResourceResult> {
-  const current = getStoredResources();
   const id = resource.id || `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
   const finalResource: PsychoResource = {
@@ -667,6 +645,42 @@ export async function saveResourceWithStatus(
     active: resource.active !== false,
   };
 
+  if (USE_LIVE_SUPABASE) {
+    try {
+      const { error } = await supabase.from("recursos").upsert({
+        id: finalResource.id,
+        title: finalResource.title,
+        short_description: finalResource.shortDescription,
+        category: toDbResourceCategory(finalResource.category),
+        read_time: finalResource.readTime,
+        icon_name: finalResource.iconName,
+        tone: finalResource.tone,
+        content: finalResource.content,
+        key_takeaway: finalResource.keyTakeaway ?? null,
+        video_url: finalResource.videoUrl ?? null,
+        video_title: finalResource.videoTitle ?? null,
+        video_orientation: finalResource.videoOrientation || "auto",
+        format: finalResource.format,
+        author: finalResource.author,
+        active: finalResource.active,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        return { resource: finalResource, syncedToDb: false, dbError: error.message };
+      }
+
+      return { resource: finalResource, syncedToDb: true };
+    } catch (err) {
+      return {
+        resource: finalResource,
+        syncedToDb: false,
+        dbError: err instanceof Error ? err.message : "Error de conexión con Supabase",
+      };
+    }
+  }
+
+  const current = getStoredResources();
   const existingIndex = current.findIndex((r) => r.id === id);
   let updatedList: PsychoResource[];
 
@@ -683,40 +697,7 @@ export async function saveResourceWithStatus(
     // ignore
   }
 
-  // Intentar sincronizar en Supabase
-  let syncedToDb = false;
-  let dbError: string | undefined;
-
-  try {
-    const { error } = await supabase.from("recursos").upsert({
-      id: finalResource.id,
-      title: finalResource.title,
-      short_description: finalResource.shortDescription,
-      category: finalResource.category,
-      read_time: finalResource.readTime,
-      icon_name: finalResource.iconName,
-      tone: finalResource.tone,
-      content: finalResource.content,
-      key_takeaway: finalResource.keyTakeaway,
-      video_url: finalResource.videoUrl,
-      video_title: finalResource.videoTitle,
-      video_orientation: finalResource.videoOrientation,
-      format: finalResource.format,
-      author: finalResource.author,
-      active: finalResource.active,
-      updated_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      dbError = error.message;
-    } else {
-      syncedToDb = true;
-    }
-  } catch (err) {
-    dbError = err instanceof Error ? err.message : "Error de conexión con Supabase";
-  }
-
-  return { resource: finalResource, syncedToDb, dbError };
+  return { resource: finalResource, syncedToDb: false };
 }
 
 /**
@@ -725,7 +706,10 @@ export async function saveResourceWithStatus(
 export async function saveResource(
   resource: Partial<PsychoResource> & { title: string },
 ): Promise<PsychoResource> {
-  const { resource: saved } = await saveResourceWithStatus(resource);
+  const { resource: saved, syncedToDb, dbError } = await saveResourceWithStatus(resource);
+  if (USE_LIVE_SUPABASE && !syncedToDb) {
+    throw new Error(dbError || "No se pudo guardar el recurso en Supabase.");
+  }
   return saved;
 }
 
@@ -733,6 +717,14 @@ export async function saveResource(
  * Elimina un recurso por su ID
  */
 export async function deleteResource(id: string): Promise<boolean> {
+  if (USE_LIVE_SUPABASE) {
+    const { error } = await supabase.from("recursos").delete().eq("id", id);
+    if (error) {
+      throw new Error(`No se pudo eliminar el recurso: ${error.message}`);
+    }
+    return true;
+  }
+
   const current = getStoredResources();
   const updated = current.filter((r) => r.id !== id);
 
@@ -748,22 +740,44 @@ export async function deleteResource(id: string): Promise<boolean> {
     // ignore
   }
 
-  try {
-    await supabase.from("recursos").delete().eq("id", id);
-  } catch {
-    // ignore
-  }
-
   return true;
 }
 
 /**
  * Alterna el estado activo/inactivo de un recurso
  */
-export async function toggleResourceActive(id: string): Promise<boolean> {
+export async function toggleResourceActive(id: string, currentActive?: boolean): Promise<boolean> {
+  if (USE_LIVE_SUPABASE) {
+    let resolvedCurrent = currentActive;
+    if (resolvedCurrent === undefined) {
+      const { data: existingRow, error: readErr } = await supabase
+        .from("recursos")
+        .select("active")
+        .eq("id", id)
+        .single();
+      if (readErr) {
+        throw new Error(`No se pudo consultar el recurso: ${readErr.message}`);
+      }
+      resolvedCurrent = existingRow?.active !== false;
+    }
+
+    const nextActive = !resolvedCurrent;
+    const { data, error } = await supabase
+      .from("recursos")
+      .update({ active: nextActive, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("active")
+      .single();
+
+    if (error) {
+      throw new Error(`No se pudo actualizar la visibilidad del recurso: ${error.message}`);
+    }
+    return data?.active !== false;
+  }
+
   const current = getStoredResources();
   const index = current.findIndex((r) => r.id === id);
-  if (index === 0 || index > 0) {
+  if (index >= 0) {
     const updated = [...current];
     updated[index] = { ...updated[index], active: !updated[index].active };
     try {
@@ -771,47 +785,47 @@ export async function toggleResourceActive(id: string): Promise<boolean> {
     } catch {
       // ignore
     }
-
-    try {
-      await supabase.from("recursos").update({ active: updated[index].active }).eq("id", id);
-    } catch {
-      // ignore
-    }
-
     return updated[index].active ?? true;
   }
   return false;
 }
 
 /**
- * Restaura los recursos a los valores predeterminados institucionales
+ * Restaura los recursos a los valores predeterminados institucionales en Supabase o localStorage
  */
-export function resetResourcesToDefault(): PsychoResource[] {
+export async function resetResourcesToDefault(): Promise<PsychoResource[]> {
+  if (USE_LIVE_SUPABASE) {
+    const { error } = await supabase.from("recursos").upsert(
+      SEEDED_RESOURCES.map((r) => ({
+        id: r.id,
+        title: r.title,
+        short_description: r.shortDescription,
+        category: toDbResourceCategory(r.category),
+        read_time: r.readTime,
+        icon_name: r.iconName,
+        tone: r.tone,
+        content: r.content,
+        key_takeaway: r.keyTakeaway ?? null,
+        video_url: r.videoUrl ?? null,
+        video_title: r.videoTitle ?? null,
+        video_orientation: r.videoOrientation || "auto",
+        format: r.format || "lectura",
+        author: r.author || "Área de Psicología TESH",
+        active: r.active !== false,
+        updated_at: new Date().toISOString(),
+      })),
+    );
+    if (error) {
+      throw new Error(`No se pudo restaurar el catálogo oficial en Supabase: ${error.message}`);
+    }
+    return fetchResourcesAsync();
+  }
+
   setDeletedSeedIds(new Set());
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(SEEDED_RESOURCES));
   } catch {
     // ignore
   }
-  void supabase.from("recursos").upsert(
-    SEEDED_RESOURCES.map((r) => ({
-      id: r.id,
-      title: r.title,
-      short_description: r.shortDescription,
-      category: r.category,
-      read_time: r.readTime,
-      icon_name: r.iconName,
-      tone: r.tone,
-      content: r.content,
-      key_takeaway: r.keyTakeaway,
-      video_url: r.videoUrl,
-      video_title: r.videoTitle,
-      video_orientation: r.videoOrientation || "auto",
-      format: r.format || "lectura",
-      author: r.author || "Área de Psicología TESH",
-      active: r.active !== false,
-      updated_at: new Date().toISOString(),
-    })),
-  );
   return SEEDED_RESOURCES;
 }

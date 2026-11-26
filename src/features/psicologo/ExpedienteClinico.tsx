@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getPsychologistCases } from "@/lib/psychologist-store";
 import { toast } from "sonner";
 import {
+  ArrowLeft,
   Printer,
   Save,
   ChevronLeft,
@@ -514,7 +515,23 @@ export const ExpedienteClinico: React.FC<ExpedienteClinicoProps> = ({
     >
       {/* Header Clínico Superior */}
       <div className="flex flex-col gap-4 rounded-lg border border-[#E5DFD3] bg-white p-4 dark:border-[#2D3F2A] dark:bg-[#1A2618] sm:flex-row sm:items-center sm:justify-between print:hidden">
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              if (onClose) {
+                onClose();
+                return;
+              }
+              if (typeof window !== "undefined" && window.history.length > 1) {
+                window.history.back();
+              }
+            }}
+            className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-3 text-xs font-semibold text-[#1F4D2C] transition-colors hover:bg-[#E0F0E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5] dark:hover:bg-[#1F4D2C]/30"
+          >
+            <ArrowLeft className="size-4" strokeWidth={1.75} />
+            <span>Volver</span>
+          </button>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#1F4D2C] text-white">
             <FileText className="size-5" />
           </div>

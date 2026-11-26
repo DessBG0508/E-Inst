@@ -1,4 +1,5 @@
-import { psychologistCases, mockAppointments } from "./mock-data";
+import { DEMO_MODE, psychologistCases, mockAppointments } from "./mock-data";
+import { isSupabaseConfigured } from "./supabase";
 import { addSystemNotification } from "./notifications";
 import type {
   CaseSummary,
@@ -9,6 +10,7 @@ import type {
   AppointmentModality,
 } from "./types";
 
+const USE_LIVE_SUPABASE = !DEMO_MODE && isSupabaseConfigured;
 const CASES_STORAGE_KEY = "equilibra_psych_cases_v1";
 const NOTES_STORAGE_KEY = "equilibra_psych_notes_v1";
 const APPOINTMENTS_STORAGE_KEY = "equilibra_citas_v1";
@@ -49,6 +51,7 @@ const INITIAL_NOTES: ClinicalNote[] = [
 ];
 
 export function getPsychologistCases(): CaseSummary[] {
+  if (USE_LIVE_SUPABASE) return [];
   try {
     const stored = localStorage.getItem(CASES_STORAGE_KEY);
     if (stored) {
@@ -110,6 +113,7 @@ export function updateCaseStatus(caseId: string, status: CaseStatus): CaseSummar
 }
 
 export function getAllClinicalNotes(): ClinicalNote[] {
+  if (USE_LIVE_SUPABASE) return [];
   try {
     const stored = localStorage.getItem(NOTES_STORAGE_KEY);
     if (stored) {
@@ -214,6 +218,7 @@ export function recordPatientContact(
 }
 
 export function getStoredAppointments(): Appointment[] {
+  if (USE_LIVE_SUPABASE) return [];
   try {
     const raw = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
     if (raw) {

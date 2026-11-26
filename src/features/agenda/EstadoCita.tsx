@@ -56,7 +56,16 @@ export function EstadoCitaList({
 }: EstadoCitaProps) {
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
-  const hasActive = citas.some((c) => c.estado === "pendiente" || c.estado === "confirmada");
+  const hasActive =
+    citas.some(
+      (c) =>
+        (c.tipo_profesional || "psicologo") === "psicologo" &&
+        (c.estado === "pendiente" || c.estado === "confirmada"),
+    ) &&
+    citas.some(
+      (c) =>
+        c.tipo_profesional === "medico" && (c.estado === "pendiente" || c.estado === "confirmada"),
+    );
 
   return (
     <div className="space-y-6">
@@ -105,6 +114,7 @@ export function EstadoCitaList({
           {citas.map((cita) => {
             const pill = ESTADO_PILL[cita.estado] || ESTADO_PILL.pendiente;
             const isActiva = cita.estado === "pendiente" || cita.estado === "confirmada";
+            const esMedico = cita.tipo_profesional === "medico";
             // Validación estricta fail-closed (> 2 horas)
             const ventana = verificarVentanaCancelacion(cita.fecha_cita, cita.hora_cita);
             const showCancelarButton = isActiva && ventana.puedeCancelar;
@@ -124,6 +134,9 @@ export function EstadoCitaList({
                         className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${pill.className}`}
                       >
                         {pill.label}
+                      </span>
+                      <span className="inline-flex items-center rounded border border-[#E5DFD3] bg-[#F5F1E8] px-2 py-0.5 text-[11px] font-semibold text-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#8FC9B5]">
+                        {esMedico ? "Médico universitario" : "Psicología"}
                       </span>
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
                         <MapPin className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
@@ -145,9 +158,10 @@ export function EstadoCitaList({
                     <div className="flex items-center gap-1.5 text-xs font-medium text-[#6B6B6B] dark:text-[#A6B5A3]">
                       <UserCheck className="size-3.5 text-[#1F4D2C] dark:text-[#8FC9B5]" />
                       <span>
-                        Psicólogo asignado:{" "}
+                        {esMedico ? "Médico asignado: " : "Psicólogo asignado: "}
                         <strong className="font-semibold text-[#1A1A1A] dark:text-[#F5F1E8]">
-                          {cita.nombre_psicologo || "Dra. Marta Gómez"}
+                          {cita.nombre_psicologo ||
+                            (esMedico ? "Dr. Alejandro Vega" : "Dra. Marta Gómez")}
                         </strong>
                       </span>
                     </div>

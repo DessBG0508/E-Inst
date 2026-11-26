@@ -1,6 +1,7 @@
 export type RiskLevel = "verde" | "amarillo" | "rojo";
 
-export type UserRole = "estudiante" | "psicologo" | "jefatura" | "coordinador" | "tutor";
+export type UserRole =
+  "estudiante" | "psicologo" | "medico" | "directivo" | "jefatura" | "coordinador" | "tutor";
 
 export interface User {
   id: string;
@@ -35,6 +36,8 @@ export interface CheckIn {
   studentId: string;
   academicLoad: 1 | 2 | 3 | 4 | 5;
   emotions: string[];
+  intensity?: number;
+  note?: string;
   createdAt: string;
   riskLevel: RiskLevel;
 }

@@ -19,17 +19,15 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
-import {
-  InstitutionalHeader,
-  type InstitutionalBreadcrumbItem,
-} from "@/components/layout/institutional-header";
+import { StudentTopBar } from "@/components/layout/student-top-bar";
 import { AjustesModal } from "@/components/settings/ajustes-modal";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import { triggerRedAlert } from "@/lib/api-client";
+import { DEMO_MODE } from "@/lib/mock-data";
 import { recordCheckInSuccess } from "@/lib/streak-store";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   fetchRecentCheckInHistory,
   getLocalCheckInHistory,
@@ -135,7 +133,7 @@ export function CheckInPage() {
   } | null>(null);
 
   const [history, setHistory] = useState<CheckInHistoryEntry[]>(() =>
-    getLocalCheckInHistory(user?.id),
+    !DEMO_MODE && isSupabaseConfigured ? [] : getLocalCheckInHistory(user?.id),
   );
   const [isClient, setIsClient] = useState(false);
 
@@ -146,9 +144,19 @@ export function CheckInPage() {
   useEffect(() => {
     let active = true;
     async function loadHistory() {
-      const entries = await fetchRecentCheckInHistory(user?.id);
-      if (active) {
-        setHistory(entries);
+      try {
+        const entries = await fetchRecentCheckInHistory(user?.id);
+        if (active) {
+          setHistory(entries);
+        }
+      } catch (err) {
+        if (active) {
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "No se pudo cargar tu historial reciente de check-ins.",
+          );
+        }
       }
     }
     loadHistory();
@@ -180,11 +188,6 @@ export function CheckInPage() {
   const showDangerBanner = Boolean(
     lastSavedState && lastSavedState.emotionId === "muy-mal" && lastSavedState.intensity === 10,
   );
-
-  const breadcrumbs: InstitutionalBreadcrumbItem[] = [
-    { label: "Bienestar Estudiantil", href: "/" },
-    { label: "¿Cómo estás hoy?" },
-  ];
 
   const handleSaveCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,29 +243,24 @@ export function CheckInPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F5F1E8] font-sans text-[#1A1A1A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
-      <InstitutionalHeader
-        moduleTitle="¿Cómo estás hoy?"
-        breadcrumbs={breadcrumbs}
-        onHomeClick={() => navigate({ to: "/" })}
+      <StudentTopBar
+        title="¿Cómo estás hoy?"
+        backTo="/"
         showCrisisButton={true}
-        onCrisisClick={() => navigate({ to: "/alerta" })}
-        actions={
-          <>
-            <AjustesModal
-              rol={user?.role || "estudiante"}
-              trigger={
-                <button
-                  type="button"
-                  aria-label="Abrir configuración y ajustes"
-                  title="Configuración y ajustes"
-                  className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <Settings className="size-[18px]" strokeWidth={1.75} />
-                </button>
-              }
-            />
-            <ThemeToggle className="size-9 rounded-lg border border-white/20 bg-white/10 text-white shadow-none backdrop-blur-none hover:scale-100 hover:border-white/30 hover:bg-white/15 [&_svg]:size-[18px] [&_svg]:text-white" />
-          </>
+        rightActions={
+          <AjustesModal
+            rol={user?.role || "estudiante"}
+            trigger={
+              <button
+                type="button"
+                aria-label="Abrir configuración y ajustes"
+                title="Configuración y ajustes"
+                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <Settings className="size-[18px]" strokeWidth={1.75} />
+              </button>
+            }
+          />
         }
       />
 

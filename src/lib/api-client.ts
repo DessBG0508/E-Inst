@@ -9,11 +9,27 @@ export interface EliMessage {
   sender: "user" | "eli";
   text: string;
   isCrisisProtocol?: boolean;
+  nivel?: "verde" | "amarillo" | "rojo";
+  scores?: {
+    gad7Total: number;
+    phq9Total: number;
+    item9: number;
+  };
   crisisData?: {
     actionLabel: string;
     actionRoute: string;
     helplineName: string;
     helphoneNumber: string;
+  };
+  triaje?: {
+    tipo: "medico" | "psicologo" | "mixto";
+    mensaje: string;
+    razones: string[];
+    acciones: Array<{
+      label: string;
+      tipo: "medico" | "psicologo";
+      to: "/citas";
+    }>;
   };
   timestamp: string;
 }
@@ -92,18 +108,20 @@ export async function saveCheckIn(
     }
   }
 
-  if (!activeUserId && checkIn.studentId && checkIn.studentId !== "demo-student-dess") {
+  if (!activeUserId && checkIn.studentId && UUID_REGEX.test(checkIn.studentId)) {
     activeUserId = checkIn.studentId;
   }
 
-  // 2. Si Supabase está configurado y hay un usuario de sesión activa, registrar en tabla 'checkins'
-  if (isSupabaseConfigured && activeUserId) {
+  // 2. Si Supabase está configurado y hay un usuario autenticado con UUID válido, registrar en tabla 'checkins'
+  if (isSupabaseConfigured && activeUserId && UUID_REGEX.test(activeUserId)) {
     try {
       // Mapeo EXACTO a las columnas reales de la tabla 'checkins':
       // - user_id: uuid (usuario de sesión activa useAuth, nunca hardcodeado)
       // - escala: integer (1-5)
       // - emociones: array de texto (los chips)
       // - riesgo: enum nivel_riesgo ('verde' | 'amarillo' | 'rojo' - RD02: escala 1-3 -> 'verde', 4-5 -> 'rojo', sin 'amarillo')
+      // - intensidad: integer (1-10)
+      // - nota: text
       // NOTA: 'id' y 'creado_en' son generados automáticamente por la base de datos.
       const riesgoCalculado = mapCheckInRiskRD02(checkIn.academicLoad);
       const { data, error } = await supabase
@@ -114,6 +132,8 @@ export async function saveCheckIn(
             escala: checkIn.academicLoad,
             emociones: checkIn.emotions,
             riesgo: riesgoCalculado,
+            intensidad: typeof checkIn.intensity === "number" ? checkIn.intensity : null,
+            nota: checkIn.note?.trim() ? checkIn.note.trim() : null,
           },
         ])
         .select()
@@ -338,6 +358,7 @@ const CONTEXTUAL_RESPONSES = [
 
 import {
   processEliMessage,
+  generateFolio,
   INITIAL_SCREENING_STATE,
   type ScreeningState,
   type ScreeningNivel,
@@ -442,6 +463,298 @@ export async function invokeTamizajeEdgeFunction(
       error: errorMsg,
     };
   }
+}
+
+export interface PersistTamizajeInput {
+  folio: string;
+  userId?: string | null;
+  carrera?: string | null;
+  grupo?: string | null;
+  semestre?: string | null;
+  paciente: {
+    iniciales: string;
+    edad: number;
+    sexo: string;
+    fecha?: string;
+    semestre?: string;
+  };
+  GAD7: number[];
+  PHQ9: number[];
+  nivel: ScreeningNivel;
+  alerta: boolean;
+  recomendaciones?: string;
+  mensajes?: Array<{
+    sender: "user" | "eli" | "system";
+    text: string;
+    isCrisisProtocol?: boolean;
+  }>;
+}
+
+export interface PersistTamizajeResult {
+  ok: boolean;
+  persisted: boolean;
+  folio: string;
+  bloqueado: boolean;
+  error?: string;
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Persiste directamente en Supabase todos los registros del tamizaje concluido:
+ * sesiones, conversaciones, mensajes, pacientes, respuestas_tamizaje, resultados_scoring
+ * y alertas (en caso de nivel rojo/crisis), garantizando que el folio en BD coincida con el del chat.
+ */
+export async function persistTamizajeToSupabase(
+  input: PersistTamizajeInput,
+): Promise<PersistTamizajeResult> {
+  const gad7Items = input.GAD7 || [];
+  const phq9Items = input.PHQ9 || [];
+  const gad7Total = gad7Items.reduce((acc, v) => acc + v, 0);
+  const phq9Total = phq9Items.reduce((acc, v) => acc + v, 0);
+  const item9Score = phq9Items[8] ?? 0;
+  const bloqueado = input.nivel === "rojo" || input.nivel === "amarillo";
+
+  if (!isSupabaseConfigured) {
+    return {
+      ok: false,
+      persisted: false,
+      folio: input.folio,
+      bloqueado,
+      error: "Supabase no está configurado en el entorno actual.",
+    };
+  }
+
+  let activeUserId = input.userId && UUID_REGEX.test(input.userId) ? input.userId : null;
+  if (!activeUserId) {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user?.id && UUID_REGEX.test(authData.user.id)) {
+        activeUserId = authData.user.id;
+      }
+    } catch {
+      activeUserId = null;
+    }
+  }
+
+  if (!activeUserId) {
+    return {
+      ok: false,
+      persisted: false,
+      folio: input.folio,
+      bloqueado,
+      error: "Sesión local sin usuario autenticado en Supabase.",
+    };
+  }
+
+  let activeFolio = input.folio || generateFolio();
+  const safeIniciales = (input.paciente.iniciales || "N/A").slice(0, 10);
+  const safeAge =
+    input.paciente.edad >= 14 && input.paciente.edad <= 99 ? input.paciente.edad : null;
+  const safeSex = input.paciente.sexo || "Otro";
+  const safeSemestre = input.paciente.semestre || input.semestre || null;
+
+  // 1. Insertar paciente asegurando folio único (reintenta folio si existiera colisión 23505)
+  let pacienteInserted = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { error: pErr } = await supabase.from("pacientes").insert({
+      folio: activeFolio,
+      user_id: activeUserId,
+      iniciales: safeIniciales,
+      edad: safeAge,
+      sexo: safeSex,
+      semestre: safeSemestre,
+      carrera: input.carrera || null,
+      grupo: input.grupo || null,
+      bloqueado,
+    });
+
+    if (!pErr) {
+      pacienteInserted = true;
+      break;
+    }
+
+    if (pErr.code === "23505") {
+      activeFolio = generateFolio();
+      continue;
+    }
+
+    return {
+      ok: false,
+      persisted: false,
+      folio: activeFolio,
+      bloqueado,
+      error: parseSupabaseError(pErr),
+    };
+  }
+
+  if (!pacienteInserted) {
+    return {
+      ok: false,
+      persisted: false,
+      folio: activeFolio,
+      bloqueado,
+      error: "No fue posible asignar un folio único en la tabla pacientes.",
+    };
+  }
+
+  // 2. Insertar sesión clínica
+  let sesionId: string | null = null;
+  try {
+    const { data: sesionRow, error: sErr } = await supabase
+      .from("sesiones")
+      .insert({
+        user_id: activeUserId,
+        folio: activeFolio,
+        tipo: "tamizaje",
+        estado: "completada",
+        finalizada_en: new Date().toISOString(),
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (sErr) {
+      console.warn("[Tamizaje] Aviso al registrar sesión:", parseSupabaseError(sErr));
+    } else if (sesionRow?.id) {
+      sesionId = sesionRow.id;
+    }
+  } catch (err) {
+    console.warn("[Tamizaje] Excepción al registrar sesión:", err);
+  }
+
+  // 3. Insertar conversación y mensajes
+  try {
+    const { data: convRow, error: cErr } = await supabase
+      .from("conversaciones")
+      .insert({
+        sesion_id: sesionId,
+        user_id: activeUserId,
+        folio: activeFolio,
+        titulo: `Tamizaje — ${safeIniciales}`,
+        estado: "completada",
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (cErr) {
+      console.warn("[Tamizaje] Aviso al registrar conversación:", parseSupabaseError(cErr));
+    } else if (convRow?.id && input.mensajes && input.mensajes.length > 0) {
+      const rows = input.mensajes.map((m) => ({
+        conversacion_id: convRow.id,
+        user_id: activeUserId,
+        remitente: m.sender,
+        contenido: m.text,
+        es_crisis: Boolean(m.isCrisisProtocol),
+      }));
+      const { error: mErr } = await supabase.from("mensajes").insert(rows);
+      if (mErr) {
+        console.warn("[Tamizaje] Aviso al registrar mensajes:", parseSupabaseError(mErr));
+      }
+    }
+  } catch (err) {
+    console.warn("[Tamizaje] Excepción al registrar conversación/mensajes:", err);
+  }
+
+  // 4. Insertar respuestas consolidadas GAD-7 y PHQ-9 (alimenta vista para_psicologo)
+  const { error: rtErr } = await supabase.from("respuestas_tamizaje").insert([
+    {
+      user_id: activeUserId,
+      folio: activeFolio,
+      instrumento: "GAD-7",
+      total: gad7Total,
+      gad7_total: gad7Total,
+      phq9_total: phq9Total,
+      nivel: input.nivel,
+      item9: item9Score,
+      alerta: input.alerta,
+      respuestas: {
+        items: gad7Items,
+        iniciales: safeIniciales,
+        edad: safeAge,
+        sexo: safeSex,
+      },
+    },
+    {
+      user_id: activeUserId,
+      folio: activeFolio,
+      instrumento: "PHQ-9",
+      total: phq9Total,
+      gad7_total: gad7Total,
+      phq9_total: phq9Total,
+      nivel: input.nivel,
+      item9: item9Score,
+      alerta: input.alerta,
+      respuestas: {
+        items: phq9Items,
+        item9: item9Score,
+        iniciales: safeIniciales,
+        edad: safeAge,
+        sexo: safeSex,
+      },
+    },
+  ]);
+
+  if (rtErr) {
+    return {
+      ok: false,
+      persisted: false,
+      folio: activeFolio,
+      bloqueado,
+      error: parseSupabaseError(rtErr),
+    };
+  }
+
+  // 5. Insertar resultados_scoring
+  const { error: scErr } = await supabase.from("resultados_scoring").insert({
+    sesion_id: sesionId,
+    user_id: activeUserId,
+    folio: activeFolio,
+    gad7_total: gad7Total,
+    gad7_items: gad7Items,
+    phq9_total: phq9Total,
+    phq9_items: phq9Items,
+    item9: item9Score,
+    nivel: input.nivel,
+    alerta: input.alerta,
+    recomendaciones:
+      input.recomendaciones ||
+      (input.nivel === "rojo"
+        ? "Atención prioritaria inmediata en Terapia Psicológica"
+        : input.nivel === "amarillo"
+          ? "Orientación o Terapia Psicológica recomendada"
+          : "Consejería preventiva opcional"),
+  });
+
+  if (scErr) {
+    return {
+      ok: false,
+      persisted: false,
+      folio: activeFolio,
+      bloqueado,
+      error: parseSupabaseError(scErr),
+    };
+  }
+
+  // 6. Insertar alerta prioritaria en tabla `alertas` si nivel rojo / crisis
+  if (input.alerta || input.nivel === "rojo") {
+    const { error: alErr } = await supabase.from("alertas").insert({
+      user_id: activeUserId,
+      folio: activeFolio,
+      tipo: item9Score > 0 ? "crisis" : "rojo",
+      mensaje: `Tamizaje nivel rojo (${item9Score > 0 ? "PHQ-9 ítem 9 activo" : "puntaje crítico"}) · GAD-7: ${gad7Total}/21 · PHQ-9: ${phq9Total}/27`,
+      atendida: false,
+    });
+    if (alErr) {
+      console.warn("[Tamizaje] Aviso al registrar alerta clínica:", parseSupabaseError(alErr));
+    }
+  }
+
+  return {
+    ok: true,
+    persisted: true,
+    folio: activeFolio,
+    bloqueado,
+  };
 }
 
 export interface EdgeTamizajeData {
@@ -557,6 +870,7 @@ export async function sendEliMessage(
         folio: edgeData?.folio || activeState.folio,
         nivel: edgeData?.nivel || activeState.nivel,
         paciente: {
+          ...activeState.paciente,
           iniciales: edgeData?.paciente?.iniciales || activeState.paciente.iniciales,
           edad: edgeData?.paciente?.edad || activeState.paciente.edad,
           sexo: edgeData?.paciente?.sexo || activeState.paciente.sexo,
@@ -605,6 +919,8 @@ export async function sendEliMessage(
     sender: "eli",
     text: result.replyText,
     isCrisisProtocol: isCrisis,
+    nivel: result.nivel,
+    scores: result.scores,
     crisisData: isCrisis
       ? {
           actionLabel: "Contactar a Línea de la Vida ahora",

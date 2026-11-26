@@ -11,10 +11,9 @@ import { PersistentSosButton } from "@/components/common/persistent-sos-button";
 const PUBLIC_ROUTES = ["/login", "/registro", "/recuperar", "/reset", "/aviso-privacidad"];
 
 /**
- * DECISIÓN DE ARQUITECTURA:
- * El rol directivo/jefatura de carrera se representa con el valor "jefatura" (y "coordinador")
- * del enum app_role en la BD; la ruta de UI es "/directivo".
- * La rama rol === "directivo" se eliminó por ser un rol inexistente en la BD.
+ * SEPARACIÓN DE ROLES INSTITUCIONALES:
+ * - "directivo" y "coordinador": Panel ejecutivo de solo lectura en "/directivo" (+ "/auditoria").
+ * - "jefatura": Gestión operativa de tutores y recursamiento en "/jefatura".
  */
 export function RouteGuard({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -37,6 +36,16 @@ export function RouteGuard({ children }: { children: ReactNode }) {
     // 1. Sin sesión activa -> Redirigir a /login (excepto en rutas públicas)
     if (!user) {
       if (!isPublic) {
+        if (typeof window !== "undefined" && pathname.startsWith("/cattell")) {
+          try {
+            sessionStorage.setItem(
+              "equilibra_post_login_redirect",
+              `${window.location.pathname}${window.location.search}`,
+            );
+          } catch {
+            // ignore
+          }
+        }
         navigate({ to: "/login", replace: true });
       }
       return;
@@ -60,13 +69,14 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 3. Rol Psicólogo: puede ver /psicologo, /expedientes, /directivo, /anuncios, /perfil y /
+    // 3. Rol Psicólogo: puede ver /psicologo, /expedientes, /directivo, /anuncios, /encuesta, /perfil y /
     if (user.role === "psicologo") {
       if (
         !pathname.startsWith("/psicologo") &&
         !pathname.startsWith("/expedientes") &&
         !pathname.startsWith("/directivo") &&
         !pathname.startsWith("/anuncios") &&
+        !pathname.startsWith("/encuesta") &&
         pathname !== "/perfil" &&
         pathname !== "/"
       ) {
@@ -76,12 +86,43 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 4. Roles Jefatura / Coordinador: puede ver /directivo, /auditoria, /anuncios, /perfil y /
-    if (user.role === "jefatura" || user.role === "coordinador") {
+    // 3b. Rol Médico Universitario: puede ver /medico, /anuncios, /recursos, /perfil y /
+    if (user.role === "medico") {
+      if (
+        !pathname.startsWith("/medico") &&
+        !pathname.startsWith("/anuncios") &&
+        !pathname.startsWith("/recursos") &&
+        pathname !== "/perfil" &&
+        pathname !== "/"
+      ) {
+        toast.info("Redirigido al panel médico correspondiente a tu rol.");
+        navigate({ to: "/medico", replace: true });
+      }
+      return;
+    }
+
+    // 4. Rol Jefatura de Carrera: puede ver /jefatura, /anuncios, /encuesta, /perfil y /
+    if (user.role === "jefatura") {
+      if (
+        !pathname.startsWith("/jefatura") &&
+        !pathname.startsWith("/anuncios") &&
+        !pathname.startsWith("/encuesta") &&
+        pathname !== "/perfil" &&
+        pathname !== "/"
+      ) {
+        toast.info("Redirigido al panel operativo de Jefatura de Carrera.");
+        navigate({ to: "/jefatura", replace: true });
+      }
+      return;
+    }
+
+    // 5. Roles Directivo / Coordinador: vista ejecutiva en /directivo, /auditoria, /anuncios, /encuesta, /perfil y /
+    if (user.role === "directivo" || user.role === "coordinador") {
       if (
         !pathname.startsWith("/directivo") &&
         !pathname.startsWith("/auditoria") &&
         !pathname.startsWith("/anuncios") &&
+        !pathname.startsWith("/encuesta") &&
         pathname !== "/perfil" &&
         pathname !== "/"
       ) {
@@ -91,7 +132,7 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 5. Rol Tutor: puede ver /tutor, /anuncios, /perfil y /
+    // 6. Rol Tutor: puede ver /tutor, /anuncios, /perfil y /
     if (user.role === "tutor") {
       if (
         !pathname.startsWith("/tutor") &&
@@ -105,11 +146,13 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 6. Rol Estudiante: puede ver /, /checkin, /alerta, /chat, /citas, /recursos, /perfil
+    // 7. Rol Estudiante: puede ver /, /checkin, /alerta, /chat, /citas, /recursos, /encuesta, /anuncios, /perfil
     if (user.role === "estudiante") {
       if (
         pathname.startsWith("/psicologo") ||
+        pathname.startsWith("/medico") ||
         pathname.startsWith("/directivo") ||
+        pathname.startsWith("/jefatura") ||
         pathname.startsWith("/expedientes") ||
         pathname.startsWith("/auditoria") ||
         pathname.startsWith("/tutor")
@@ -157,17 +200,39 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       !pathname.startsWith("/psicologo") &&
       !pathname.startsWith("/expedientes") &&
       !pathname.startsWith("/directivo") &&
-      !pathname.startsWith("/anuncios")
+      !pathname.startsWith("/anuncios") &&
+      !pathname.startsWith("/encuesta")
     )
       return null;
     if (
-      (user.role === "jefatura" || user.role === "coordinador") &&
+      user.role === "medico" &&
+      pathname !== "/aviso-privacidad" &&
+      pathname !== "/perfil" &&
+      pathname !== "/" &&
+      !pathname.startsWith("/medico") &&
+      !pathname.startsWith("/anuncios") &&
+      !pathname.startsWith("/recursos")
+    )
+      return null;
+    if (
+      user.role === "jefatura" &&
+      pathname !== "/aviso-privacidad" &&
+      pathname !== "/perfil" &&
+      pathname !== "/" &&
+      !pathname.startsWith("/jefatura") &&
+      !pathname.startsWith("/anuncios") &&
+      !pathname.startsWith("/encuesta")
+    )
+      return null;
+    if (
+      (user.role === "directivo" || user.role === "coordinador") &&
       pathname !== "/aviso-privacidad" &&
       pathname !== "/perfil" &&
       pathname !== "/" &&
       !pathname.startsWith("/directivo") &&
       !pathname.startsWith("/auditoria") &&
-      !pathname.startsWith("/anuncios")
+      !pathname.startsWith("/anuncios") &&
+      !pathname.startsWith("/encuesta")
     )
       return null;
     if (
@@ -183,7 +248,9 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       user.role === "estudiante" &&
       pathname !== "/aviso-privacidad" &&
       (pathname.startsWith("/psicologo") ||
+        pathname.startsWith("/medico") ||
         pathname.startsWith("/directivo") ||
+        pathname.startsWith("/jefatura") ||
         pathname.startsWith("/expedientes") ||
         pathname.startsWith("/auditoria") ||
         pathname.startsWith("/tutor"))

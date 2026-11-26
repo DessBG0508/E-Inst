@@ -36,6 +36,7 @@ import {
   InstitutionalHeader,
   type InstitutionalBreadcrumbItem,
 } from "@/components/layout/institutional-header";
+import { StudentTopBar } from "@/components/layout/student-top-bar";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { AjustesModal } from "@/components/settings/ajustes-modal";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ export const EncuestaSatisfaccion: React.FC<EncuestaSatisfaccionProps> = ({
 
   const esPersonalAutorizado =
     activeUser?.role === "psicologo" ||
+    activeUser?.role === "directivo" ||
     activeUser?.role === "jefatura" ||
     activeUser?.role === "coordinador";
 
@@ -369,11 +371,13 @@ export const EncuestaSatisfaccion: React.FC<EncuestaSatisfaccionProps> = ({
   const homeDestino =
     activeUser?.role === "psicologo"
       ? "/psicologo"
-      : activeUser?.role === "jefatura" || activeUser?.role === "coordinador"
-        ? "/directivo"
-        : activeUser?.role === "tutor"
-          ? "/tutor"
-          : "/bienestar";
+      : activeUser?.role === "jefatura"
+        ? "/jefatura"
+        : activeUser?.role === "directivo" || activeUser?.role === "coordinador"
+          ? "/directivo"
+          : activeUser?.role === "tutor"
+            ? "/tutor"
+            : "/";
 
   const breadcrumbs: InstitutionalBreadcrumbItem[] = [
     {
@@ -391,14 +395,37 @@ export const EncuestaSatisfaccion: React.FC<EncuestaSatisfaccionProps> = ({
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F5F1E8] text-[#1A1A1A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
-      <InstitutionalHeader
-        moduleTitle="Encuesta de satisfacción"
-        breadcrumbs={breadcrumbs}
-        onHomeClick={() => navigate({ to: homeDestino })}
-        showCrisisButton={!esPersonalAutorizado}
-        onCrisisClick={() => navigate({ to: "/alerta" })}
-        actions={
-          <>
+      {esPersonalAutorizado ? (
+        <InstitutionalHeader
+          moduleTitle="Encuesta de satisfacción"
+          breadcrumbs={breadcrumbs}
+          onHomeClick={() => navigate({ to: homeDestino })}
+          backFallbackRoute={homeDestino}
+          showCrisisButton={false}
+          actions={
+            <>
+              <AjustesModal
+                rol={activeUser?.role || "estudiante"}
+                trigger={
+                  <button
+                    type="button"
+                    aria-label="Abrir configuración y ajustes"
+                    title="Configuración y ajustes"
+                    className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    <Settings className="size-[18px]" strokeWidth={1.75} />
+                  </button>
+                }
+              />
+              <ThemeToggle className="size-9 rounded-lg border border-white/20 bg-white/10 text-white shadow-none backdrop-blur-none hover:scale-100 hover:border-white/30 hover:bg-white/15 [&_svg]:size-[18px] [&_svg]:text-white" />
+            </>
+          }
+        />
+      ) : (
+        <StudentTopBar
+          title="Encuesta de satisfacción"
+          backTo={homeDestino}
+          rightActions={
             <AjustesModal
               rol={activeUser?.role || "estudiante"}
               trigger={
@@ -412,10 +439,9 @@ export const EncuestaSatisfaccion: React.FC<EncuestaSatisfaccionProps> = ({
                 </button>
               }
             />
-            <ThemeToggle className="size-9 rounded-lg border border-white/20 bg-white/10 text-white shadow-none backdrop-blur-none hover:scale-100 hover:border-white/30 hover:bg-white/15 [&_svg]:size-[18px] [&_svg]:text-white" />
-          </>
-        }
-      />
+          }
+        />
+      )}
 
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {/* Selector de vista exclusivo para psicólogo o directivo */}

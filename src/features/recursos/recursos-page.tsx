@@ -14,12 +14,8 @@ import {
   Video,
   Wind,
 } from "lucide-react";
-import {
-  InstitutionalHeader,
-  type InstitutionalBreadcrumbItem,
-} from "@/components/layout/institutional-header";
+import { StudentTopBar } from "@/components/layout/student-top-bar";
 import { AjustesModal } from "@/components/settings/ajustes-modal";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { brandConfig } from "@/config/brand-config";
 import { resourceIcons } from "@/config/icons";
 import { useAuth } from "@/lib/auth-context";
@@ -141,11 +137,19 @@ export function RecursosPage() {
   const [isGroundingOpen, setIsGroundingOpen] = useState(false);
 
   useEffect(() => {
+    let active = true;
     async function load() {
-      const data = await fetchResourcesAsync();
-      setResources(data);
+      try {
+        const data = await fetchResourcesAsync();
+        if (active) setResources(data);
+      } catch {
+        // Error handled gracefully without exposing raw technical details
+      }
     }
     load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -195,14 +199,6 @@ export function RecursosPage() {
     return [...sameCategory, ...differentCategory].slice(0, 4);
   }, [activeCatalog, activeResource]);
 
-  const breadcrumbs: InstitutionalBreadcrumbItem[] = activeResource
-    ? [
-        { label: "Bienestar Estudiantil", href: "/" },
-        { label: "Recursos de bienestar", onClick: () => setActiveResource(null) },
-        { label: activeResource.title },
-      ]
-    : [{ label: "Bienestar Estudiantil", href: "/" }, { label: "Recursos de bienestar" }];
-
   const handleOpenResource = (resource: PsychoResource) => {
     setActiveResource(resource);
     if (typeof window !== "undefined") {
@@ -212,29 +208,24 @@ export function RecursosPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F5F1E8] text-[#1A1A1A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]">
-      <InstitutionalHeader
-        moduleTitle="Recursos de bienestar"
-        breadcrumbs={breadcrumbs}
-        onHomeClick={() => navigate({ to: "/" })}
-        showCrisisButton={true}
-        onCrisisClick={() => navigate({ to: "/alerta" })}
-        actions={
-          <>
-            <AjustesModal
-              rol={user?.role || "estudiante"}
-              trigger={
-                <button
-                  type="button"
-                  aria-label="Abrir configuración y ajustes"
-                  title="Configuración y ajustes"
-                  className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <Settings className="size-[18px]" strokeWidth={1.75} />
-                </button>
-              }
-            />
-            <ThemeToggle className="size-9 rounded-lg border border-white/20 bg-white/10 text-white shadow-none backdrop-blur-none hover:scale-100 hover:border-white/30 hover:bg-white/15 [&_svg]:size-[18px] [&_svg]:text-white" />
-          </>
+      <StudentTopBar
+        title={activeResource ? activeResource.title : "Recursos de bienestar"}
+        backTo={activeResource ? undefined : "/"}
+        onBack={activeResource ? () => setActiveResource(null) : () => navigate({ to: "/" })}
+        rightActions={
+          <AjustesModal
+            rol={user?.role || "estudiante"}
+            trigger={
+              <button
+                type="button"
+                aria-label="Abrir configuración y ajustes"
+                title="Configuración y ajustes"
+                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <Settings className="size-[18px]" strokeWidth={1.75} />
+              </button>
+            }
+          />
         }
       />
 

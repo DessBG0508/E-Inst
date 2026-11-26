@@ -1,18 +1,11 @@
-import {
-  ClipboardList,
-  FileSpreadsheet,
-  Grid3X3,
-  LayoutDashboard,
-  UserCheck,
-  Users,
-} from "lucide-react";
+import { ClipboardList, FileSpreadsheet, LayoutDashboard, UserCheck, Users } from "lucide-react";
 import {
   InstitutionalSidebar,
   type InstitutionalSidebarItem,
 } from "@/components/layout/institutional-sidebar";
 
 export type DirectivoNavSection =
-  "resumen" | "estudiantes" | "tutores" | "canalizaciones" | "asignaciones" | "reportes";
+  "resumen" | "estudiantes" | "tutores" | "canalizaciones" | "reportes";
 
 interface DirectivoSidebarProps {
   activeSection: DirectivoNavSection;
@@ -53,11 +46,6 @@ export function DirectivoSidebar({
       icon: ClipboardList,
       badge: pendingCanalizacionesCount > 0 ? pendingCanalizacionesCount : null,
       badgeClassName: "bg-[#B8860B] text-white",
-    },
-    {
-      id: "asignaciones",
-      label: "Asignar tutores",
-      icon: Grid3X3,
     },
     {
       id: "reportes",

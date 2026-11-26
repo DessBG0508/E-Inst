@@ -197,10 +197,11 @@ export function CanalizacionesPanel({ onPendingCountChange }: CanalizacionesPane
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-display">
-            Canalizaciones de Tutores
+            Canalizaciones de Tutores y Servicio Médico
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Revisa solicitudes de canalización enviadas por tutores y jefaturas académicas.
+            Revisa solicitudes de canalización enviadas por tutores, jefaturas académicas y el
+            médico universitario.
           </p>
         </div>
 
@@ -283,6 +284,20 @@ export function CanalizacionesPanel({ onPendingCountChange }: CanalizacionesPane
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <Badge
                         variant="outline"
+                        className={
+                          item.rol_canalizador === "medico"
+                            ? "border-[#1F4D2C]/35 bg-[#E0F0E8] text-[#1F4D2C] text-[10px] font-bold dark:border-[#8FC9B5]/30 dark:bg-[#1A2618] dark:text-[#8FC9B5]"
+                            : "border-[#E5DFD3] bg-[#F5F1E8] text-[#6B6B6B] text-[10px] font-semibold dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#A6B5A3]"
+                        }
+                      >
+                        {item.rol_canalizador === "medico"
+                          ? "Origen: Médico universitario"
+                          : item.rol_canalizador === "jefatura"
+                            ? "Origen: Jefatura de Carrera"
+                            : "Origen: Tutor académico"}
+                      </Badge>
+                      <Badge
+                        variant="outline"
                         className={`${prioClass} text-[11px] font-bold capitalize`}
                       >
                         Prioridad {item.prioridad}
@@ -312,9 +327,12 @@ export function CanalizacionesPanel({ onPendingCountChange }: CanalizacionesPane
 
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
                     <span>
-                      Tutor:{" "}
+                      {item.rol_canalizador === "medico" ? "Médico: " : "Tutor: "}
                       <strong className="text-foreground">
-                        {item.tutor_nombre || "Tutor asignado"}
+                        {item.tutor_nombre ||
+                          (item.rol_canalizador === "medico"
+                            ? "Médico universitario"
+                            : "Tutor asignado")}
                       </strong>
                     </span>
                     <span className="inline-flex items-center gap-1">

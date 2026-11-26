@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, AlertCircle, GraduationCap } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, GraduationCap, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { rutaPorRol } from "@/lib/roles";
@@ -95,6 +95,14 @@ export function LoginPage() {
         // ignore
       }
       toast.success(`Bienvenido/a de nuevo, ${user.name}`);
+      if (user.role === "estudiante" && typeof window !== "undefined") {
+        const pendingRedirect = sessionStorage.getItem("equilibra_post_login_redirect");
+        if (pendingRedirect && pendingRedirect.startsWith("/cattell")) {
+          sessionStorage.removeItem("equilibra_post_login_redirect");
+          window.location.replace(pendingRedirect);
+          return;
+        }
+      }
       navigate({ to: rutaPorRol(user.role), replace: true });
     } catch (err: unknown) {
       const rateState = recordFailedLoginAttempt(5, 30);
@@ -121,7 +129,9 @@ export function LoginPage() {
     }
   };
 
-  const handleActivateDemo = (role: "estudiante" | "psicologo" | "jefatura" | "tutor") => {
+  const handleActivateDemo = (
+    role: "estudiante" | "psicologo" | "medico" | "directivo" | "jefatura" | "tutor",
+  ) => {
     setErrorMessage(null);
     const demoUser = loginAsDemo(role);
     resetLoginAttempts();
@@ -313,7 +323,29 @@ export function LoginPage() {
                     className="size-4 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]"
                     strokeWidth={1.75}
                   />
-                  <span className="truncate">Directivo</span>
+                  <span className="truncate">Jefatura</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleActivateDemo("medico")}
+                  className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-2.5 text-left text-xs font-medium text-[#1A1A1A] transition-colors hover:border-[#1F4D2C] hover:bg-[#E0F0E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
+                >
+                  <Stethoscope
+                    className="size-4 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]"
+                    strokeWidth={1.75}
+                  />
+                  <span className="truncate">Médico</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleActivateDemo("directivo")}
+                  className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#E5DFD3] bg-[#F5F1E8] px-2.5 text-left text-xs font-medium text-[#1A1A1A] transition-colors hover:border-[#1F4D2C] hover:bg-[#E0F0E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F4D2C] dark:border-[#2D3F2A] dark:bg-[#0F1A12] dark:text-[#F5F1E8]"
+                >
+                  <GraduationCap
+                    className="size-4 shrink-0 text-[#1F4D2C] dark:text-[#8FC9B5]"
+                    strokeWidth={1.75}
+                  />
+                  <span className="truncate">Directivo (Solo lectura)</span>
                 </button>
               </div>
             </div>
